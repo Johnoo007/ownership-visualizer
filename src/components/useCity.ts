@@ -48,6 +48,14 @@ export function useCity() {
     setState((prev) => (prev ? { ...prev, fxRate } : prev));
   }, []);
 
+  const setDeposits = useCallback((amount: number) => {
+    setState((prev) =>
+      prev
+        ? { ...prev, isDemo: false, deposits: amount > 0 ? amount : undefined }
+        : prev,
+    );
+  }, []);
+
   const setCash = useCallback((currency: "usd" | "thb", amount: number) => {
     setState((prev) =>
       prev
@@ -96,6 +104,7 @@ export function useCity() {
     removeHolding,
     setFxRate,
     setCash,
+    setDeposits,
     replaceCity,
     importHoldings,
     startFresh,

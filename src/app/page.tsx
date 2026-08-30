@@ -44,6 +44,7 @@ export default function Home() {
     removeHolding,
     setFxRate,
     setCash,
+    setDeposits,
     replaceCity,
     importHoldings,
     startFresh,
@@ -253,8 +254,29 @@ export default function Home() {
               เงินสดรอลงทุน
             </h2>
             <p className="mt-1 text-[10px] leading-relaxed text-[var(--label-dim)]">
-              โผล่เป็นไซต์ก่อสร้างในเมือง — ไม่นับเป็นความสูง เพราะยังไม่ได้เป็นเจ้าของอะไร
+              โผล่เป็นไซต์ก่อสร้างในเมือง · นับรวมในมูลค่าพอร์ต แต่ไม่นับเป็นความสูง
+              เพราะยังไม่ได้เป็นเจ้าของอะไร
             </p>
+            <label className="mt-2 block">
+              <span className="text-[10.5px] tracking-wide text-[var(--label-dim)] uppercase">
+                เงินเติมสะสม (฿)
+              </span>
+              <input
+                value={state.deposits ?? ""}
+                placeholder="ทุกบาทที่โอนเข้าพอร์ต"
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (e.target.value === "") setDeposits(0);
+                  else if (Number.isFinite(v) && v >= 0) setDeposits(v);
+                }}
+                inputMode="decimal"
+                className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-right font-mono text-sm text-[var(--label)] placeholder:text-left placeholder:font-sans placeholder:text-[10px] placeholder:text-[var(--label-dim)]/60"
+              />
+              <span className="text-[10px] text-[var(--label-dim)]">
+                ใส่แล้ว % กำไรจะคิดแบบเดียวกับชีต
+              </span>
+            </label>
+
             <div className="mt-2 grid grid-cols-2 gap-2">
               {(["usd", "thb"] as const).map((cur) => (
                 <label key={cur} className="block">

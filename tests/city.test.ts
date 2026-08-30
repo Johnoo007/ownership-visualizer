@@ -6,6 +6,7 @@ import {
   isFreeHolding,
   pnlRatio,
   cashTHB,
+  portfolioSummary,
   toStructures,
   topConcentration,
   totals,
@@ -209,6 +210,34 @@ test("ของประดับทุกชนิดที่เขียน�
       `ไม่มีถนนแนว ${axis} เลย`,
     );
   }
+});
+
+test("ยอดรวมพอร์ตนับเงินสดแบบชีต แต่ความสูงเมืองไม่นับ", () => {
+  const base = baseCity();
+  const withCash: CityState = {
+    ...base,
+    cash: { usd: 300, thb: 20_000 },
+    deposits: 400_000,
+  };
+
+  const s = portfolioSummary(withCash);
+  const cash = 300 * 33.3 + 20_000;
+
+  // มูลค่าพอร์ต = หุ้น + เงินสด (แบบเดียวกับที่ชีตรายงาน)
+  assert.equal(s.marketTotal, totals(base).marketValue + cash);
+
+  // ผลตอบแทนคิดเทียบ "เงินเติมสะสม" ไม่ใช่ต้นทุนหุ้น
+  assert.ok(s.usingDeposits);
+  assert.equal(s.returnBase, 400_000);
+  assert.ok(Math.abs(s.totalReturn! - (s.marketTotal / 400_000 - 1)) < 1e-12);
+
+  // แต่ความสูงเมืองยังเป็นต้นทุนหุ้นล้วน ไม่ขยับตามเงินสดหรือเงินเติมสะสม
+  assert.equal(s.invested, totals(base).invested);
+
+  // ไม่กรอกเงินเติมสะสม → ถอยไปเทียบต้นทุนหุ้นแทน ไม่พัง
+  const noDeposits = portfolioSummary({ ...base, cash: { usd: 300, thb: 20_000 } });
+  assert.equal(noDeposits.usingDeposits, false);
+  assert.equal(noDeposits.returnBase, totals(base).invested);
 });
 
 test("เมืองว่างต้องไม่ crash", () => {

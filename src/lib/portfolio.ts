@@ -118,6 +118,42 @@ export function cashTHB(state: CityState): number {
   return state.cash.usd * state.fxRate + state.cash.thb;
 }
 
+export type PortfolioSummary = Totals & {
+  /** เงินสดรวม (บาท) */
+  cash: number;
+  /** มูลค่าทั้งพอร์ตแบบที่ชีตนับ = หุ้น + เงินสด */
+  marketTotal: number;
+  /** ตัวส่วนของผลตอบแทน — เงินเติมสะสมถ้ามี ไม่งั้นถอยไปใช้ต้นทุนหุ้น */
+  returnBase: number;
+  usingDeposits: boolean;
+  /** ผลตอบแทนรวมแบบชีต: (เงินสด + มูลค่าหุ้น) ÷ เงินเติมสะสม − 1 */
+  totalReturn: number | null;
+};
+
+/**
+ * ยอดรวมทั้งพอร์ตแบบเดียวกับที่ชีตรายงาน — นับเงินสดเข้าไปด้วย
+ *
+ * จงใจแยกจาก totals(): totals คือ "เมือง" (เฉพาะเงินที่กลายเป็นตึกแล้ว)
+ * ส่วนตัวนี้คือ "พอร์ตทั้งก้อน" ซึ่งรวมเงินที่ยังรอลงทุนอยู่ด้วย
+ */
+export function portfolioSummary(state: CityState): PortfolioSummary {
+  const t = totals(state);
+  const cash = cashTHB(state);
+  const marketTotal = t.marketValue + cash;
+
+  const usingDeposits = typeof state.deposits === "number" && state.deposits > 0;
+  const returnBase = usingDeposits ? state.deposits! : t.invested;
+
+  return {
+    ...t,
+    cash,
+    marketTotal,
+    returnBase,
+    usingDeposits,
+    totalReturn: returnBase > 0 ? marketTotal / returnBase - 1 : null,
+  };
+}
+
 /** Holding[] → Structure[] — สะพานเดียวที่ renderer ใช้ (Kingdom ต่อยอดตรงนี้) */
 export function toStructures(state: CityState): Structure[] {
   const towers: Structure[] = state.holdings.map((h) => ({

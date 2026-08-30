@@ -43,6 +43,8 @@ export function parseCity(raw: unknown): CityState | null {
   return {
     holdings,
     cash,
+    deposits:
+      typeof obj.deposits === "number" && obj.deposits > 0 ? obj.deposits : undefined,
     fxRate,
     isDemo: obj.isDemo === true,
     pricesUpdatedAt:

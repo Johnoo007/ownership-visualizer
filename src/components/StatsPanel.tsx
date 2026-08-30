@@ -4,6 +4,7 @@ import {
   cashTHB,
   formatPercent,
   formatTHB,
+  portfolioSummary,
   topConcentration,
   totals,
 } from "@/lib/portfolio";
@@ -22,6 +23,13 @@ export function StatsPanel({
   const t = totals(state, district);
   const top = topConcentration(state, district);
 
+  // ยอดรวมทั้งพอร์ต (รวมเงินสด) ใช้ได้เฉพาะตอนดูทั้งเมือง
+  // ถ้ากรองเฉพาะเขต เงินสดจะไม่ได้เป็นของเขตนั้น
+  const all = view === "all" ? portfolioSummary(state) : null;
+  const shownMarket = all ? all.marketTotal : t.marketValue;
+  const shownReturn = all ? all.totalReturn : t.pnlRatio;
+  const shownPnl = all ? all.marketTotal - all.returnBase : t.pnl;
+
   return (
     <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
       <Card
@@ -33,16 +41,18 @@ export function StatsPanel({
       />
       <Card
         icon="📈"
-        label="มูลค่าตลาดตอนนี้"
-        value={formatTHB(t.marketValue)}
-        note="ขยับทุกวัน"
+        label="มูลค่าพอร์ตตอนนี้"
+        value={formatTHB(shownMarket)}
+        note={all ? "หุ้น + เงินสด" : "เฉพาะเขตนี้"}
       />
       <Card
-        icon={t.pnl >= 0 ? "☀️" : "🌙"}
+        icon={shownPnl >= 0 ? "☀️" : "🌙"}
         label="กำไร / ขาดทุน (฿)"
-        value={formatPercent(t.pnlRatio)}
-        note={`${t.pnl >= 0 ? "+" : "−"}${formatTHB(Math.abs(t.pnl)).slice(1)} · รวมค่าเงิน`}
-        tone={t.pnl >= 0 ? "gain" : "loss"}
+        value={formatPercent(shownReturn)}
+        note={`${shownPnl >= 0 ? "+" : "−"}${formatTHB(Math.abs(shownPnl)).slice(1)} · ${
+          all?.usingDeposits ? "เทียบเงินเติมสะสม" : "เทียบต้นทุนหุ้น"
+        }`}
+        tone={shownPnl >= 0 ? "gain" : "loss"}
       />
       <Card
         icon="🏢"
