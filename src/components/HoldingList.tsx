@@ -38,7 +38,7 @@ export function HoldingList({
   return (
     <ul className="divide-y divide-[var(--border)]">
       {rows.map((h) => {
-        const ratio = pnlRatio(h);
+        const ratio = pnlRatio(h, state.fxRate);
         const free = isFreeHolding(h);
         const selected = h.id === selectedId;
 

@@ -8,7 +8,7 @@ const HEADER_WORDS = ["ticker", "symbol", "shares", "หุ้น", "ต้น�
 
 /**
  * อ่านตารางที่คัดลอกมาจากชีต/สเปรดชีต
- * รูปแบบ: ticker, จำนวนหุ้น, ต้นทุนต่อหุ้น [, ราคาปัจจุบัน] [, สกุลเงิน] [, เขต]
+ * รูปแบบ: ticker, จำนวนหุ้น, ต้นทุนต่อหุ้น [, ราคาปัจจุบัน] [, สกุลเงิน] [, เขต] [, บาทที่จ่ายจริง]
  *
  * รับทั้ง comma และ tab (วางจาก Google Sheets จะมาเป็น tab)
  * แถวที่อ่านไม่ได้จะถูกรายงานกลับทีละแถว ไม่ทำให้ทั้งชุดล้ม
@@ -34,7 +34,8 @@ export function parseHoldingsTable(text: string): ParsedRow[] {
         return;
       }
 
-      const [rawTicker, rawShares, rawCost, rawPrice, rawCcy, rawDistrict] = cols;
+      const [rawTicker, rawShares, rawCost, rawPrice, rawCcy, rawDistrict, rawCostTHB] =
+        cols;
 
       if (!rawTicker) {
         rows.push({ ok: false, line: i + 1, text: line, reason: "ไม่มี ticker" });
@@ -76,6 +77,13 @@ export function parseHoldingsTable(text: string): ParsedRow[] {
           ? "goldengoose"
           : "mission";
 
+      // ช่องที่ 7 (ถ้ามี) = บาทที่จ่ายจริงทั้งก้อน — ใช้แทนการคูณค่าเงินวันนี้
+      const parsedCostTHB = Number(String(rawCostTHB ?? "").replace(/,/g, ""));
+      const costTHB =
+        Number.isFinite(parsedCostTHB) && parsedCostTHB >= 0 && rawCostTHB
+          ? parsedCostTHB
+          : undefined;
+
       const ticker = rawTicker.toUpperCase();
       rows.push({
         ok: true,
@@ -88,6 +96,7 @@ export function parseHoldingsTable(text: string): ParsedRow[] {
           currentPrice,
           currency,
           district,
+          ...(costTHB !== undefined ? { costTHB } : {}),
         },
       });
     });

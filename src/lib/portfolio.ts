@@ -5,9 +5,20 @@ export function toTHB(amount: number, currency: Currency, fxRate: number): numbe
   return currency === "USD" ? amount * fxRate : amount;
 }
 
-/** เงินที่ลงไปจริง (บาท) — ตัวนี้คือไม้บรรทัด ไม่ขยับตามราคาตลาด */
+/**
+ * เงินที่ลงไปจริง (บาท) — ตัวนี้คือไม้บรรทัด ไม่ขยับตามราคาตลาด
+ *
+ * ถ้ามีบาทที่จ่ายจริงบันทึกไว้ ใช้ตัวนั้นเสมอ ไม่ต้องคูณค่าเงินวันนี้
+ * (ค่าเงินตอนแลกกับวันนี้ไม่เท่ากัน — การคูณย้อนหลังทำให้ตัวเลขเพี้ยนจากที่จ่ายจริง)
+ */
 export function investedTHB(h: Holding, fxRate: number): number {
+  if (typeof h.costTHB === "number" && h.costTHB >= 0) return h.costTHB;
   return toTHB(h.shares * h.avgCost, h.currency, fxRate);
+}
+
+/** true = ตัวเลขเงินที่ลงเป็นบาทจริงที่จ่าย ไม่ใช่การตีราคาด้วยค่าเงินวันนี้ */
+export function hasRealTHBCost(h: Holding): boolean {
+  return typeof h.costTHB === "number" && h.costTHB >= 0;
 }
 
 /** มูลค่าตลาดตอนนี้ (บาท) — ขยับทุกวัน ใช้แค่บอกสภาพ ไม่ใช้กำหนดขนาดตึก */
@@ -19,14 +30,17 @@ export function marketValueTHB(h: Holding, fxRate: number): number {
  * กำไร/ขาดทุนเป็นสัดส่วน · คืน null เมื่อต้นทุนเป็น 0
  * (ของที่ได้มาฟรีคิด % ไม่ได้ — ไม่ใช่บั๊ก ห้ามหารศูนย์แล้วโชว์ ∞%)
  */
-export function pnlRatio(h: Holding): number | null {
-  const cost = h.shares * h.avgCost;
+export function pnlRatio(h: Holding, fxRate: number): number | null {
+  const cost = investedTHB(h, fxRate);
   if (cost <= 0) return null;
-  return (h.shares * h.currentPrice) / cost - 1;
+  // คิดบนฐานบาทเสมอ — ถ้าบันทึกบาทที่จ่ายจริงไว้ ตัวเลขนี้จะรวมกำไร/ขาดทุนค่าเงินด้วย
+  // (ถ้าไม่มี ค่าเงินจะหารกันหมด ได้ผลเท่ากับคิดในสกุลหุ้น)
+  return marketValueTHB(h, fxRate) / cost - 1;
 }
 
 export function isFreeHolding(h: Holding): boolean {
-  return h.avgCost <= 0 && h.shares > 0;
+  const cost = typeof h.costTHB === "number" ? h.costTHB : h.shares * h.avgCost;
+  return cost <= 0 && h.shares > 0;
 }
 
 export type Totals = {
@@ -106,7 +120,7 @@ export function toStructures(state: CityState): Structure[] {
     sublabel: h.name,
     invested: investedTHB(h, state.fxRate),
     units: h.shares,
-    health: pnlRatio(h),
+    health: pnlRatio(h, state.fxRate),
     isFree: isFreeHolding(h),
     district: h.district,
     marketValue: marketValueTHB(h, state.fxRate),

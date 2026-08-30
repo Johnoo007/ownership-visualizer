@@ -27,6 +27,8 @@ export function parseCity(raw: unknown): CityState | null {
   const holdings = obj.holdings.filter(isHolding).map((h) => ({
     ...h,
     name: typeof h.name === "string" ? h.name : h.ticker,
+    costTHB:
+      typeof h.costTHB === "number" && h.costTHB >= 0 ? h.costTHB : undefined,
   }));
 
   const fxRate = typeof obj.fxRate === "number" && obj.fxRate > 0 ? obj.fxRate : 33.3;

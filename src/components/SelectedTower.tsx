@@ -4,6 +4,7 @@ import {
   formatPercent,
   formatShares,
   formatTHB,
+  hasRealTHBCost,
   investedTHB,
   isFreeHolding,
   marketValueTHB,
@@ -28,7 +29,7 @@ export function SelectedTower({
 }) {
   const invested = investedTHB(holding, state.fxRate);
   const market = marketValueTHB(holding, state.fxRate);
-  const ratio = pnlRatio(holding);
+  const ratio = pnlRatio(holding, state.fxRate);
   const free = isFreeHolding(holding);
   const cityInvested = totals(state).invested;
   const share = cityInvested > 0 ? invested / cityInvested : 0;
@@ -87,6 +88,14 @@ export function SelectedTower({
         </div>
         <p className="mt-1 text-[10px] text-[var(--label-dim)]">
           {(share * 100).toFixed(1)}% ของทั้งเมือง
+        </p>
+        {/* บอกให้ชัดว่าเลขนี้คือบาทที่จ่ายจริง หรือแค่ตีค่าด้วยค่าเงินวันนี้ */}
+        <p className="mt-1 text-[10px]" style={{ color: hasRealTHBCost(holding) ? "var(--gain)" : "var(--free)" }}>
+          {hasRealTHBCost(holding)
+            ? "✓ บาทที่จ่ายจริง"
+            : holding.currency === "USD"
+              ? `≈ ตีจากดอลลาร์ที่ค่าเงิน ${state.fxRate}`
+              : "บาทโดยตรง"}
         </p>
       </div>
 

@@ -101,7 +101,7 @@ test("ของที่ได้มาฟรี (ต้นทุน 0) ไม�
   const s = baseCity();
   const gld = s.holdings.find((h) => h.id === "c")!;
 
-  assert.equal(pnlRatio(gld), null, "ห้ามหารศูนย์แล้วได้ Infinity");
+  assert.equal(pnlRatio(gld, s.fxRate), null, "ห้ามหารศูนย์แล้วได้ Infinity");
   assert.equal(investedTHB(gld, s.fxRate), 0);
   assert.ok(isFreeHolding(gld));
   assert.equal(heightOf(s, "c"), 0, "ลงเงิน 0 = ที่ดินเปล่า ไม่ใช่ตึก");
@@ -178,6 +178,28 @@ test("อ่านตารางที่วางมาจากชีต", ()
 
   const voo = ok.find((r) => r.ok && r.holding.ticker === "VOO");
   assert.ok(voo?.ok && voo.holding.currentPrice === 480, "ไม่ระบุราคา → ใช้ต้นทุนไปก่อน");
+});
+
+test("บาทที่จ่ายจริงต้องชนะการคูณค่าเงินวันนี้", () => {
+  const usd = {
+    id: "x", ticker: "VOO", name: "VOO", shares: 10, avgCost: 600,
+    currentPrice: 700, currency: "USD" as const, district: "mission" as const,
+  };
+  // ตีด้วยค่าเงินวันนี้ (33) = ฿198,000
+  assert.equal(investedTHB(usd, 33), 198_000);
+
+  // แต่ตอนแลกจริงได้เรต 35.2 → จ่ายไป ฿211,200
+  const withReal = { ...usd, costTHB: 211_200 };
+  assert.equal(investedTHB(withReal, 33), 211_200, "ต้องใช้บาทจริง ไม่คูณ FX ซ้ำ");
+
+  // กำไรฝั่งบาทต้องต่ำลง เพราะต้นทุนจริงสูงกว่า (บาทแข็งขึ้น = ขาดทุนค่าเงิน)
+  assert.ok(pnlRatio(withReal, 33)! < pnlRatio(usd, 33)!);
+
+  // เปลี่ยนค่าเงินวันนี้ ต้องไม่กระทบเงินที่ลงไปแล้ว
+  assert.equal(investedTHB(withReal, 40), 211_200);
+
+  const city: CityState = { holdings: [withReal], fxRate: 33, isDemo: false };
+  assert.equal(totals(city).invested, 211_200);
 });
 
 test("เทียบเมืองกับอดีต วัดที่เงินที่ลง ไม่ใช่มูลค่าตลาด", () => {

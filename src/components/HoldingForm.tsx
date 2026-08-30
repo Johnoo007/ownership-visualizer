@@ -9,6 +9,7 @@ const BLANK = {
   shares: "",
   avgCost: "",
   currentPrice: "",
+  costTHB: "",
   currency: "USD" as Currency,
   district: "mission" as DistrictId,
 };
@@ -33,6 +34,7 @@ export function HoldingForm({
             shares: String(editing.shares),
             avgCost: String(editing.avgCost),
             currentPrice: String(editing.currentPrice),
+            costTHB: editing.costTHB === undefined ? "" : String(editing.costTHB),
             currency: editing.currency,
             district: editing.district,
           }
@@ -56,6 +58,12 @@ export function HoldingForm({
     e.preventDefault();
     if (!valid) return;
     const ticker = form.ticker.trim().toUpperCase();
+    const rawCostTHB = Number(form.costTHB);
+    const costTHB =
+      form.costTHB.trim() && Number.isFinite(rawCostTHB) && rawCostTHB >= 0
+        ? rawCostTHB
+        : undefined;
+
     onSubmit({
       id: editing?.id ?? `${ticker}-${Date.now()}`,
       ticker,
@@ -65,6 +73,7 @@ export function HoldingForm({
       currentPrice,
       currency: form.currency,
       district: form.district,
+      ...(costTHB !== undefined ? { costTHB } : {}),
     });
     setForm(BLANK);
   }
@@ -111,6 +120,15 @@ export function HoldingForm({
           inputMode="decimal"
         />
       </div>
+
+      <Field
+        label="บาทที่จ่ายจริง (ทั้งก้อน)"
+        value={form.costTHB}
+        onChange={(v) => setForm({ ...form, costTHB: v })}
+        placeholder="เว้นว่างได้"
+        inputMode="decimal"
+        hint="ใส่แล้วจะใช้ตัวนี้เป็นความสูงตึก แทนการคูณค่าเงินวันนี้"
+      />
 
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
