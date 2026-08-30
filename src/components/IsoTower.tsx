@@ -200,8 +200,10 @@ export function IsoTower({
         <RoofKit seed={s.id} center={center} top={solidTop} palette={palette} />
       )}
 
-      {/* ป้ายไฟชื่อบริษัทบนผนัง — เฉพาะตึกที่สูงพอจะมีที่ติด */}
-      {solidTop > 105 && <NeonSign label={s.label} W={W} S={S} top={solidTop} />}
+      {/* ป้ายไฟชื่อบริษัทบนผนัง — ตึกต้องสูงพอจะมีผนังให้แปะจริงๆ */}
+      {solidTop > NEON_MIN_HEIGHT && (
+        <NeonSign label={s.label} W={W} S={S} top={solidTop} />
+      )}
 
       {/* ชั้นบนสุดที่ยังสะสมไม่ครบใบ — ขอบเส้นประรอบส่วนที่เป็นเศษ */}
       {hasPartial && (
@@ -245,6 +247,9 @@ export function IsoTower({
   );
 }
 
+/** ต่ำกว่านี้ผนังสั้นกว่าตัวป้าย ติดไปก็ลอยอยู่นอกตึก */
+const NEON_MIN_HEIGHT = 56;
+
 /**
  * ป้ายไฟบนผนังด้านซ้าย — ต้อง skew ตัวอักษรให้ระนาบเดียวกับผนัง
  * matrix แรกคือเวกเตอร์ทิศ W→S ของ isometric 2:1 (cos/sin ของ 26.57°)
@@ -260,31 +265,40 @@ function NeonSign({
   S: Point;
   top: number;
 }) {
-  const anchor = shift(lerp(W, S, 0.1), top - 30);
+  // ผนังยาวเท่านี้ในระบบพิกัดของ matrix — ป้ายต้องไม่เกินนี้ ไม่งั้นล้นออกนอกตึก
+  const wallLength = Math.hypot(S.x - W.x, S.y - W.y) / 0.894;
+  const maxTextWidth = wallLength * 0.78;
+
+  // ชื่อยาวก็ย่อฟอนต์ลงให้พอดีผนัง แทนที่จะปล่อยล้น
+  const fontSize = Math.min(11, Math.max(6.5, maxTextWidth / (label.length * 0.72)));
+  const textWidth = label.length * fontSize * 0.72;
+
+  const anchor = shift(lerp(W, S, 0.12), top - Math.min(30, top * 0.32));
 
   return (
     <g transform={`matrix(0.894 0.447 0 1 ${anchor.x} ${anchor.y})`}>
       {/* แผ่นป้ายรองตัวอักษร ไม่งั้นนีออนจะจมไปกับแถวหน้าต่าง */}
       <rect
-        x={-4}
-        y={-10}
-        width={label.length * 7.4 + 8}
-        height={14}
+        x={-3}
+        y={-fontSize - 1.5}
+        width={textWidth + 6}
+        height={fontSize + 4}
         rx={1}
         fill="#08111f"
-        opacity={0.72}
+        opacity={0.75}
       />
       <text
         x={0}
         y={0}
-        className="text-[11px] font-bold"
+        className="font-bold"
         style={{
           fontFamily: "var(--font-geist-mono, monospace)",
+          fontSize,
           fill: "#8fe6ff",
-          letterSpacing: "0.06em",
+          letterSpacing: "0.04em",
           paintOrder: "stroke",
           stroke: "#8fe6ff",
-          strokeWidth: 2.5,
+          strokeWidth: 2.2,
           strokeOpacity: 0.22,
           strokeLinejoin: "round",
         }}
