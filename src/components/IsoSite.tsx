@@ -27,12 +27,17 @@ export function IsoSite({
   const value = s.marketValue;
 
   /**
-   * ขนาดกองวัสดุใช้สเกลเดียวกับความสูงตึก — เงินเยอะ = วัสดุกองใหญ่
+   * กองวัสดุต้องสูงตามสเกลเดียวกับตึก — เงินก้อนนี้ถ้าซื้อหุ้นจะได้ตึกสูงเท่าไหร่
+   * กองก็ควรใหญ่ประมาณนั้น (เดิมเอา height ไปแปลงเป็นตัวคูณอีกที กองเลยหดเหลือ 1/5)
+   *
    * จงใจไม่ทำเป็นโครงตึก/นั่งร้าน เพราะโครงแปลว่าตัดสินใจแล้วว่าจะสร้างอะไร
    * แต่เงินสดยังไม่ได้เลือกเลยว่าจะไปเป็นหุ้นตัวไหน มันคือวัสดุที่ยังไม่ได้ประกอบ
    */
-  const bulk = Math.max(0.35, Math.min(1.9, height / 60));
-  const craneH = 26 + height * 0.55;
+  const stackH = Math.max(8, height * 0.78);
+  const sandH = Math.max(6, height * 0.34);
+  const craneH = Math.max(30, height * 1.05);
+  // กองเดียวสูงเกิน ~22px จะเริ่มอ่านเป็นตึก — เกินนั้นแตกเป็นกองใหม่แทน
+  const stackCount = Math.max(1, Math.min(4, Math.ceil(stackH / 22)));
 
   const N: Point = { x: center.x, y: center.y - TILE_H / 2 };
   const E: Point = { x: center.x + TILE_W / 2, y: center.y };
@@ -68,16 +73,31 @@ export function IsoSite({
         opacity={0.7}
       />
 
-      <Crane x={center.x - 19} y={center.y - 3} h={craneH} />
+      <Crane x={center.x - 21} y={center.y - 4} h={craneH} />
 
-      {/* วัสดุก่อสร้างที่ยังไม่ได้ประกอบ — กองใหญ่ขึ้นตามเงิน */}
-      <SandPile x={center.x - 7} y={center.y + 3} scale={bulk} />
-      <BrickStack x={center.x + 12} y={center.y + 7} scale={bulk} />
-      <Rebar x={center.x - 2} y={center.y + 13} scale={bulk} />
+      {/* วัสดุก่อสร้างที่ยังไม่ได้ประกอบ — กองสูงตามเงินด้วยสเกลเดียวกับตึก */}
+      <SandPile x={center.x - 13} y={center.y + 6} h={sandH} />
+      <Rebar x={center.x - 1} y={center.y + 14} scale={1} />
+
+      {/*
+        ปริมาตรรวมมาจากเงิน แต่กระจายเป็นหลายกองแทนกองเดียวสูงลิ่ว
+        ไม่งั้นกองอิฐจะอ่านเป็นตึกอิฐ ไม่ใช่ของที่กองไว้รอใช้
+      */}
+      {STACK_SPOTS.slice(0, stackCount)
+        .slice()
+        .sort((a, b) => a[1] - b[1])
+        .map(([dx, dy], i) => (
+          <BrickStack
+            key={i}
+            x={center.x + dx}
+            y={center.y + dy}
+            h={stackH / stackCount}
+          />
+        ))}
 
       {/* ป้ายไซต์ — ใช้แบบเดียวกับป้ายบิลบอร์ดของตึก จะได้ไม่หลุดแบบ */}
       <g
-        transform={`matrix(0.894 0.447 0 1 ${center.x} ${center.y - 20 - bulk * 14})`}
+        transform={`matrix(0.894 0.447 0 1 ${center.x} ${center.y - stackH - 16})`}
       >
         <rect x={-1} y={-6} width={1.2} height={6} fill="#6b5f2a" />
         <rect
@@ -111,10 +131,17 @@ export function IsoSite({
   );
 }
 
-/** กองทราย/กรวด — ทรงกรวยกองไว้บนพื้น */
-function SandPile({ x, y, scale }: { x: number; y: number; scale: number }) {
-  const w = 20 * scale;
-  const h = 11 * scale;
+/** จุดวางกองวัสดุในแปลง — เรียงไม่ให้ทับกัน */
+const STACK_SPOTS: Array<[number, number]> = [
+  [12, 2],
+  [-3, 9],
+  [22, 11],
+  [7, 17],
+];
+
+/** กองทราย/กรวด — ทรงกรวย กว้างคุมไม่ให้ล้นแปลง สูงตามเงิน */
+function SandPile({ x, y, h }: { x: number; y: number; h: number }) {
+  const w = Math.min(30, 12 + h * 0.75);
   return (
     <g>
       <ellipse cx={x} cy={y + 1} rx={w / 2 + 1.5} ry={w / 5} fill="rgba(0,0,0,0.45)" />
@@ -150,12 +177,14 @@ function SandPile({ x, y, scale }: { x: number; y: number; scale: number }) {
   );
 }
 
-/** กองอิฐ/บล็อก วางซ้อนเป็นชั้น */
-function BrickStack({ x, y, scale }: { x: number; y: number; scale: number }) {
-  // กว้างมากกว่าสูง ไม่งั้นกองอิฐจะอ่านเป็นตึกเล็กๆ แทนที่จะเป็นของกองไว้
-  const w = 19 * scale;
-  const layerH = 2.8 * scale;
-  const layers = Math.max(2, Math.round(2.5 * scale));
+/**
+ * กองอิฐ/บล็อกวางซ้อนเป็นชั้น — เหมือนพาเลทวัสดุในโกดัง
+ * ความสูงมาจากเงิน ส่วนความกว้างคงที่ ยิ่งเงินเยอะยิ่งซ้อนสูงขึ้นเรื่อยๆ
+ */
+function BrickStack({ x, y, h }: { x: number; y: number; h: number }) {
+  const w = 22;
+  const layerH = 3.4;
+  const layers = Math.max(2, Math.min(26, Math.round(h / layerH)));
 
   return (
     <g>
