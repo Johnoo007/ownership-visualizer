@@ -87,7 +87,11 @@ export function Sidebar({
               <span className="text-[var(--label)]">จำนวนชั้น</span> = จำนวนหุ้น
             </li>
             <li>
-              <span className="text-[var(--label)]">ไฟหน้าต่าง</span> = กำไร/ขาดทุน
+              <span className="text-[var(--gain)]">ป้ายเขียว</span> /{" "}
+              <span className="text-[var(--loss)]">แดง</span> = กำไร/ขาดทุน
+            </li>
+            <li>
+              <span className="text-[var(--label)]">ไฟหน้าต่าง</span> = ยิ่งกำไรยิ่งสว่าง
             </li>
           </ul>
           <p className="mt-2 border-t border-[var(--border)] pt-2 text-[10px] leading-relaxed text-[var(--label-dim)]">

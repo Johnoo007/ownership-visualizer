@@ -158,7 +158,8 @@ export default function Home() {
             <Legend color="#7b9fd4" label="Mission — เติบโต" />
             <Legend color="#6fc49a" label="Golden Goose — ปันผล" />
             <Legend color="#f0cf7a" label="ได้มาฟรี — ที่ดินเปล่า" />
-            <Legend color="#ffe9a8" label="ไฟติด = กำไร" dot />
+            <Legend color="#6ee7a5" label="ป้ายเขียว = กำไร" dot />
+            <Legend color="#ff8f7d" label="ป้ายแดง = ขาดทุน" dot />
           </div>
           <IsoCity
             structures={structures}

@@ -210,13 +210,20 @@ export function IsoTower({
       {/* ตึกสูง = ป้ายไฟบนผนัง · ที่เหลือ = บิลบอร์ดปักบนดาดฟ้า/บนที่ดิน
           ที่ดินที่มีแต่กองทองก็ต้องมีป้ายแบบเดียวกัน ไม่งั้นจะเป็นชิ้นเดียวในเมืองที่ใช้ป้ายลอย */}
       {solidTop > NEON_MIN_HEIGHT ? (
-        <NeonSign label={s.label} W={W} S={S} top={solidTop} />
+        <NeonSign
+          label={s.label}
+          W={W}
+          S={S}
+          top={solidTop}
+          color={signColor(s.health)}
+        />
       ) : (
         (height > 0 || s.marketValue > 0) && (
           <RoofSign
             label={s.label}
             center={center}
             top={height > 0 ? solidTop : GOLD_PILE_CLEARANCE}
+            color={signColor(s.health)}
           />
         )
       )}
@@ -265,6 +272,20 @@ export function IsoTower({
 
 /** ต่ำกว่านี้ผนังสั้นกว่าตัวป้าย ติดไปก็ลอยอยู่นอกตึก */
 const NEON_MIN_HEIGHT = 56;
+
+/**
+ * สีป้าย = สถานะกำไร/ขาดทุน อ่านออกทันทีโดยไม่ต้องนับหน้าต่าง
+ *
+ * จงใจใส่สีที่ "ป้าย" ไม่ใช่ที่ "ไฟทั้งเมือง" — ป้ายเป็นจุดเล็กที่ตั้งใจไปอ่าน
+ * ส่วนไฟคือบรรยากาศ ถ้าย้อมแดงทั้งเมืองตอนตลาดตก มันคือหน้าจอพอร์ตแดงทั้งจอ
+ * ซึ่งเป็นภาพที่ทำให้คนขายตอนไม่ควรขาย
+ */
+function signColor(health: number | null): string {
+  if (health === null) return "#ffd88a"; // ของฟรี คิด % ไม่ได้
+  if (health > 0.005) return "#6ee7a5";
+  if (health < -0.005) return "#ff8f7d";
+  return "#8fe6ff"; // เสมอทุน
+}
 
 /** ความสูงที่ป้ายต้องอยู่เหนือกองทอง ไม่งั้นป้ายจะจมเข้าไปในกอง */
 const GOLD_PILE_CLEARANCE = 20;
@@ -405,11 +426,13 @@ function NeonSign({
   W,
   S,
   top,
+  color,
 }: {
   label: string;
   W: Point;
   S: Point;
   top: number;
+  color: string;
 }) {
   // ผนังยาวเท่านี้ในระบบพิกัดของ matrix — ป้ายต้องไม่เกินนี้ ไม่งั้นล้นออกนอกตึก
   const wallLength = Math.hypot(S.x - W.x, S.y - W.y) / 0.894;
@@ -440,10 +463,10 @@ function NeonSign({
         style={{
           fontFamily: "var(--font-geist-mono, monospace)",
           fontSize,
-          fill: "#8fe6ff",
+          fill: color,
           letterSpacing: "0.04em",
           paintOrder: "stroke",
-          stroke: "#8fe6ff",
+          stroke: color,
           strokeWidth: 2.2,
           strokeOpacity: 0.22,
           strokeLinejoin: "round",
@@ -468,10 +491,12 @@ function RoofSign({
   label,
   center,
   top,
+  color,
 }: {
   label: string;
   center: Point;
   top: number;
+  color: string;
 }) {
   // ความกว้างดาดฟ้าในระบบพิกัดของ matrix นี้ ≈ 38 หน่วย
   const fontSize = Math.min(10, 30 / (label.length * 0.72));
@@ -492,7 +517,7 @@ function RoofSign({
         width={w}
         height={h + 2}
         rx={1}
-        fill="#8fe6ff"
+        fill={color}
         opacity={0.1}
       />
 
@@ -516,10 +541,10 @@ function RoofSign({
         style={{
           fontFamily: "var(--font-geist-mono, monospace)",
           fontSize,
-          fill: "#8fe6ff",
+          fill: color,
           letterSpacing: "0.04em",
           paintOrder: "stroke",
-          stroke: "#8fe6ff",
+          stroke: color,
           strokeWidth: 1.8,
           strokeOpacity: 0.2,
           strokeLinejoin: "round",
