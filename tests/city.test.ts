@@ -690,3 +690,40 @@ test("เงินรวมของทุกหลังต้องเท่�
   }
 });
 const MIN_H_ALLOWANCE = 5;
+
+/** บล็อกสี่เหลี่ยม: ตึกของหุ้นตัวเดียวกันต้องอยู่ติดกันเป็นผืน ไม่กระจายทั่วเมือง */
+test("หุ้นที่กินหลายแปลงต้องจัดเป็นบล็อกสี่เหลี่ยมติดกัน", () => {
+  const big: CityState = {
+    fxRate: 32, isDemo: false,
+    holdings: [
+      // ฿1,280,000 = 10 หลัง → ควรได้บล็อก 4×3
+      { id: "a", ticker: "SPYM", name: "S&P", shares: 40_000, avgCost: 1, currentPrice: 1.2, currency: "USD", district: "mission" },
+      // ฿256,000 = 2 หลัง
+      { id: "b", ticker: "VOO", name: "Vanguard", shares: 8_000, avgCost: 1, currentPrice: 1.1, currency: "USD", district: "mission" },
+      { id: "c", ticker: "PG", name: "P&G", shares: 100, avgCost: 1, currentPrice: 1, currency: "USD", district: "mission" },
+    ],
+  };
+
+  const all = layoutCity(toStructures(big), ORDER).all;
+  const spym = all.filter((p) => p.structure.label === "SPYM");
+  assert.ok(spym.length >= 9, `SPYM ควรได้หลายหลัง ได้ ${spym.length}`);
+
+  const w = new Set(spym.map((p) => p.gx)).size;
+  const h = new Set(spym.map((p) => p.gy)).size;
+  assert.ok(w > 1 && h > 1, `ต้องเป็นบล็อก ไม่ใช่แถวเดียว ได้ ${w}×${h}`);
+  // สี่เหลี่ยมจริง ไม่ใช่แถวยาว — ด้านสั้นต้องไม่น้อยกว่าครึ่งของด้านยาว
+  assert.ok(Math.min(w, h) >= Math.max(w, h) / 2, `บล็อกเพี้ยน ${w}×${h}`);
+
+  // ทุกหลังต้องอยู่ในกรอบสี่เหลี่ยมเดียวกัน ไม่มีหลังหลงไปอยู่อีกฝั่งเมือง
+  const gxs = spym.map((p) => p.gx), gys = spym.map((p) => p.gy);
+  const area = (Math.max(...gxs) - Math.min(...gxs) + 1) * (Math.max(...gys) - Math.min(...gys) + 1);
+  assert.ok(area <= spym.length + w, `ตึกกระจายเกินบล็อก พื้นที่ ${area} สำหรับ ${spym.length} หลัง`);
+
+  // บล็อกของคนละหุ้นห้ามทับกัน
+  const seen = new Set<string>();
+  for (const p of all) {
+    const key = `${p.gx},${p.gy}`;
+    assert.ok(!seen.has(key), `แปลง ${key} ถูกใช้ซ้ำสองตึก`);
+    seen.add(key);
+  }
+});

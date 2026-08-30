@@ -164,33 +164,64 @@ export function layoutCity(
     if (rows_.length === 0) return 0;
 
     /**
-     * รายการเดียวอาจกินหลายแปลง — เงินเกินเพดานแล้วขึ้นตึกใหม่ข้างๆ
-     * ตึกของรายการเดียวกันเรียงติดกัน จะได้อ่านเป็น "กลุ่มอาคารของตัวนั้น"
+     * รายการที่กินหลายแปลงจัดเป็น "บล็อกสี่เหลี่ยม" ไม่ใช่เรียงเป็นแถวยาว
+     *
+     * เหตุผล: พอพอร์ตโตจนตึกชนเพดานกันหลายหลัง ความสูงจะเท่ากันหมด
+     * มองปราดเดียวแยกไม่ออกว่าตัวไหนใหญ่กว่า (ปีที่ 30 มี 47% ที่ชนเพดาน)
+     * ⇒ ย้ายตัวบอกขนาดจาก "ความสูง" ไปเป็น "พื้นที่ที่ยึดครอง"
+     * SPYM 4 หลังกลายเป็นบล็อก 2×2 = อ่านเป็นอาณาเขต ไม่ใช่ตึกสูงเท่ากัน 4 หลัง
+     *
+     * ช่องที่เหลือในบล็อก (เช่น 3 หลังในบล็อก 2×2) จงใจปล่อยว่าง —
+     * มันคือแปลงที่ตึกหลังถัดไปจะขึ้นพอดี
      */
-    const parts = rows_.flatMap((structure) => {
+    const blocks = rows_.map((structure) => {
       const heights = towerHeights(structure.invested);
-      return heights.map((height, partIndex) => ({
-        structure,
-        height,
-        partIndex,
-        partCount: heights.length,
-      }));
-    });
-
-    const cols = Math.max(1, Math.ceil(Math.sqrt(parts.length)));
-    const placed: PlacedStructure[] = parts.map((part, i) => {
-      const gx = (i % cols) + originX;
-      const gy = Math.floor(i / cols) + originY;
+      const w = Math.max(1, Math.ceil(Math.sqrt(heights.length)));
       return {
-        ...part,
-        gx,
-        gy,
-        center: tileCenter(gx, gy),
-        depth: gx + gy,
+        w,
+        h: Math.ceil(heights.length / w),
+        parts: heights.map((height, partIndex) => ({
+          structure,
+          height,
+          partIndex,
+          partCount: heights.length,
+        })),
       };
     });
 
-    const usedRows = Math.ceil(parts.length / cols);
+    /**
+     * วางบล็อกแบบ shelf packing — เรียงต่อกันไปทางขวาจนเต็มแถว แล้วขึ้นแถวใหม่
+     * บล็อกใหญ่มาก่อน (เรียงเงินมาก→น้อย) จึงไปอยู่แถวหลังสุด ไม่บังตึกเตี้ยด้านหน้า
+     *
+     * ⚠️ เคยลองเว้นแปลงว่างคั่นระหว่างบล็อก 1 ช่อง แล้วแย่กว่าเดิม:
+     * 1 ช่องกริด = 112px = ถนนกว้างมาก เมืองเลยโหรงเหรง ตึกกลับไปโดดเดี่ยวทีละหลัง
+     * ⇒ คงความหนาแน่นไว้ แล้วไปบอกขอบเขตบล็อกด้วย "เส้นอาณาเขตบนพื้น" แทน
+     */
+    const BLOCK_GAP = 0;
+    const totalParts = blocks.reduce((a, b) => a + b.parts.length, 0);
+    const maxCols = Math.max(2, Math.ceil(Math.sqrt(totalParts)) + 1);
+
+    const placed: PlacedStructure[] = [];
+    let shelfX = 0;
+    let shelfY = 0;
+    let shelfH = 0;
+
+    for (const block of blocks) {
+      if (shelfX > 0 && shelfX + block.w > maxCols) {
+        shelfY += shelfH + BLOCK_GAP;
+        shelfX = 0;
+        shelfH = 0;
+      }
+      block.parts.forEach((part, i) => {
+        const gx = originX + shelfX + (i % block.w);
+        const gy = originY + shelfY + Math.floor(i / block.w);
+        placed.push({ ...part, gx, gy, center: tileCenter(gx, gy), depth: gx + gy });
+      });
+      shelfX += block.w + BLOCK_GAP;
+      shelfH = Math.max(shelfH, block.h);
+    }
+
+    const usedRows = shelfY + shelfH;
     districts.push({ id: districtId, placed, startRow: originY, rows: usedRows });
     all.push(...placed);
     return usedRows;
@@ -236,6 +267,8 @@ export type GroundCell = {
    * "x" = ถนนพาดตามแกนที่ gx เพิ่ม · "y" = ตามแกนที่ gy เพิ่ม · "both" = สี่แยก
    */
   roadAxis?: "x" | "y" | "both";
+  /** แปลงนี้เป็นของกลุ่มอาคารไหน (หุ้นที่กินหลายแปลง) — undefined = ตึกเดี่ยว */
+  blockId?: string;
 };
 
 /**
@@ -273,6 +306,14 @@ export function groundCells(layout: CityLayout): GroundCell[] {
   const maxGy = Math.max(...gys) + GROUND_PAD;
 
   const occupied = new Set(layout.all.map((p) => `${p.gx},${p.gy}`));
+  /**
+   * แปลงของหุ้นที่กินหลายแปลง — ใช้ตีเส้นอาณาเขตให้เห็นว่าบล็อกนี้เป็นผืนเดียวกัน
+   * พอตึกชนเพดานกันหมด ความสูงบอกขนาดไม่ได้แล้ว ต้องให้ "พื้นที่" เป็นตัวบอกแทน
+   */
+  const blockOf = new Map<string, string>();
+  for (const p of layout.all) {
+    if (p.partCount > 1) blockOf.set(`${p.gx},${p.gy}`, p.structure.id);
+  }
 
   // ขอบเขตของตึกจริง (ยังไม่รวมพื้นที่ขยาย) — ใช้กำหนดโซนผังเมือง
   const tMinGx = Math.min(...gxs);
@@ -358,6 +399,7 @@ export function groundCells(layout: CityLayout): GroundCell[] {
         depth: gx + gy,
         decor,
         roadAxis,
+        blockId: blockOf.get(key),
       });
     }
   }

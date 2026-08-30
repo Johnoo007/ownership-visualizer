@@ -79,6 +79,20 @@ export function IsoTower({
    * ถ้าโชว์ทุกหลังจะกลายเป็นนับไม้ซ้ำ 3 รอบ
    */
   const isNewestPart = partIndex === partCount - 1;
+
+  /**
+   * ป้ายของตึกหน้าสุดในกลุ่มบอกจำนวนหลังไปเลย เช่น "SPYM ×4"
+   *
+   * ทำไมไม่ให้นับเอาเอง: ตึกที่ชนเพดานสูงเท่ากันหมด ป้ายของตึกแถวหลังก็โดน
+   * ตึกแถวหน้าบัง (เห็นเป็น "PYM" "OGL") ⇒ นับด้วยตาไม่ได้จริงตอนเมืองหนาแน่น
+   * ตึกหน้าสุดของกลุ่มเป็นหลังเดียวที่ไม่มีอะไรบังแน่นอน (depth มากสุด) จึงเอาเลข
+   * ไปแปะไว้ตรงนั้น — ได้ขนาดกลุ่มโดยไม่ต้องเห็นครบทุกหลัง
+   *
+   * (เคยลองตีเส้นอาณาเขตบนพื้นแทน แต่ในมุม isometric ตึกทับพื้นของตัวเองมิด
+   *  มองไม่เห็นอะไรเลย จึงถอดออก)
+   */
+  const signLabel =
+    partCount > 1 && isNewestPart ? `${s.label} ×${partCount}` : s.label;
   const palette = s.isFree ? PALETTES.free : (PALETTES[s.district] ?? PALETTES.mission);
 
   const N: Point = { x: center.x, y: center.y - TILE_H / 2 };
@@ -249,7 +263,7 @@ export function IsoTower({
           ที่ดินที่มีแต่กองทองก็ต้องมีป้ายแบบเดียวกัน ไม่งั้นจะเป็นชิ้นเดียวในเมืองที่ใช้ป้ายลอย */}
       {solidTop > NEON_MIN_HEIGHT ? (
         <NeonSign
-          label={s.label}
+          label={signLabel}
           W={W}
           S={S}
           top={solidTop}
@@ -258,7 +272,7 @@ export function IsoTower({
       ) : (
         (height > 0 || s.marketValue > 0) && (
           <RoofSign
-            label={s.label}
+            label={signLabel}
             center={center}
             top={height > 0 ? solidTop : GOLD_PILE_CLEARANCE}
             color={signColor(s.health)}
@@ -782,6 +796,20 @@ export function TowerLabel({
    * ถ้าโชว์ทุกหลังจะกลายเป็นนับไม้ซ้ำ 3 รอบ
    */
   const isNewestPart = partIndex === partCount - 1;
+
+  /**
+   * ป้ายของตึกหน้าสุดในกลุ่มบอกจำนวนหลังไปเลย เช่น "SPYM ×4"
+   *
+   * ทำไมไม่ให้นับเอาเอง: ตึกที่ชนเพดานสูงเท่ากันหมด ป้ายของตึกแถวหลังก็โดน
+   * ตึกแถวหน้าบัง (เห็นเป็น "PYM" "OGL") ⇒ นับด้วยตาไม่ได้จริงตอนเมืองหนาแน่น
+   * ตึกหน้าสุดของกลุ่มเป็นหลังเดียวที่ไม่มีอะไรบังแน่นอน (depth มากสุด) จึงเอาเลข
+   * ไปแปะไว้ตรงนั้น — ได้ขนาดกลุ่มโดยไม่ต้องเห็นครบทุกหลัง
+   *
+   * (เคยลองตีเส้นอาณาเขตบนพื้นแทน แต่ในมุม isometric ตึกทับพื้นของตัวเองมิด
+   *  มองไม่เห็นอะไรเลย จึงถอดออก)
+   */
+  const signLabel =
+    partCount > 1 && isNewestPart ? `${s.label} ×${partCount}` : s.label;
   const y = labelY;
   const w = Math.max(30, s.label.length * 7.5 + 10);
   const roofY = center.y - height - TILE_H / 2;
