@@ -17,6 +17,7 @@ import { compare } from "../src/lib/history";
 import {
   appendContributions,
   detectContributions,
+  recentAddFor,
   summarize,
 } from "../src/lib/contributions";
 import { AXIS, CELL_STEP, carRoute, computeLanes, laneKey } from "../src/lib/traffic";
@@ -611,4 +612,19 @@ test("เติมเงินก้อนเล็กบนพอร์ตใ�
   assert.ok(growth < 0.05, `เงินโตขึ้น ${(growth * 100).toFixed(1)}% ควรน้อยกว่า 5%`);
   assert.equal(beforeH.contributionCount, 1);
   assert.equal(afterH.contributionCount, 2); // +100%
+});
+
+test("ไม้ที่ลงวันที่ในอนาคต ห้ามนับเป็น 'เพิ่งเติม' — ไม่งั้นขึ้นเครนทั้งเมือง", () => {
+  const future = new Date(NOW.getTime() + 90 * DAY).toISOString().slice(0, 10);
+  const list = [
+    { at: future, ticker: "SPYM", amountTHB: 7200 },
+    { at: new Date(NOW.getTime() - 3 * DAY).toISOString().slice(0, 10), ticker: "VOO", amountTHB: 5000 },
+  ];
+  assert.equal(recentAddFor(list, "SPYM", NOW), null);
+  assert.equal(recentAddFor(list, "VOO", NOW), 5000);
+
+  const s = summarize(list, NOW);
+  assert.equal(s.recentTHB, 5000);
+  assert.deepEqual(s.recentTickers, ["VOO"]);
+  assert.equal(s.rounds, 2, "แต่ยังนับเป็นไม้ที่ลงไปแล้วอยู่ ไม่ได้ทิ้ง");
 });

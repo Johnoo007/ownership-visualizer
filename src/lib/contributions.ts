@@ -82,15 +82,28 @@ export function contributionsFor(
   return (contributions ?? []).filter((c) => c.ticker === ticker);
 }
 
+/**
+ * อยู่ในกรอบ "เพิ่งเติม" ไหม
+ *
+ * ต้องกันวันที่ในอนาคตด้วย ไม่ใช่แค่เช็คว่าใหม่พอ — ไฟล์ที่ import เข้ามา
+ * หรือนาฬิกาเครื่องที่ตั้งผิด ทำให้ทุกตึกขึ้นเครนพร้อมกันทั้งเมืองได้
+ * (เจอตอนจำลองอนาคต: ไม้ 12 ไม้ลงวันข้างหน้า → เมืองกลายเป็นไซต์ก่อสร้างทั้งเมือง)
+ */
+function inRecentWindow(at: string, now: Date): boolean {
+  const t = Date.parse(`${at}T00:00:00Z`);
+  if (Number.isNaN(t)) return false;
+  const end = now.getTime() + 86_400_000; // เผื่อเขตเวลา 1 วัน
+  return t >= now.getTime() - RECENT_DAYS * 86_400_000 && t <= end;
+}
+
 /** บาทที่เติมเข้าตัวนี้ในช่วง RECENT_DAYS วันหลังสุด — null = ไม่มีของใหม่ */
 export function recentAddFor(
   contributions: Contribution[] | undefined,
   ticker: string,
   now: Date = new Date(),
 ): number | null {
-  const cutoff = new Date(now.getTime() - RECENT_DAYS * 86_400_000);
   const sum = contributionsFor(contributions, ticker)
-    .filter((c) => Date.parse(`${c.at}T00:00:00Z`) >= cutoff.getTime())
+    .filter((c) => inRecentWindow(c.at, now))
     .reduce((acc, c) => acc + c.amountTHB, 0);
   return sum > 0 ? sum : null;
 }
@@ -112,10 +125,8 @@ export function summarize(
   now: Date = new Date(),
 ): ContributionSummary {
   const list = contributions ?? [];
-  const cutoff = now.getTime() - RECENT_DAYS * 86_400_000;
   const year = todayISO(now).slice(0, 4);
-
-  const recent = list.filter((c) => Date.parse(`${c.at}T00:00:00Z`) >= cutoff);
+  const recent = list.filter((c) => inRecentWindow(c.at, now));
   const thisYear = list.filter((c) => c.at.startsWith(year));
 
   return {
