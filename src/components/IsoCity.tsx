@@ -13,6 +13,7 @@ import { CASH_ZONE, DISTRICTS, type Structure } from "@/lib/types";
 import { IsoGround } from "./IsoGround";
 import { IsoSite } from "./IsoSite";
 import { IsoTower, TowerLabel } from "./IsoTower";
+import { useAnimation } from "./useAnimation";
 
 const DISTRICT_ORDER = ["mission", "goldengoose", CASH_ZONE];
 // เงินสดยื่นออกไปอีกทิศ (แกน gx) ไม่ต่อแถวลงมาเหมือนเขตหุ้น
@@ -104,6 +105,7 @@ export function IsoCity({
     return { baseY, items };
   }, [cells, bounds]);
 
+  const { enabled: animate, toggle: toggleAnimate } = useAnimation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -145,7 +147,7 @@ export function IsoCity({
     <div className="relative h-full w-full">
       <svg
         viewBox={`${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}`}
-        className="h-full w-full touch-none select-none"
+        className={`h-full w-full touch-none select-none ${animate ? "city-animate" : ""}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
@@ -177,7 +179,22 @@ export function IsoCity({
         />
         <g>
           {stars.map((s, i) => (
-            <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="var(--star)" opacity={s.o} />
+            <circle
+              key={i}
+              className="anim-star"
+              cx={s.x}
+              cy={s.y}
+              r={s.r}
+              fill="var(--star)"
+              opacity={s.o}
+              style={
+                {
+                  "--star-o": s.o,
+                  "--dur": `${(3 + seededRandom("sd", i) * 5).toFixed(1)}s`,
+                  "--delay": `${(seededRandom("sdl", i) * 6).toFixed(1)}s`,
+                } as React.CSSProperties
+              }
+            />
           ))}
         </g>
 
@@ -290,6 +307,18 @@ export function IsoCity({
       </svg>
 
       <div className="absolute right-3 bottom-3 flex gap-1.5">
+        <button
+          type="button"
+          onClick={toggleAnimate}
+          title={animate ? "หยุดความเคลื่อนไหว" : "ให้เมืองเคลื่อนไหว"}
+          className={`h-8 rounded-md border px-2 text-[11px] transition ${
+            animate
+              ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
+              : "border-[var(--border-bright)] bg-[var(--panel)]/90 text-[var(--label-dim)]"
+          }`}
+        >
+          {animate ? "▶ เคลื่อนไหว" : "⏸ หยุดนิ่ง"}
+        </button>
         <ZoomButton label="−" onClick={() => setScale((s) => Math.max(0.4, s - 0.2))} />
         <ZoomButton label="+" onClick={() => setScale((s) => Math.min(3, s + 0.2))} />
         <ZoomButton

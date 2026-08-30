@@ -615,7 +615,7 @@ function RoofKit({
       <g>
         <rect x={cx - 0.8} y={cy - 20} width={1.6} height={20} fill={palette.edge} />
         <rect x={cx - 3} y={cy - 3} width={6} height={3} fill={palette.right} />
-        <circle cx={cx} cy={cy - 21} r={1.8} fill="#ff6b5a" />
+        <circle className="anim-beacon" cx={cx} cy={cy - 21} r={1.8} fill="#ff6b5a" />
       </g>
     );
   }
@@ -683,9 +683,14 @@ function Windows({
           );
         }
 
+        // ให้บางบานเปิด-ปิดไฟเป็นระยะ เหมือนคนในตึกยังใช้ชีวิตอยู่
+        // เลือกแบบคงที่ต่อบาน ไม่งั้นตอนปิดสวิตช์ภาพจะเปลี่ยนไปจากเดิม
+        const flickers = on && seededRandom(seed + side + "f", n) > 0.86;
+
         cells.push(
           <polygon
             key={`${side}-${r}-${c}`}
+            className={flickers ? "anim-window" : undefined}
             points={polygonPoints([
               shift(lerp(a, b, u0), v),
               shift(lerp(a, b, u1), v),
@@ -694,6 +699,15 @@ function Windows({
             ])}
             fill={on ? WINDOW_ON : WINDOW_OFF}
             opacity={on ? dim : 0.85}
+            style={
+              flickers
+                ? ({
+                    "--win-o": dim,
+                    "--dur": `${(12 + seededRandom(seed + "wd", n) * 20).toFixed(0)}s`,
+                    "--delay": `${(seededRandom(seed + "wl", n) * 15).toFixed(1)}s`,
+                  } as React.CSSProperties)
+                : undefined
+            }
           />,
         );
       }

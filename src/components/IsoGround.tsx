@@ -142,9 +142,22 @@ function Decor({ cell }: { cell: GroundCell }) {
       cy = cell.center.y + perp[1] * 17 * side;
     }
 
+    // เดินไป-กลับตามแนวทางเท้า ระยะสั้นๆ พอให้รู้ว่ามีชีวิต ไม่ใช่วิ่งข้ามเมือง
+    const walkAxis = cell.kind === "road" ? AXIS[axisOf(cell)].dir : AXIS.x.dir;
+    const walkLen = 10 + seededRandom(`wl${cell.gx}:${cell.gy}`, 29) * 12;
+
     // เงาสั้นๆ + ขาสองข้างแยกจังหวะ ทำให้อ่านเป็นคนเดิน ไม่ใช่หมุดปัก
     return (
-      <g>
+      <g
+        className="anim-walk"
+        style={
+          {
+            "--walk-x": `${(walkAxis[0] * walkLen * stride).toFixed(1)}px`,
+            "--walk-y": `${(walkAxis[1] * walkLen * stride).toFixed(1)}px`,
+            "--dur": `${(7 + seededRandom(`wd${cell.gx}:${cell.gy}`, 31) * 7).toFixed(1)}s`,
+          } as React.CSSProperties
+        }
+      >
         <ellipse cx={cx} cy={cy + 0.4} rx={2} ry={0.9} fill="rgba(0,0,0,0.5)" />
         <rect x={cx - 1.5 * stride} y={cy - 2.6} width={1} height={2.8} fill="#2c3242" />
         <rect x={cx + 0.5 * stride} y={cy - 2.6} width={1} height={2.8} fill="#3a4152" />
@@ -193,8 +206,20 @@ function Decor({ cell }: { cell: GroundCell }) {
     const backL = p(-1, -1);
     const backR = p(-1, 1);
 
+    /**
+     * รถวิ่งไปตามเลนข้ามหลายช่อง แล้ววนกลับมาเริ่มใหม่
+     * เริ่ม/จบนอกระยะที่มองเห็นของช่องตัวเอง จังหวะวนจึงไม่สะดุดตา
+     */
+    const travel = PITCH_W * 3;
+    const driveStyle = {
+      "--drive-x": `${(ax.dir[0] * travel * dir).toFixed(1)}px`,
+      "--drive-y": `${(ax.dir[1] * travel * dir).toFixed(1)}px`,
+      "--dur": `${(9 + seededRandom(`cd${cell.gx}:${cell.gy}`, 37) * 8).toFixed(1)}s`,
+      "--delay": `-${(seededRandom(`cl${cell.gx}:${cell.gy}`, 41) * 12).toFixed(1)}s`,
+    } as React.CSSProperties;
+
     return (
-      <g>
+      <g className="anim-car" style={driveStyle}>
         <ellipse cx={cx} cy={cy + 1.5} rx={9} ry={4} fill="rgba(0,0,0,0.5)" />
 
         {/* ล้อ */}

@@ -271,7 +271,15 @@ function Rebar({ x, y, scale }: { x: number; y: number; scale: number }) {
 function Crane({ x, y, h }: { x: number; y: number; h: number }) {
   const jib = Math.max(16, h * 0.5);
   return (
-    <g>
+    <g
+      className="anim-crane"
+      style={
+        {
+          "--pivot": "50% 100%",
+          "--dur": `${(11 + (h % 7)).toFixed(0)}s`,
+        } as React.CSSProperties
+      }
+    >
       <ellipse cx={x} cy={y + 1} rx={5} ry={2} fill="rgba(0,0,0,0.45)" />
       <rect x={x - 3} y={y - 3} width={6} height={4} fill="#8a7420" />
       <rect x={x - 1.2} y={y - h} width={2.4} height={h} fill="#c9a227" />

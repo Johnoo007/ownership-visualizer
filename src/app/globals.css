@@ -56,6 +56,99 @@ body {
   shape-rendering: crispEdges;
 }
 
+/*
+ * ความเคลื่อนไหวของเมือง — ทำงานเฉพาะเมื่อ .city-animate อยู่บน svg เท่านั้น
+ * ปิดสวิตช์แล้วต้องนิ่งสนิท ไม่ใช่แค่ช้าลง
+ */
+@keyframes city-twinkle {
+  0%,
+  100% {
+    opacity: var(--star-o, 0.6);
+  }
+  50% {
+    opacity: calc(var(--star-o, 0.6) * 0.25);
+  }
+}
+
+@keyframes city-beacon {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes city-window {
+  0%,
+  46% {
+    opacity: var(--win-o, 1);
+  }
+  50%,
+  96% {
+    opacity: 0.18;
+  }
+  100% {
+    opacity: var(--win-o, 1);
+  }
+}
+
+@keyframes city-crane {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-9deg);
+  }
+}
+
+@keyframes city-walk {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(var(--walk-x, 6px), var(--walk-y, 3px));
+  }
+}
+
+@keyframes city-drive {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(var(--drive-x), var(--drive-y));
+  }
+}
+
+.city-animate .anim-star {
+  animation: city-twinkle var(--dur, 4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.city-animate .anim-beacon {
+  animation: city-beacon 1.6s steps(1, end) infinite;
+  animation-delay: var(--delay, 0s);
+}
+.city-animate .anim-window {
+  animation: city-window var(--dur, 18s) steps(1, end) infinite;
+  animation-delay: var(--delay, 0s);
+}
+.city-animate .anim-crane {
+  animation: city-crane var(--dur, 14s) ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: var(--pivot, 50% 100%);
+}
+.city-animate .anim-walk {
+  animation: city-walk var(--dur, 9s) ease-in-out infinite alternate;
+}
+.city-animate .anim-car {
+  animation: city-drive var(--dur, 12s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
 .glow-panel {
   box-shadow:
     0 0 0 1px var(--border),
