@@ -10,7 +10,7 @@ import {
   topConcentration,
   totals,
 } from "../src/lib/portfolio";
-import { floorPlan, heightFor, heightScale, layoutCity } from "../src/lib/iso";
+import { floorPlan, groundCells, heightFor, heightScale, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
 import { compare } from "../src/lib/history";
 import type { CityState } from "../src/lib/types";
@@ -175,6 +175,29 @@ test("เงินสดเป็นไซต์ก่อสร้าง ไม�
   // ใส่ 0 ก็ต้องไม่โผล่ไซต์เปล่า
   const zero: CityState = { ...baseCity(), cash: { usd: 0, thb: 0 } };
   assert.equal(toStructures(zero).filter((s) => s.kind === "site").length, 0);
+});
+
+test("ของประดับทุกชนิดที่เขียนไว้ต้องโผล่จริง ไม่กลายเป็นโค้ดตาย", () => {
+  // เคยพลาดมาแล้ว: ตอนเปลี่ยนรอบเมืองเป็นแปลงจัดสรร คนเดินที่ผูกกับ "ทุ่งหญ้า
+  // ใกล้เมือง" เลยไม่มีพื้นที่เหลือให้ยืน กลายเป็นโค้ดตายโดยไม่มีใครสังเกต
+  const withCash: CityState = { ...baseCity(), cash: { usd: 300, thb: 20_000 } };
+  const cells = groundCells(
+    layoutCity(toStructures(withCash), [...ORDER, "cash"], ["cash"]),
+  );
+
+  for (const kind of ["plot", "road", "vacant", "grass"] as const) {
+    assert.ok(
+      cells.some((c) => c.kind === kind),
+      `ไม่มีช่องชนิด ${kind} เลย`,
+    );
+  }
+
+  for (const decor of ["tree", "bush", "car", "lamp", "person"] as const) {
+    assert.ok(
+      cells.some((c) => c.decor === decor),
+      `${decor} ไม่โผล่เลยสักช่อง — น่าจะเป็นโค้ดตาย`,
+    );
+  }
 });
 
 test("เมืองว่างต้องไม่ crash", () => {

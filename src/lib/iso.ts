@@ -294,13 +294,16 @@ export function groundCells(layout: CityLayout): GroundCell[] {
       if (kind === "road") {
         if (r > 0.62) decor = "car";
         else if (r > 0.3) decor = "lamp";
+        else if (r > 0.12) decor = "person"; // คนเดินริมถนน
+      } else if (kind === "vacant") {
+        // แปลงจัดสรรปล่อยโล่งเป็นหลัก มีคนเดินผ่านบ้าง
+        if (r > 0.88) decor = "person";
       } else if (kind === "grass") {
         // ชานเมืองรอบผัง — ป่า/ทุ่ง
         if (r > 0.72) decor = "tree";
         else if (r > 0.58) decor = "bush";
         else if (r > 0.5 && nearCity) decor = "person";
       }
-      // แปลงจัดสรรที่ยังว่าง (vacant) ปล่อยโล่งไว้ — มันคือที่ที่รอตึกขึ้น
 
       cells.push({
         gx,
