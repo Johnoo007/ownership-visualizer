@@ -201,6 +201,12 @@ export function IsoTower({
         <RoofKit seed={s.id} center={center} top={solidTop} palette={palette} />
       )}
 
+      {/* ที่ดินที่ไม่ได้ลงเงินสร้างแต่มีมูลค่า (ของที่ได้มาฟรี) — วางเป็นกองทอง ไม่ใช่ตึก
+          เพราะมันไม่ได้ถูกสร้างด้วยเงินตัวเอง แต่ก็ไม่ควรหายไปจากเมืองทั้งที่มีมูลค่าจริง */}
+      {height === 0 && s.marketValue > 0 && (
+        <GoldPile center={center} value={s.marketValue} seed={s.id} />
+      )}
+
       {/* ตึกสูง = ป้ายไฟบนผนัง · ตึกเตี้ย = ป้ายวางราบบนดาดฟ้า (ดาดฟ้ากว้างเท่ากันทุกตึก) */}
       {solidTop > NEON_MIN_HEIGHT ? (
         <NeonSign label={s.label} W={W} S={S} top={solidTop} />
@@ -252,6 +258,93 @@ export function IsoTower({
 
 /** ต่ำกว่านี้ผนังสั้นกว่าตัวป้าย ติดไปก็ลอยอยู่นอกตึก */
 const NEON_MIN_HEIGHT = 56;
+
+const GOLD = {
+  top: "#f7dd85",
+  left: "#d0a13c",
+  right: "#9d7620",
+};
+
+/** ตำแหน่งวางแท่งทองในกอง — เรียงจากล่างขึ้นบน (y ลบ = ซ้อนสูงขึ้น) */
+const BAR_SLOTS: Array<[number, number]> = [
+  [-8, 1],
+  [8, 1],
+  [0, -3.5],
+  [-8, -8],
+  [8, -8],
+];
+
+/**
+ * กองทองบนที่ดินที่ได้มาฟรี — จำนวนแท่งบอกมูลค่าแบบหยาบๆ
+ * จงใจไม่ทำเป็นตึก เพราะตึก = สิ่งที่สร้างด้วยเงินตัวเอง ส่วนอันนี้ไม่ได้จ่ายไปสักบาท
+ */
+function GoldPile({
+  center,
+  value,
+  seed,
+}: {
+  center: Point;
+  value: number;
+  seed: string;
+}) {
+  const bars =
+    value < 2_000 ? 1 : value < 5_000 ? 2 : value < 15_000 ? 3 : value < 40_000 ? 4 : 5;
+
+  const barW = 15;
+  const barH = 5;
+
+  return (
+    <g>
+      {BAR_SLOTS.slice(0, bars).map(([dx, dy], i) => {
+        const x = center.x + dx;
+        const y = center.y + dy;
+        const top: Point[] = [
+          { x, y: y - barH - barW / 4 },
+          { x: x + barW / 2, y: y - barH },
+          { x, y: y - barH + barW / 4 },
+          { x: x - barW / 2, y: y - barH },
+        ];
+
+        return (
+          <g key={i}>
+            {/* หน้าซ้าย / หน้าขวา / หน้าบน ของแท่งทอง */}
+            <polygon
+              points={polygonPoints([
+                { x: x - barW / 2, y: y - barH },
+                { x, y: y - barH + barW / 4 },
+                { x, y: y + barW / 4 },
+                { x: x - barW / 2, y },
+              ])}
+              fill={GOLD.left}
+            />
+            <polygon
+              points={polygonPoints([
+                { x, y: y - barH + barW / 4 },
+                { x: x + barW / 2, y: y - barH },
+                { x: x + barW / 2, y },
+                { x, y: y + barW / 4 },
+              ])}
+              fill={GOLD.right}
+            />
+            <polygon points={polygonPoints(top)} fill={GOLD.top} />
+          </g>
+        );
+      })}
+
+      {/* ประกายบนกอง */}
+      {[0, 1].map((i) => {
+        const sx = center.x + (seededRandom(seed + "sp", i) - 0.5) * 22;
+        const sy = center.y - 10 - seededRandom(seed + "sy", i) * 8;
+        return (
+          <g key={`sp${i}`}>
+            <rect x={sx - 2.5} y={sy - 0.4} width={5} height={0.8} fill="#fff6d5" />
+            <rect x={sx - 0.4} y={sy - 2.5} width={0.8} height={5} fill="#fff6d5" />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
 
 /**
  * ป้ายไฟบนผนังด้านซ้าย — ต้อง skew ตัวอักษรให้ระนาบเดียวกับผนัง
