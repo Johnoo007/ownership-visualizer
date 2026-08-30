@@ -9,12 +9,13 @@ import {
   seededRandom,
   TILE_H,
 } from "@/lib/iso";
-import { DISTRICTS, type Structure } from "@/lib/types";
+import { CASH_ZONE, DISTRICTS, type Structure } from "@/lib/types";
 import { IsoGround } from "./IsoGround";
 import { IsoSite } from "./IsoSite";
 import { IsoTower, TowerLabel } from "./IsoTower";
 
-const DISTRICT_ORDER = ["mission", "goldengoose"];
+// เงินสดอยู่โซนท้ายสุด = แยกออกมาด้านหน้าเมือง ไม่ปนกับตึกที่เป็นเจ้าของแล้ว
+const DISTRICT_ORDER = ["mission", "goldengoose", CASH_ZONE];
 
 export function IsoCity({
   structures,

@@ -73,7 +73,10 @@ export type StructureKind = "tower" | "site";
 // "site" = ไซต์ก่อสร้าง แทนเงินสดที่รอกลายเป็นตึก
 // อนาคต (Kingdom): "wall" = เงินสำรอง · "road" = บิลจ่ายตรงเวลา · "district"
 
-export const DISTRICTS: Record<DistrictId, { label: string; note: string }> = {
+/** โซนของเงินสด — ไม่ใช่เขตของ holding จึงไม่อยู่ใน DistrictId */
+export const CASH_ZONE = "cash";
+
+export const DISTRICTS: Record<string, { label: string; note: string }> = {
   mission: {
     label: "Mission To The Moon",
     note: "เขตเติบโต — US growth",
@@ -81,5 +84,9 @@ export const DISTRICTS: Record<DistrictId, { label: string; note: string }> = {
   goldengoose: {
     label: "Golden Goose",
     note: "เขตกระแสเงินสด — ปันผล",
+  },
+  [CASH_ZONE]: {
+    label: "เงินสดรอลงทุน",
+    note: "ไซต์ก่อสร้างนอกเมือง",
   },
 };

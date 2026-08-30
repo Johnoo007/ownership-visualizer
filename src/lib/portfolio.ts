@@ -1,4 +1,4 @@
-import type { CityState, Currency, DistrictId, Holding, Structure } from "./types";
+import { CASH_ZONE, type CityState, type Currency, type DistrictId, type Holding, type Structure } from "./types";
 
 /** แปลงจำนวนเงินในสกุลใดก็ได้ให้เป็นบาท */
 export function toTHB(amount: number, currency: Currency, fxRate: number): number {
@@ -26,10 +26,6 @@ export function marketValueTHB(h: Holding, fxRate: number): number {
   return toTHB(h.shares * h.currentPrice, h.currency, fxRate);
 }
 
-/**
- * กำไร/ขาดทุนเป็นสัดส่วน · คืน null เมื่อต้นทุนเป็น 0
- * (ของที่ได้มาฟรีคิด % ไม่ได้ — ไม่ใช่บั๊ก ห้ามหารศูนย์แล้วโชว์ ∞%)
- */
 /**
  * กำไร/ขาดทุนรายตัว — คิด "ในสกุลของหุ้นตัวนั้น" เสมอ (USD สำหรับหุ้น US)
  *
@@ -137,8 +133,13 @@ export function toStructures(state: CityState): Structure[] {
     marketValue: marketValueTHB(h, state.fxRate),
   }));
 
-  // เงินสด = ไซต์ก่อสร้างที่รอกลายเป็นตึก
-  // invested = 0 เสมอ เพราะยังไม่ได้ลงทุน จึงต้องไม่ไปเพิ่มความสูงให้เมือง
+  /**
+   * เงินสด = ไซต์ก่อสร้างที่รอกลายเป็นตึก อยู่โซนแยกนอกเมือง
+   *
+   * ใส่ค่าเงินไว้ที่ invested เพื่อให้ไซต์ "ใหญ่ตามเงินจริง" ด้วยสเกลเดียวกับตึก
+   * ปลอดภัยเพราะ totals()/topConcentration() คิดจาก holdings ไม่ได้อ่าน structures
+   * ⇒ ตัวเลข "เงินที่ลงไปแล้ว" จึงไม่ขยับตามเงินสด (มีเทสต์ล็อกไว้)
+   */
   const sites: Structure[] = [];
   const pushSite = (id: string, label: string, value: number) => {
     if (value <= 0) return;
@@ -147,11 +148,11 @@ export function toStructures(state: CityState): Structure[] {
       kind: "site",
       label,
       sublabel: "เงินสดรอลงทุน",
-      invested: 0,
+      invested: value,
       units: 0,
       health: null,
       isFree: false,
-      district: "mission",
+      district: CASH_ZONE,
       marketValue: value,
     });
   };

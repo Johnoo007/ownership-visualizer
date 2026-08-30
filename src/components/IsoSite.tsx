@@ -23,12 +23,13 @@ export function IsoSite({
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }) {
-  const { structure: s, center } = placed;
+  const { structure: s, center, height } = placed;
   const value = s.marketValue;
 
+  // ใช้ความสูงเดียวกับตึก — ไซต์คือตึกที่ยังไม่ได้สร้าง จึงควรใหญ่ตามเงินจริง
+  const scaffoldH = Math.max(10, height);
+  const craneH = scaffoldH * 1.5 + 12;
   const piles = value < 5_000 ? 1 : value < 15_000 ? 2 : 3;
-  const hasScaffold = value >= 12_000;
-  const hasCrane = value >= 30_000;
 
   const N: Point = { x: center.x, y: center.y - TILE_H / 2 };
   const E: Point = { x: center.x + TILE_W / 2, y: center.y };
@@ -64,15 +65,18 @@ export function IsoSite({
         opacity={0.7}
       />
 
-      {piles >= 1 && <Pile x={center.x - 11} y={center.y + 5} color="#8a6f47" />}
-      {piles >= 2 && <Pile x={center.x + 10} y={center.y + 6} color="#6f6a5e" />}
-      {piles >= 3 && <Pile x={center.x + 1} y={center.y + 10} color="#8a6f47" />}
+      {/* โครงนั่งร้าน = รูปร่างของตึกที่กำลังจะเกิด สูงเท่าที่เงินก้อนนี้สร้างได้ */}
+      <Scaffold x={center.x + 2} y={center.y - 1} h={scaffoldH} />
+      <Crane x={center.x - 17} y={center.y - 4} h={craneH} />
 
-      {hasScaffold && <Scaffold x={center.x + 4} y={center.y - 2} />}
-      {hasCrane && <Crane x={center.x - 14} y={center.y - 6} />}
+      {piles >= 1 && <Pile x={center.x - 11} y={center.y + 8} color="#8a6f47" />}
+      {piles >= 2 && <Pile x={center.x + 13} y={center.y + 7} color="#6f6a5e" />}
+      {piles >= 3 && <Pile x={center.x + 1} y={center.y + 12} color="#8a6f47" />}
 
       {/* ป้ายไซต์ — ใช้แบบเดียวกับป้ายบิลบอร์ดของตึก จะได้ไม่หลุดแบบ */}
-      <g transform={`matrix(0.894 0.447 0 1 ${center.x} ${center.y - 22})`}>
+      <g
+        transform={`matrix(0.894 0.447 0 1 ${center.x} ${center.y - scaffoldH - 10})`}
+      >
         <rect x={-1} y={-6} width={1.2} height={6} fill="#6b5f2a" />
         <rect
           x={-s.label.length * 3.6 - 3}
@@ -134,12 +138,14 @@ function Pile({ x, y, color }: { x: number; y: number; color: string }) {
   );
 }
 
-/** นั่งร้าน — โครงเหล็กที่ยังไม่มีตึกอยู่ข้างใน */
-function Scaffold({ x, y }: { x: number; y: number }) {
-  const w = 16;
-  const h = 18;
+/** นั่งร้าน — โครงเหล็กเปล่าที่บอกว่าตึกจะสูงแค่ไหนถ้าเอาเงินก้อนนี้ไปลง */
+function Scaffold({ x, y, h }: { x: number; y: number; h: number }) {
+  const w = 26;
+  // ชั้นนั่งร้านทุกๆ ~14px กันเส้นถี่เกินตอนไซต์สูงมาก
+  const decks = Math.max(1, Math.min(9, Math.round(h / 14)));
+
   return (
-    <g stroke="#7d8899" strokeWidth={1} fill="none" opacity={0.9}>
+    <g stroke="#8494a8" strokeWidth={1} fill="none" opacity={0.92}>
       <polygon
         points={polygonPoints([
           { x: x - w / 2, y },
@@ -151,41 +157,65 @@ function Scaffold({ x, y }: { x: number; y: number }) {
       <line x1={x - w / 2} y1={y} x2={x - w / 2} y2={y - h} />
       <line x1={x + w / 2} y1={y} x2={x + w / 2} y2={y - h} />
       <line x1={x} y1={y + w / 4} x2={x} y2={y + w / 4 - h} />
-      <polyline
-        points={polygonPoints([
-          { x: x - w / 2, y: y - h * 0.55 },
-          { x, y: y + w / 4 - h * 0.55 },
-          { x: x + w / 2, y: y - h * 0.55 },
-        ])}
-      />
-      <polyline
-        points={polygonPoints([
-          { x: x - w / 2, y: y - h },
-          { x, y: y + w / 4 - h },
-          { x: x + w / 2, y: y - h },
-        ])}
-      />
+      <line x1={x} y1={y - w / 4} x2={x} y2={y - w / 4 - h} />
+
+      {Array.from({ length: decks }, (_, i) => {
+        const dy = ((i + 1) / decks) * h;
+        return (
+          <polygon
+            key={i}
+            points={polygonPoints([
+              { x: x - w / 2, y: y - dy },
+              { x, y: y + w / 4 - dy },
+              { x: x + w / 2, y: y - dy },
+              { x, y: y - w / 4 - dy },
+            ])}
+            opacity={0.75}
+          />
+        );
+      })}
     </g>
   );
 }
 
-/** เครน — โผล่เฉพาะไซต์ใหญ่ */
-function Crane({ x, y }: { x: number; y: number }) {
+/** เครน — สูงตามไซต์ ยิ่งเงินเยอะยิ่งตระหง่าน */
+function Crane({ x, y, h }: { x: number; y: number; h: number }) {
+  const jib = Math.max(16, h * 0.5);
   return (
     <g>
-      <rect x={x - 1} y={y - 34} width={2} height={34} fill="#c9a227" />
-      <rect x={x - 3} y={y - 2} width={6} height={3} fill="#8a7420" />
-      <rect x={x - 2} y={y - 36} width={20} height={2} fill="#c9a227" />
+      <ellipse cx={x} cy={y + 1} rx={5} ry={2} fill="rgba(0,0,0,0.45)" />
+      <rect x={x - 3} y={y - 3} width={6} height={4} fill="#8a7420" />
+      <rect x={x - 1.2} y={y - h} width={2.4} height={h} fill="#c9a227" />
+      {/* ขาไขว้ของเสาเครน */}
+      {Array.from({ length: Math.max(2, Math.round(h / 12)) }, (_, i) => (
+        <line
+          key={i}
+          x1={x - 1.2}
+          y1={y - (i * h) / Math.max(2, Math.round(h / 12))}
+          x2={x + 1.2}
+          y2={y - ((i + 1) * h) / Math.max(2, Math.round(h / 12))}
+          stroke="#8a7420"
+          strokeWidth={0.7}
+        />
+      ))}
+      <rect x={x - 2} y={y - h - 2} width={jib} height={2.2} fill="#c9a227" />
+      <rect x={x - 8} y={y - h - 2} width={6} height={2.2} fill="#8a7420" />
       <line
-        x1={x + 15}
-        y1={y - 34}
-        x2={x + 15}
-        y2={y - 25}
-        stroke="#7d8899"
+        x1={x + jib - 4}
+        y1={y - h}
+        x2={x + jib - 4}
+        y2={y - h + Math.min(18, h * 0.35)}
+        stroke="#8494a8"
         strokeWidth={0.8}
       />
-      <rect x={x + 13} y={y - 25} width={4} height={3} fill="#7d8899" />
-      <circle cx={x} cy={y - 37.5} r={1.4} fill="#ff6b5a" />
+      <rect
+        x={x + jib - 6}
+        y={y - h + Math.min(18, h * 0.35)}
+        width={4}
+        height={3}
+        fill="#8494a8"
+      />
+      <circle cx={x} cy={y - h - 4} r={1.5} fill="#ff6b5a" />
     </g>
   );
 }

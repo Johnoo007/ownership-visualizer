@@ -159,14 +159,16 @@ test("เงินสดเป็นไซต์ก่อสร้าง ไม�
 
   const sites = toStructures(withCash).filter((s) => s.kind === "site");
   assert.equal(sites.length, 2, "แยกกอง USD กับบาท");
-  assert.ok(sites.every((s) => s.invested === 0), "ไซต์ต้องไม่มีเงินที่ลงไป");
   assert.equal(cashTHB(withCash), 300 * 33.3 + 20_000);
 
-  // ไซต์ต้องไม่มีความสูง ไม่งั้นเมืองจะสูงขึ้นจากเงินที่ยังไม่ได้ลงทุน
-  const l = layoutCity(toStructures(withCash), ORDER);
-  for (const p of l.all.filter((x) => x.structure.kind === "site")) {
-    assert.equal(p.height, 0, `${p.structure.label} ไม่ควรมีความสูง`);
-  }
+  // ไซต์ต้องอยู่คนละโซนกับตึก ไม่ปนกับของที่เป็นเจ้าของแล้ว
+  assert.ok(sites.every((s) => s.district === "cash"));
+
+  // ขนาดไซต์ต้องสะท้อนเงินจริง: กองบาท 20,000 ต้องใหญ่กว่ากอง USD 9,990
+  const l = layoutCity(toStructures(withCash), [...ORDER, "cash"]);
+  const usd = l.all.find((p) => p.structure.id === "cash-usd")!;
+  const thb = l.all.find((p) => p.structure.id === "cash-thb")!;
+  assert.ok(thb.height > usd.height, "ไซต์ที่เงินเยอะกว่าต้องใหญ่กว่า");
 
   // ไม่มีเงินสด = ไม่มีไซต์
   assert.equal(toStructures(baseCity()).filter((s) => s.kind === "site").length, 0);
