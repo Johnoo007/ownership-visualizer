@@ -196,13 +196,16 @@ export function IsoTower({
         strokeDasharray={height === 0 ? "5 4" : undefined}
       />
 
-      {solidTop > 26 && (
+      {/* ของบนดาดฟ้ามีได้เฉพาะตึกสูง — ตึกเตี้ยเอาพื้นที่ดาดฟ้าไปติดป้ายแทน */}
+      {solidTop > NEON_MIN_HEIGHT && (
         <RoofKit seed={s.id} center={center} top={solidTop} palette={palette} />
       )}
 
-      {/* ป้ายไฟชื่อบริษัทบนผนัง — ตึกต้องสูงพอจะมีผนังให้แปะจริงๆ */}
-      {solidTop > NEON_MIN_HEIGHT && (
+      {/* ตึกสูง = ป้ายไฟบนผนัง · ตึกเตี้ย = ป้ายวางราบบนดาดฟ้า (ดาดฟ้ากว้างเท่ากันทุกตึก) */}
+      {solidTop > NEON_MIN_HEIGHT ? (
         <NeonSign label={s.label} W={W} S={S} top={solidTop} />
+      ) : (
+        height > 0 && <RoofSign label={s.label} center={center} top={solidTop} />
       )}
 
       {/* ชั้นบนสุดที่ยังสะสมไม่ครบใบ — ขอบเส้นประรอบส่วนที่เป็นเศษ */}
@@ -300,6 +303,65 @@ function NeonSign({
           stroke: "#8fe6ff",
           strokeWidth: 2.2,
           strokeOpacity: 0.22,
+          strokeLinejoin: "round",
+        }}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+/**
+ * ป้ายวางราบบนดาดฟ้า สำหรับตึกที่เตี้ยเกินกว่าจะมีผนังให้แปะ
+ *
+ * matrix นี้ต่างจากป้ายผนัง: ต้องเอียงทั้งสองแกนให้ระนาบเดียวกับพื้น isometric
+ * (แกนแรก = ทิศที่ gx เพิ่ม, แกนสอง = ทิศที่ gy เพิ่ม) ป้ายจึงดูนอนราบไปกับหลังคา
+ * ดาดฟ้ากว้างเท่ากันทุกตึกไม่ว่าตึกจะเตี้ยแค่ไหน จึงติดป้ายได้โดยไม่ต้องดันความสูง
+ */
+function RoofSign({
+  label,
+  center,
+  top,
+}: {
+  label: string;
+  center: Point;
+  top: number;
+}) {
+  // ดาดฟ้าในระบบพิกัดของ matrix นี้เป็นจัตุรัสด้านละ ~38 หน่วย
+  const usable = 32;
+  const fontSize = Math.min(10, usable / (label.length * 0.72));
+  const w = label.length * fontSize * 0.72 + 5;
+  const h = fontSize + 3;
+
+  return (
+    <g
+      transform={`matrix(0.894 0.447 -0.894 0.447 ${center.x} ${center.y - top})`}
+    >
+      <rect
+        x={-w / 2}
+        y={-h / 2}
+        width={w}
+        height={h}
+        rx={1}
+        fill="#08111f"
+        opacity={0.8}
+      />
+      <text
+        x={0}
+        y={0}
+        textAnchor="middle"
+        dominantBaseline="central"
+        className="font-bold"
+        style={{
+          fontFamily: "var(--font-geist-mono, monospace)",
+          fontSize,
+          fill: "#8fe6ff",
+          letterSpacing: "0.04em",
+          paintOrder: "stroke",
+          stroke: "#8fe6ff",
+          strokeWidth: 1.8,
+          strokeOpacity: 0.2,
           strokeLinejoin: "round",
         }}
       >
