@@ -26,10 +26,13 @@ export function IsoSite({
   const { structure: s, center, height } = placed;
   const value = s.marketValue;
 
-  // ใช้ความสูงเดียวกับตึก — ไซต์คือตึกที่ยังไม่ได้สร้าง จึงควรใหญ่ตามเงินจริง
-  const scaffoldH = Math.max(10, height);
-  const craneH = scaffoldH * 1.5 + 12;
-  const piles = value < 5_000 ? 1 : value < 15_000 ? 2 : 3;
+  /**
+   * ขนาดกองวัสดุใช้สเกลเดียวกับความสูงตึก — เงินเยอะ = วัสดุกองใหญ่
+   * จงใจไม่ทำเป็นโครงตึก/นั่งร้าน เพราะโครงแปลว่าตัดสินใจแล้วว่าจะสร้างอะไร
+   * แต่เงินสดยังไม่ได้เลือกเลยว่าจะไปเป็นหุ้นตัวไหน มันคือวัสดุที่ยังไม่ได้ประกอบ
+   */
+  const bulk = Math.max(0.35, Math.min(1.9, height / 60));
+  const craneH = 26 + height * 0.55;
 
   const N: Point = { x: center.x, y: center.y - TILE_H / 2 };
   const E: Point = { x: center.x + TILE_W / 2, y: center.y };
@@ -65,17 +68,16 @@ export function IsoSite({
         opacity={0.7}
       />
 
-      {/* โครงนั่งร้าน = รูปร่างของตึกที่กำลังจะเกิด สูงเท่าที่เงินก้อนนี้สร้างได้ */}
-      <Scaffold x={center.x + 2} y={center.y - 1} h={scaffoldH} />
-      <Crane x={center.x - 17} y={center.y - 4} h={craneH} />
+      <Crane x={center.x - 19} y={center.y - 3} h={craneH} />
 
-      {piles >= 1 && <Pile x={center.x - 11} y={center.y + 8} color="#8a6f47" />}
-      {piles >= 2 && <Pile x={center.x + 13} y={center.y + 7} color="#6f6a5e" />}
-      {piles >= 3 && <Pile x={center.x + 1} y={center.y + 12} color="#8a6f47" />}
+      {/* วัสดุก่อสร้างที่ยังไม่ได้ประกอบ — กองใหญ่ขึ้นตามเงิน */}
+      <SandPile x={center.x - 7} y={center.y + 3} scale={bulk} />
+      <BrickStack x={center.x + 12} y={center.y + 7} scale={bulk} />
+      <Rebar x={center.x - 2} y={center.y + 13} scale={bulk} />
 
       {/* ป้ายไซต์ — ใช้แบบเดียวกับป้ายบิลบอร์ดของตึก จะได้ไม่หลุดแบบ */}
       <g
-        transform={`matrix(0.894 0.447 0 1 ${center.x} ${center.y - scaffoldH - 10})`}
+        transform={`matrix(0.894 0.447 0 1 ${center.x} ${center.y - 20 - bulk * 14})`}
       >
         <rect x={-1} y={-6} width={1.2} height={6} fill="#6b5f2a" />
         <rect
@@ -109,69 +111,127 @@ export function IsoSite({
   );
 }
 
-/** กองวัสดุก่อสร้าง */
-function Pile({ x, y, color }: { x: number; y: number; color: string }) {
-  const w = 13;
-  const h = 5;
+/** กองทราย/กรวด — ทรงกรวยกองไว้บนพื้น */
+function SandPile({ x, y, scale }: { x: number; y: number; scale: number }) {
+  const w = 20 * scale;
+  const h = 11 * scale;
   return (
     <g>
-      <ellipse cx={x} cy={y + 1} rx={w / 2 + 1} ry={2.5} fill="rgba(0,0,0,0.4)" />
+      <ellipse cx={x} cy={y + 1} rx={w / 2 + 1.5} ry={w / 5} fill="rgba(0,0,0,0.45)" />
       <polygon
         points={polygonPoints([
           { x: x - w / 2, y },
           { x, y: y - h },
           { x: x + w / 2, y },
-          { x, y: y + w / 4 },
+          { x, y: y + w / 5 },
         ])}
-        fill={color}
+        fill="#8a7048"
       />
       <polygon
         points={polygonPoints([
           { x: x - w / 2, y },
           { x, y: y - h },
-          { x, y: y + w / 4 },
+          { x, y: y + w / 5 },
         ])}
-        fill="#a68a5b"
-        opacity={0.55}
+        fill="#a88a5c"
+      />
+      <polyline
+        points={polygonPoints([
+          { x: x - w / 2, y },
+          { x, y: y - h },
+          { x: x + w / 2, y },
+        ])}
+        fill="none"
+        stroke="#c4a878"
+        strokeWidth={0.7}
+        opacity={0.8}
       />
     </g>
   );
 }
 
-/** นั่งร้าน — โครงเหล็กเปล่าที่บอกว่าตึกจะสูงแค่ไหนถ้าเอาเงินก้อนนี้ไปลง */
-function Scaffold({ x, y, h }: { x: number; y: number; h: number }) {
-  const w = 26;
-  // ชั้นนั่งร้านทุกๆ ~14px กันเส้นถี่เกินตอนไซต์สูงมาก
-  const decks = Math.max(1, Math.min(9, Math.round(h / 14)));
+/** กองอิฐ/บล็อก วางซ้อนเป็นชั้น */
+function BrickStack({ x, y, scale }: { x: number; y: number; scale: number }) {
+  // กว้างมากกว่าสูง ไม่งั้นกองอิฐจะอ่านเป็นตึกเล็กๆ แทนที่จะเป็นของกองไว้
+  const w = 19 * scale;
+  const layerH = 2.8 * scale;
+  const layers = Math.max(2, Math.round(2.5 * scale));
 
   return (
-    <g stroke="#8494a8" strokeWidth={1} fill="none" opacity={0.92}>
+    <g>
+      <ellipse cx={x} cy={y + 1} rx={w / 2 + 1} ry={w / 5} fill="rgba(0,0,0,0.45)" />
+      {Array.from({ length: layers }, (_, i) => {
+        const ly = y - i * layerH;
+        return (
+          <g key={i}>
+            <polygon
+              points={polygonPoints([
+                { x: x - w / 2, y: ly },
+                { x, y: ly + w / 4 },
+                { x, y: ly + w / 4 - layerH },
+                { x: x - w / 2, y: ly - layerH },
+              ])}
+              fill="#8f4f3d"
+            />
+            <polygon
+              points={polygonPoints([
+                { x, y: ly + w / 4 },
+                { x: x + w / 2, y: ly },
+                { x: x + w / 2, y: ly - layerH },
+                { x, y: ly + w / 4 - layerH },
+              ])}
+              fill="#6d3b2d"
+            />
+          </g>
+        );
+      })}
       <polygon
         points={polygonPoints([
-          { x: x - w / 2, y },
-          { x, y: y + w / 4 },
-          { x: x + w / 2, y },
-          { x, y: y - w / 4 },
+          { x, y: y - layers * layerH - w / 4 },
+          { x: x + w / 2, y: y - layers * layerH },
+          { x, y: y - layers * layerH + w / 4 },
+          { x: x - w / 2, y: y - layers * layerH },
         ])}
+        fill="#a35f49"
       />
-      <line x1={x - w / 2} y1={y} x2={x - w / 2} y2={y - h} />
-      <line x1={x + w / 2} y1={y} x2={x + w / 2} y2={y - h} />
-      <line x1={x} y1={y + w / 4} x2={x} y2={y + w / 4 - h} />
-      <line x1={x} y1={y - w / 4} x2={x} y2={y - w / 4 - h} />
+    </g>
+  );
+}
 
-      {Array.from({ length: decks }, (_, i) => {
-        const dy = ((i + 1) / decks) * h;
+/** มัดเหล็กเส้น/ท่อ วางนอนกับพื้น */
+function Rebar({ x, y, scale }: { x: number; y: number; scale: number }) {
+  const len = 26 * scale;
+  const bars = Math.max(3, Math.round(5 * scale));
+
+  return (
+    <g>
+      <ellipse cx={x} cy={y + 1} rx={len / 2} ry={len / 7} fill="rgba(0,0,0,0.4)" />
+      {Array.from({ length: bars }, (_, i) => {
+        const row = Math.floor(i / 3);
+        const col = i % 3;
+        const bx = x - len / 2 + col * (len / 3.4) + row * 2.5;
+        const by = y - row * 2.6 + col * (len / 9);
         return (
-          <polygon
-            key={i}
-            points={polygonPoints([
-              { x: x - w / 2, y: y - dy },
-              { x, y: y + w / 4 - dy },
-              { x: x + w / 2, y: y - dy },
-              { x, y: y - w / 4 - dy },
-            ])}
-            opacity={0.75}
-          />
+          <g key={i}>
+            <rect
+              x={bx}
+              y={by - 2}
+              width={len * 0.42}
+              height={2}
+              rx={1}
+              fill="#7f8894"
+              transform={`rotate(26.57 ${bx} ${by})`}
+            />
+            <rect
+              x={bx}
+              y={by - 2.6}
+              width={len * 0.42}
+              height={0.7}
+              rx={0.3}
+              fill="#a8b2be"
+              transform={`rotate(26.57 ${bx} ${by})`}
+            />
+          </g>
         );
       })}
     </g>

@@ -120,6 +120,8 @@ const DISTRICT_GAP = 2;
 export function layoutCity(
   structures: Structure[],
   districtOrder: string[],
+  /** เขตที่ให้ไปอยู่ "อีกทิศ" (ยื่นออกไปตามแกน gx) แทนที่จะต่อแถวลงมา */
+  asideDistricts: string[] = [],
 ): CityLayout {
   const maxInvested = structures.reduce((m, s) => Math.max(m, s.invested), 0);
   const reference = heightScale(maxInvested);
@@ -128,17 +130,21 @@ export function layoutCity(
   const all: PlacedStructure[] = [];
   let rowOffset = 0;
 
-  for (const districtId of districtOrder) {
+  const place = (
+    districtId: string,
+    originX: number,
+    originY: number,
+  ): number => {
     const rows_ = structures
       .filter((s) => s.district === districtId)
       .sort((a, b) => b.invested - a.invested);
 
-    if (rows_.length === 0) continue;
+    if (rows_.length === 0) return 0;
 
     const cols = Math.max(1, Math.ceil(Math.sqrt(rows_.length)));
     const placed: PlacedStructure[] = rows_.map((structure, i) => {
-      const gx = i % cols;
-      const gy = Math.floor(i / cols) + rowOffset;
+      const gx = (i % cols) + originX;
+      const gy = Math.floor(i / cols) + originY;
       return {
         structure,
         gx,
@@ -150,9 +156,28 @@ export function layoutCity(
     });
 
     const usedRows = Math.ceil(rows_.length / cols);
-    districts.push({ id: districtId, placed, startRow: rowOffset, rows: usedRows });
+    districts.push({ id: districtId, placed, startRow: originY, rows: usedRows });
     all.push(...placed);
-    rowOffset += usedRows + DISTRICT_GAP;
+    return usedRows;
+  };
+
+  // เขตหลักเรียงต่อกันลงมาตามแกน gy
+  for (const districtId of districtOrder) {
+    if (asideDistricts.includes(districtId)) continue;
+    const used = place(districtId, 0, rowOffset);
+    if (used > 0) rowOffset += used + DISTRICT_GAP;
+  }
+
+  // เขตที่แยกออกไปอีกทิศ — ยื่นไปตามแกน gx จากขอบขวาของเมือง
+  const mainMaxGx = all.length > 0 ? Math.max(...all.map((p) => p.gx)) : 0;
+  let asideX = mainMaxGx + DISTRICT_GAP + 1;
+  for (const districtId of asideDistricts) {
+    const before = all.length;
+    place(districtId, asideX, 0);
+    const added = all.slice(before);
+    if (added.length > 0) {
+      asideX += Math.max(...added.map((p) => p.gx)) - asideX + 1 + DISTRICT_GAP;
+    }
   }
 
   // ไกลไปใกล้ — ตึกหน้าทับตึกหลังได้ถูกต้อง

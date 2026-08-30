@@ -14,8 +14,9 @@ import { IsoGround } from "./IsoGround";
 import { IsoSite } from "./IsoSite";
 import { IsoTower, TowerLabel } from "./IsoTower";
 
-// เงินสดอยู่โซนท้ายสุด = แยกออกมาด้านหน้าเมือง ไม่ปนกับตึกที่เป็นเจ้าของแล้ว
 const DISTRICT_ORDER = ["mission", "goldengoose", CASH_ZONE];
+// เงินสดยื่นออกไปอีกทิศ (แกน gx) ไม่ต่อแถวลงมาเหมือนเขตหุ้น
+const ASIDE_DISTRICTS = [CASH_ZONE];
 
 export function IsoCity({
   structures,
@@ -27,7 +28,7 @@ export function IsoCity({
   onSelect: (id: string | null) => void;
 }) {
   const layout = useMemo(
-    () => layoutCity(structures, DISTRICT_ORDER),
+    () => layoutCity(structures, DISTRICT_ORDER, ASIDE_DISTRICTS),
     [structures],
   );
   const cells = useMemo(() => groundCells(layout), [layout]);
