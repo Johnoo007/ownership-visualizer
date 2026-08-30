@@ -212,7 +212,20 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
     const bodyDark = hue > 0.66 ? "#8c3a2c" : hue > 0.33 ? "#2f4a78" : "#736e64";
     const roof = hue > 0.66 ? "#d3695a" : hue > 0.33 ? "#5b7fb8" : "#b0aa9e";
     // วิ่งไปข้างหน้าหรือย้อนกลับ — สลับให้ถนนดูมีสองเลนจริง
-    const dir = seededRandom(`dir${cell.gx}:${cell.gy}`, 7) > 0.5 ? 1 : -1;
+    /**
+     * เลือกทิศวิ่งโดยดูว่าฝั่งไหนยังมีถนนเหลือให้วิ่ง
+     * ถ้าสุ่มได้ฝั่งที่ตัน ให้กลับทิศ ไม่งั้นรถจะวิ่งทะลุออกนอกถนน
+     */
+    const pos = axisOf(cell) === "x" ? cell.gx : cell.gy;
+    const toMax = lane ? lane.max - pos : 2;
+    const toMin = lane ? pos - lane.min : 2;
+
+    let dir = seededRandom(`dir${cell.gx}:${cell.gy}`, 7) > 0.5 ? 1 : -1;
+    if ((dir > 0 ? toMax : toMin) < 1) dir = -dir;
+
+    const cellsAhead = dir > 0 ? toMax : toMin;
+    // อยู่ปลายเลนทั้งสองฝั่งแล้ว (ถนนสั้นมาก) ก็จอดอยู่กับที่ ดีกว่าวิ่งทะลุ
+    const canDrive = cellsAhead >= 1;
 
     /**
      * รถวางตามแนวถนน "ของช่องนั้น" — ผังเมืองมีถนนสองแนวตัดกัน
@@ -238,26 +251,24 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
     const backR = p(-1, 1);
 
     /**
-     * ระยะวิ่งจำกัดแค่ถึงปลายเลนของถนนสายนั้น ไม่งั้นรถจะวิ่งเลยถนนไปอยู่บนหญ้า
-     * และให้ความเร็วเท่ากันทุกคันโดยผูกเวลากับระยะ (คันใกล้ปลายจึงใช้เวลาน้อยกว่า)
+     * ระยะวิ่งหยุดที่กลางช่องสุดท้ายของเลนพอดี ไม่บวกเกินไปอีกช่อง
+     * (เดิมบวก 1 รถเลยไหลทะลุออกนอกถนนตอนใกล้จบจังหวะ)
+     * และผูกเวลากับระยะ ทุกคันจึงวิ่งเร็วเท่ากัน
      */
-    const pos = axisOf(cell) === "x" ? cell.gx : cell.gy;
-    // วิ่งไปทางปลายเลนฝั่งที่หันหน้าไป
-    const cellsAhead = lane
-      ? Math.max(1, dir > 0 ? lane.max - pos + 1 : pos - lane.min + 1)
-      : 2;
     const travel = PITCH_W * cellsAhead;
     const speed = 11 + seededRandom(`cs${cell.gx}:${cell.gy}`, 37) * 5; // วินาทีต่อช่อง
 
-    const driveStyle = {
-      "--drive-x": `${(ax.dir[0] * travel * dir).toFixed(1)}px`,
-      "--drive-y": `${(ax.dir[1] * travel * dir).toFixed(1)}px`,
-      "--dur": `${((cellsAhead * speed) / 4).toFixed(1)}s`,
-      "--delay": `-${(seededRandom(`cl${cell.gx}:${cell.gy}`, 41) * 6).toFixed(1)}s`,
-    } as React.CSSProperties;
+    const driveStyle = canDrive
+      ? ({
+          "--drive-x": `${(ax.dir[0] * travel * dir).toFixed(1)}px`,
+          "--drive-y": `${(ax.dir[1] * travel * dir).toFixed(1)}px`,
+          "--dur": `${((cellsAhead * speed) / 4).toFixed(1)}s`,
+          "--delay": `-${(seededRandom(`cl${cell.gx}:${cell.gy}`, 41) * 6).toFixed(1)}s`,
+        } as React.CSSProperties)
+      : undefined;
 
     return (
-      <g className="anim-car" style={driveStyle}>
+      <g className={canDrive ? "anim-car" : undefined} style={driveStyle}>
         <ellipse cx={cx} cy={cy + 1.5} rx={9} ry={4} fill="rgba(0,0,0,0.5)" />
 
         {/* ล้อ */}
