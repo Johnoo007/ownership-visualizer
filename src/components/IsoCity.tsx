@@ -257,17 +257,26 @@ export function IsoCity({
             );
           })}
 
-          {layout.all.map((placed) => (
-            <TowerLabel
-              key={`label-${placed.structure.id}`}
-              placed={placed}
-              labelY={labelYs.get(placed.structure.id) ?? 0}
-              selected={placed.structure.id === selectedId}
-              hovered={placed.structure.id === hoveredId}
-              onSelect={onSelect}
-              onHover={setHoveredId}
-            />
-          ))}
+          {layout.all.map((placed) => {
+            const selected = placed.structure.id === selectedId;
+            const hovered = placed.structure.id === hoveredId;
+
+            // ตึกมีป้ายบนตัวเองอยู่แล้ว (ผนัง/ดาดฟ้า) ไม่ต้องมีป้ายลอยซ้ำ
+            // ยกเว้นตอนเลือก/ชี้ (ต้องเห็นรายละเอียด) และที่ดินเปล่าที่ไม่มีตึกให้ติดป้าย
+            if (placed.height > 0 && !selected && !hovered) return null;
+
+            return (
+              <TowerLabel
+                key={`label-${placed.structure.id}`}
+                placed={placed}
+                labelY={labelYs.get(placed.structure.id) ?? 0}
+                selected={selected}
+                hovered={hovered}
+                onSelect={onSelect}
+                onHover={setHoveredId}
+              />
+            );
+          })}
         </g>
       </svg>
 
