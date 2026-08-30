@@ -8,6 +8,7 @@ import { BulkImport } from "@/components/BulkImport";
 import { PriceSync } from "@/components/PriceSync";
 import { SelectedTower } from "@/components/SelectedTower";
 import { Sidebar, type CityView } from "@/components/Sidebar";
+import { BuildLog } from "@/components/BuildLog";
 import { StatsPanel } from "@/components/StatsPanel";
 import { TimeMachine } from "@/components/TimeMachine";
 import { useCity } from "@/components/useCity";
@@ -132,6 +133,8 @@ export default function Home() {
         )}
 
         <StatsPanel state={displayState} view={view} />
+
+        <BuildLog state={displayState} />
 
         {backup && state.holdings.length === 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs">

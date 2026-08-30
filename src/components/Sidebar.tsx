@@ -96,6 +96,12 @@ export function Sidebar({
             <li>
               <span className="text-[var(--label)]">ไฟหน้าต่าง</span> = ยิ่งกำไรยิ่งสว่าง
             </li>
+            <li>
+              <span style={{ color: "#7fd9ff" }}>ขีดที่มุมตึก</span> = เติมเงิน 1 ครั้ง
+            </li>
+            <li>
+              <span style={{ color: "var(--free)" }}>แถบทอง + เครน</span> = เพิ่งเติมสัปดาห์นี้
+            </li>
           </ul>
           <p className="mt-2 border-t border-[var(--border)] pt-2 text-[10px] leading-relaxed text-[var(--label-dim)]">
             ตลาดแดง = ไฟหรี่ลง

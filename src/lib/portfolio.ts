@@ -1,4 +1,5 @@
 import { CASH_ZONE, type CityState, type Currency, type DistrictId, type Holding, type Structure } from "./types";
+import { contributionsFor, recentAddFor } from "./contributions";
 
 /** แปลงจำนวนเงินในสกุลใดก็ได้ให้เป็นบาท */
 export function toTHB(amount: number, currency: Currency, fxRate: number): number {
@@ -157,7 +158,7 @@ export function portfolioSummary(state: CityState): PortfolioSummary {
 }
 
 /** Holding[] → Structure[] — สะพานเดียวที่ renderer ใช้ (Kingdom ต่อยอดตรงนี้) */
-export function toStructures(state: CityState): Structure[] {
+export function toStructures(state: CityState, now: Date = new Date()): Structure[] {
   const towers: Structure[] = state.holdings.map((h) => ({
     id: h.id,
     kind: "tower" as const,
@@ -169,6 +170,8 @@ export function toStructures(state: CityState): Structure[] {
     isFree: isFreeHolding(h),
     district: h.district,
     marketValue: marketValueTHB(h, state.fxRate),
+    contributionCount: contributionsFor(state.contributions, h.ticker).length,
+    recentAdd: recentAddFor(state.contributions, h.ticker, now),
   }));
 
   /**
@@ -192,6 +195,9 @@ export function toStructures(state: CityState): Structure[] {
       isFree: false,
       district: CASH_ZONE,
       marketValue: value,
+      // เงินสดยังไม่ได้เลือกว่าจะเป็นตึกไหน จึงไม่มีไม้ DCA ของตัวเอง
+      contributionCount: 0,
+      recentAdd: null,
     });
   };
 

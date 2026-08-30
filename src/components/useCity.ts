@@ -3,7 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { emptyCity } from "@/lib/demo";
 import { clearBackup, loadBackup, loadCity, saveCity } from "@/lib/storage";
+import { appendContributions, detectContributions } from "@/lib/contributions";
 import type { CityState, Holding } from "@/lib/types";
+
+/**
+ * ทุกครั้งที่ต้นทุนของตัวไหนเพิ่มขึ้น = John เพิ่งลงไม้ใหม่ → บันทึกเป็นไม้ DCA
+ *
+ * จงใจใช้เฉพาะตอนแก้พอร์ตด้วยมือ/นำเข้าจากชีต ไม่ใช้ตอนอัปเดตราคาตลาด
+ * (ราคาไม่แตะ avgCost อยู่แล้ว แต่กันไว้ไม่ให้ประวัติงอกจากเหตุอื่น)
+ */
+function withContributions(prev: CityState, next: CityState): CityState {
+  const added = detectContributions(prev, next);
+  if (added.length === 0) return next;
+  return { ...next, contributions: appendContributions(next.contributions, added) };
+}
 
 export function useCity() {
   const [state, setState] = useState<CityState | null>(null);
@@ -25,14 +38,14 @@ export function useCity() {
     setState((prev) => {
       if (!prev) return prev;
       const exists = prev.holdings.some((h) => h.id === holding.id);
-      return {
+      return withContributions(prev, {
         ...prev,
         // แตะพอร์ตเมื่อไหร่ = เลิกเป็นเมืองตัวอย่างทันที
         isDemo: false,
         holdings: exists
           ? prev.holdings.map((h) => (h.id === holding.id ? holding : h))
           : [...prev.holdings, holding],
-      };
+      });
     });
   }, []);
 
@@ -75,11 +88,11 @@ export function useCity() {
   const importHoldings = useCallback((incoming: Holding[], replace: boolean) => {
     setState((prev) => {
       if (!prev) return prev;
-      return {
+      return withContributions(prev, {
         ...prev,
         isDemo: false,
         holdings: replace ? incoming : [...prev.holdings, ...incoming],
-      };
+      });
     });
   }, []);
 

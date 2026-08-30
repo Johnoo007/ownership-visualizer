@@ -1,4 +1,4 @@
-import type { CityState } from "./types";
+import type { CityState, Contribution } from "./types";
 
 /**
  * เมืองตัวอย่าง — ตัวเลขสมมติทั้งหมด ไม่ใช่พอร์ตของใคร
@@ -28,6 +28,8 @@ export function demoCity(): CityState {
       d("SCB", "SCB X", 100, 128, 131, "THB", "goldengoose"),
       d("PTT", "PTT", 200, 31.5, 30.25, "THB", "goldengoose"),
     ],
+    // ไม้ DCA ตัวอย่าง — ให้เห็นขีดที่มุมตึกกับเครนตั้งแต่เปิดแอปครั้งแรก
+    contributions: demoContributions(),
   };
 }
 
@@ -54,4 +56,32 @@ function d(
 
 export function emptyCity(): CityState {
   return { holdings: [], fxRate: 33.3, isDemo: false };
+}
+
+/**
+ * ประวัติเติมเงินของเมืองตัวอย่าง — เดิน DCA ถอยหลังจากวันนี้
+ * ใช้วันจริงเพื่อให้ไม้ล่าสุดตกอยู่ในกรอบ "เพิ่งสร้าง" เสมอ ไม่ว่าจะเปิดวันไหน
+ */
+function demoContributions(): Contribution[] {
+  const day = (n: number) =>
+    new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+
+  const plan: Array<[string, number, number]> = [
+    // [ticker, จำนวนไม้, บาทต่อไม้]
+    ["SPYM", 11, 4000],
+    ["VOO", 6, 5000],
+    ["GOOGL", 5, 5000],
+    ["SCHG", 4, 3000],
+    ["IEMG", 3, 2000],
+  ];
+
+  const out: Contribution[] = [];
+  for (const [ticker, rounds, amountTHB] of plan) {
+    for (let i = 0; i < rounds; i++) {
+      out.push({ at: day((rounds - 1 - i) * 30 + 2), ticker, amountTHB });
+    }
+  }
+  // ไม้ล่าสุดของสัปดาห์นี้ — ทำให้เครนกับแถบทองโผล่ให้เห็น
+  out.push({ at: day(1), ticker: "SPYM", amountTHB: 4000 });
+  return out.sort((a, b) => a.at.localeCompare(b.at));
 }

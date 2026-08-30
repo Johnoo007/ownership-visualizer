@@ -14,6 +14,11 @@ import {
 import { floorPlan, groundCells, heightFor, heightScale, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
 import { compare } from "../src/lib/history";
+import {
+  appendContributions,
+  detectContributions,
+  summarize,
+} from "../src/lib/contributions";
 import { AXIS, CELL_STEP, carRoute, computeLanes, laneKey } from "../src/lib/traffic";
 import { CASH_ZONE, type CityState } from "../src/lib/types";
 
@@ -398,4 +403,154 @@ test("เลนถนนเก็บเฉพาะช่องที่เป�
       assert.equal(cell?.kind, "road", `เลน ${key} กินช่อง ${gx},${gy} ที่ไม่ใช่ถนน`);
     }
   }
+});
+
+/* ── ไม้ DCA: หน่วยวัดที่ไม่ถูกเจือจางเมื่อพอร์ตโต ───────────────── */
+
+const DAY = 86_400_000;
+const NOW = new Date("2026-08-31T10:00:00Z");
+
+test("ซื้อเพิ่ม = บันทึก 1 ไม้ พร้อมยอดบาทจริง", () => {
+  const before = baseCity();
+  const after: CityState = {
+    ...before,
+    holdings: before.holdings.map((h) =>
+      h.id === "a" ? { ...h, shares: h.shares + 2 } : h,
+    ),
+  };
+
+  const found = detectContributions(before, after, NOW);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].ticker, "GOOGL");
+  assert.equal(found[0].at, "2026-08-31");
+  // 2 หุ้น × $172 × 33.3 = ฿11,455.2
+  assert.ok(Math.abs(found[0].amountTHB - 2 * 172 * 33.3) < 0.01);
+});
+
+/**
+ * กับดักที่ทำให้ประวัติปลอมได้ง่ายที่สุด — ถ้าเทียบด้วยยอดบาท
+ * การขยับค่าเงินอย่างเดียวจะทำให้ทุกตัวดูเหมือนเพิ่งเติมเงินพร้อมกัน
+ */
+test("แก้ค่าเงินอย่างเดียว ห้ามงอกไม้ปลอม", () => {
+  const before = baseCity();
+  const after: CityState = { ...before, fxRate: before.fxRate + 3 };
+  assert.deepEqual(detectContributions(before, after, NOW), []);
+});
+
+test("ราคาตลาดวิ่ง ห้ามงอกไม้", () => {
+  const before = baseCity();
+  assert.deepEqual(detectContributions(before, crash(baseCity(), 0.4), NOW), []);
+  const up: CityState = {
+    ...before,
+    holdings: before.holdings.map((h) => ({ ...h, currentPrice: h.currentPrice * 3 })),
+  };
+  assert.deepEqual(detectContributions(before, up, NOW), []);
+});
+
+test("ขายออกไม่นับเป็นไม้ และไม่ลบขีดที่เคยลงไปแล้ว", () => {
+  const before = baseCity();
+  const sold: CityState = {
+    ...before,
+    holdings: before.holdings.map((h) =>
+      h.id === "a" ? { ...h, shares: h.shares - 3 } : h,
+    ),
+  };
+  assert.deepEqual(detectContributions(before, sold, NOW), []);
+
+  const past = [{ at: "2026-07-01", ticker: "GOOGL", amountTHB: 4000 }];
+  assert.equal(appendContributions(past, []).length, 1);
+});
+
+test("เติมตัวเดิมวันเดียวกันสองครั้ง รวมเป็นไม้เดียว ไม่ใช่สองขีด", () => {
+  const merged = appendContributions(
+    [{ at: "2026-08-31", ticker: "SPYM", amountTHB: 2000 }],
+    [{ at: "2026-08-31", ticker: "SPYM", amountTHB: 1500 }],
+  );
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].amountTHB, 3500);
+});
+
+test("ถ้ามีบาทจ่ายจริงทั้งสองฝั่ง ใช้ส่วนต่างบาทตรงๆ ไม่แปลงด้วยค่าเงินวันนี้", () => {
+  const before: CityState = {
+    ...baseCity(),
+    holdings: [
+      { id: "a", ticker: "GOOGL", name: "Alphabet", shares: 5, avgCost: 172, currentPrice: 205, currency: "USD", district: "mission", costTHB: 27_000 },
+    ],
+  };
+  const after: CityState = {
+    ...before,
+    holdings: [{ ...before.holdings[0], shares: 6, costTHB: 32_500 }],
+  };
+  const found = detectContributions(before, after, NOW);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].amountTHB, 5_500); // ไม่ใช่ 172 × 33.3
+});
+
+test("จำนวนขีดและงานใหม่ไปถึง structure — เงินสดไม่มีขีดของตัวเอง", () => {
+  const state: CityState = {
+    ...baseCity(),
+    cash: { usd: 100, thb: 5000 },
+    contributions: [
+      { at: "2026-06-01", ticker: "GOOGL", amountTHB: 4000 },
+      { at: "2026-07-01", ticker: "GOOGL", amountTHB: 4000 },
+      { at: "2026-08-29", ticker: "GOOGL", amountTHB: 4000 },
+      { at: "2026-01-05", ticker: "IEMG", amountTHB: 2000 },
+    ],
+  };
+
+  const structures = toStructures(state, NOW);
+  const googl = structures.find((s) => s.label === "GOOGL")!;
+  const iemg = structures.find((s) => s.label === "IEMG")!;
+  const cash = structures.find((s) => s.district === CASH_ZONE)!;
+
+  assert.equal(googl.contributionCount, 3);
+  assert.equal(googl.recentAdd, 4000); // เฉพาะไม้ 29 ส.ค. ที่อยู่ในกรอบ 7 วัน
+  assert.equal(iemg.contributionCount, 1);
+  assert.equal(iemg.recentAdd, null); // ม.ค. เก่าเกินกรอบ
+  assert.equal(cash.contributionCount, 0);
+  assert.equal(cash.recentAdd, null);
+});
+
+test("สรุปไม้: นับครั้ง แยกปีนี้ และจับของใหม่ในกรอบ 7 วัน", () => {
+  const s = summarize(
+    [
+      { at: "2025-11-10", ticker: "VOO", amountTHB: 3000 },
+      { at: "2026-02-02", ticker: "VOO", amountTHB: 4000 },
+      { at: new Date(NOW.getTime() - 2 * DAY).toISOString().slice(0, 10), ticker: "SPYM", amountTHB: 4000 },
+    ],
+    NOW,
+  );
+  assert.equal(s.rounds, 3);
+  assert.equal(s.totalTHB, 11_000);
+  assert.equal(s.thisYearRounds, 2);
+  assert.equal(s.thisYearTHB, 8_000);
+  assert.equal(s.recentTHB, 4_000);
+  assert.deepEqual(s.recentTickers, ["SPYM"]);
+});
+
+/** เหตุผลทั้งหมดที่ฟีเจอร์นี้มีอยู่ — ขีดต้องโตเต็ม 1 ทั้งที่ตึกแทบไม่ขยับ */
+test("เติมเงินก้อนเล็กบนพอร์ตใหญ่: ตึกโตไม่ถึง 5% แต่ขีดโต 100%", () => {
+  const big: CityState = {
+    fxRate: 32, isDemo: false,
+    holdings: [
+      { id: "s", ticker: "SPYM", name: "S&P500", shares: 1000, avgCost: 90, currentPrice: 95, currency: "USD", district: "mission" },
+    ],
+    contributions: [{ at: "2026-07-01", ticker: "SPYM", amountTHB: 4000 }],
+  };
+
+  const beforeH = toStructures(big, NOW)[0];
+  const after: CityState = {
+    ...big,
+    holdings: [{ ...big.holdings[0], shares: 1000 + 4000 / 32 / 90 }],
+  };
+  const withNew: CityState = {
+    ...after,
+    contributions: appendContributions(big.contributions, detectContributions(big, after, NOW)),
+  };
+  const afterH = toStructures(withNew, NOW)[0];
+
+  const growth = afterH.invested / beforeH.invested - 1;
+  assert.ok(growth < 0.05, `เงินโตขึ้น ${(growth * 100).toFixed(1)}% ควรน้อยกว่า 5%`);
+  assert.equal(beforeH.contributionCount, 1);
+  assert.equal(afterH.contributionCount, 2); // +100%
 });

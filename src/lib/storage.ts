@@ -40,9 +40,21 @@ export function parseCity(raw: unknown): CityState | null {
       ? { usd: num(rawCash.usd), thb: num(rawCash.thb) }
       : undefined;
 
+  const contributions = Array.isArray(obj.contributions)
+    ? (obj.contributions as unknown[]).filter(
+        (c): c is { at: string; ticker: string; amountTHB: number } =>
+          typeof c === "object" &&
+          c !== null &&
+          typeof (c as Record<string, unknown>).at === "string" &&
+          typeof (c as Record<string, unknown>).ticker === "string" &&
+          typeof (c as Record<string, unknown>).amountTHB === "number",
+      )
+    : undefined;
+
   return {
     holdings,
     cash,
+    contributions,
     deposits:
       typeof obj.deposits === "number" && obj.deposits > 0 ? obj.deposits : undefined,
     fxRate,

@@ -201,6 +201,37 @@ export function IsoTower({
         <RoofKit seed={s.id} center={center} top={solidTop} palette={palette} />
       )}
 
+      {/*
+        ส่วนที่เพิ่งสร้างเดือนนี้ — แถบสีต่างพาดที่ยอดตึก สูงตามเงินที่เพิ่งเติมจริง
+        เล็กแค่ไหนก็ตามความจริง แต่ "หาเจอทันที" เพราะสีกับนั่งร้านต่างจากที่เหลือ
+      */}
+      {s.recentAdd !== null && height > 0 && (
+        <FreshWork
+          W={W}
+          S={S}
+          E={E}
+          top={solidTop}
+          center={center}
+          amount={s.recentAdd}
+          invested={s.invested}
+          height={height}
+        />
+      )}
+
+      {/*
+        ไม้บรรทัดนับไม้ DCA ที่มุมหน้าตึก — 1 ขีด = เติมเงิน 1 ครั้ง
+        เหตุผลที่ต้องมี: ฿4,000 บนพอร์ต ฿300,000 ทำให้ตึกสูงขึ้นแค่ 4%
+        แต่ "อีกหนึ่งขีด" เป็น 1 เต็มเสมอ ไม่ถูกเจือจางเมื่อพอร์ตโตขึ้น
+      */}
+      {s.contributionCount > 0 && height > 0 && (
+        <DepositRuler
+          S={S}
+          top={solidTop}
+          count={s.contributionCount}
+          highlight={s.recentAdd !== null}
+        />
+      )}
+
       {/* ที่ดินที่ไม่ได้ลงเงินสร้างแต่มีมูลค่า (ของที่ได้มาฟรี) — วางเป็นกองทอง ไม่ใช่ตึก
           เพราะมันไม่ได้ถูกสร้างด้วยเงินตัวเอง แต่ก็ไม่ควรหายไปจากเมืองทั้งที่มีมูลค่าจริง */}
       {height === 0 && s.marketValue > 0 && (
@@ -806,6 +837,199 @@ export function TowerLabel({
           {formatTHB(s.invested)} · {formatShares(s.units)} ชั้น
         </text>
       )}
+    </g>
+  );
+}
+
+/**
+ * ไม้บรรทัดนับ "ไม้ DCA" ที่มุมหน้าตึก
+ *
+ * ทำไมขีดถึงไม่ได้เว้นระยะตามเงิน: ถ้าให้ระยะขีดเป็นสัดส่วนกับเงิน มันจะกลับไป
+ * เจอปัญหาเดิม (฿4,000 = 12px มองไม่เห็น) · ขีดวัด *จำนวนครั้งที่ลงมือ*
+ * ซึ่งเป็นคนละหน่วยกับความสูง และเป็นหน่วยที่ไม่ถูกเจือจางเมื่อพอร์ตโต
+ * ⇒ ความสูงยังซื่อสัตย์กับเงิน 100% ส่วนขีดซื่อสัตย์กับวินัย 100%
+ */
+function DepositRuler({
+  S,
+  top,
+  count,
+  highlight,
+}: {
+  S: Point;
+  top: number;
+  count: number;
+  highlight: boolean;
+}) {
+  /**
+   * เกจห้อยลงมาจากใต้ดาดฟ้า ไม่ได้ตั้งจากพื้น
+   * เพราะฐานตึกแถวหลังถูกตึกแถวหน้าบังเสมอในมุม isometric — SPYM ที่สูงที่สุด
+   * ในเมืองคือตัวที่ฐานโดนบังมิดที่สุด ซึ่งเป็นตัวที่ควรเห็นขีดชัดที่สุด
+   */
+  const anchor = top - 6;
+  const usable = anchor - 6;
+  if (usable < 4) return null;
+
+  const gaps = Math.max(1, count - 1);
+  const spacing = Math.min(9, usable / gaps);
+  // ถี่จนขีดติดกันเป็นก้อนแล้ว วาดต่อไปก็อ่านไม่ออก — เปลี่ยนเป็นแถบทึบแทน
+  const tooDense = spacing < 2.4;
+  const span = (count - 1) * spacing;
+
+  /**
+   * เสาตั้งเยื้องออกมาข้างหน้ามุมตึก ไม่ใช่แปะบนผนัง
+   * เพราะแปะบนผนังแล้วขีดจะไปแข่งกับไฟหน้าต่างจนอ่านไม่ออก (ลองแล้วจางหาย)
+   */
+  const x = S.x + 5;
+  const yAt = (v: number) => S.y + 3 - v;
+  const yTop = yAt(anchor);
+  const yBottom = yAt(anchor - span);
+
+  return (
+    <g>
+      {/* แผ่นรองสีเข้ม ให้ขีดเด้งออกจากผนังตึกที่มีไฟระยิบ */}
+      <rect
+        x={x - 4.6}
+        y={yTop - 4}
+        width={9.2}
+        height={span + 8}
+        rx={1.5}
+        fill="#050d18"
+        opacity={0.82}
+        stroke="#2f5a7d"
+        strokeWidth={0.7}
+      />
+
+      <rect
+        x={x - 0.8}
+        y={yTop}
+        width={1.6}
+        height={span}
+        fill={tooDense ? "#7fd9ff" : "#20415e"}
+      />
+
+      {!tooDense &&
+        Array.from({ length: count }, (_, i) => {
+          // ไม้ล่าสุดอยู่บนสุด — อ่านว่า "สร้างขึ้นไปเรื่อยๆ"
+          const y = yAt(anchor - (count - 1 - i) * spacing);
+          const newest = i === count - 1;
+          return (
+            <line
+              key={i}
+              x1={x - 3.4}
+              y1={y}
+              x2={x + 3.4}
+              y2={y}
+              stroke={newest && highlight ? "#ffd88a" : "#7fd9ff"}
+              strokeWidth={newest && highlight ? 2.4 : 1.7}
+              strokeLinecap="round"
+            />
+          );
+        })}
+
+      {/* หมุดปิดหัว-ท้ายเกจ ให้ดูเป็นเครื่องมือวัด ไม่ใช่เส้นบังเอิญ */}
+      <rect x={x - 3} y={yBottom - 0.6} width={6} height={1.6} rx={0.6} fill="#2f5a7d" />
+
+      {highlight && !tooDense && (
+        <circle cx={x} cy={yTop} r={2.8} fill="#ffd88a" className="anim-beacon" />
+      )}
+    </g>
+  );
+}
+
+/**
+ * งานที่เพิ่งสร้างในรอบไม่กี่วันนี้ — แถบสีที่ยอดตึก + นั่งร้าน + เครน
+ *
+ * ความสูงของแถบ = สัดส่วนเงินที่เพิ่งเติมต่อเงินทั้งก้อนของตึกนี้ (ตามจริงเป๊ะ)
+ * มันจะบางมากเสมอ นั่นแหละคือความจริง — สิ่งที่ทำให้เห็นคือ *สี* กับ *เครน*
+ * ไม่ใช่การโม้ขนาด
+ */
+function FreshWork({
+  W,
+  S,
+  E,
+  top,
+  center,
+  amount,
+  invested,
+  height,
+}: {
+  W: Point;
+  S: Point;
+  E: Point;
+  top: number;
+  center: Point;
+  amount: number;
+  invested: number;
+  height: number;
+}) {
+  const ratio = invested > 0 ? Math.min(1, amount / invested) : 1;
+  // ขั้นต่ำ 3px เพื่อให้ยังเห็นเป็นแถบ ไม่ใช่เส้นเดียว — ไม่ใช่การขยายค่าให้ดูเยอะ
+  const band = Math.max(3, Math.min(height, ratio * height));
+  const base = top - band;
+
+  return (
+    <g>
+      {/* แถบงานใหม่บนสองหน้าที่มองเห็น */}
+      <polygon
+        points={polygonPoints([
+          shift(W, base),
+          shift(S, base),
+          shift(S, top),
+          shift(W, top),
+        ])}
+        fill="#c9a227"
+        opacity={0.55}
+      />
+      <polygon
+        points={polygonPoints([
+          shift(S, base),
+          shift(E, base),
+          shift(E, top),
+          shift(S, top),
+        ])}
+        fill="#a8871d"
+        opacity={0.55}
+      />
+
+      {/* เส้นนั่งร้านแนวตั้งพาดแถบ — อ่านออกว่า "ยังไม่เก็บงาน" */}
+      {[0.25, 0.5, 0.75].map((t) => (
+        <line
+          key={t}
+          x1={W.x + (S.x - W.x) * t}
+          y1={W.y + (S.y - W.y) * t - top}
+          x2={W.x + (S.x - W.x) * t}
+          y2={W.y + (S.y - W.y) * t - base}
+          stroke="#e8c46a"
+          strokeWidth={0.7}
+          opacity={0.7}
+        />
+      ))}
+
+      <MiniCrane x={center.x - 12} y={center.y - top} h={Math.max(18, height * 0.22)} />
+    </g>
+  );
+}
+
+/** เครนเล็กบนดาดฟ้า — แค่พอบอกว่าตึกนี้กำลังมีงาน ไม่ให้บังตัวตึก */
+function MiniCrane({ x, y, h }: { x: number; y: number; h: number }) {
+  const jib = Math.max(10, h * 0.55);
+  return (
+    <g
+      className="anim-crane"
+      style={{ "--pivot": "50% 100%", "--dur": "12s" } as React.CSSProperties}
+    >
+      <rect x={x - 1} y={y - h} width={2} height={h} fill="#c9a227" />
+      <rect x={x - 1.6} y={y - h - 1.8} width={jib} height={1.8} fill="#c9a227" />
+      <rect x={x - 5} y={y - h - 1.8} width={3.6} height={1.8} fill="#8a7420" />
+      <line
+        x1={x + jib - 4}
+        y1={y - h}
+        x2={x + jib - 4}
+        y2={y - h + h * 0.3}
+        stroke="#8494a8"
+        strokeWidth={0.6}
+      />
+      <circle cx={x} cy={y - h - 3.5} r={1.2} fill="#ff6b5a" className="anim-beacon" />
     </g>
   );
 }
