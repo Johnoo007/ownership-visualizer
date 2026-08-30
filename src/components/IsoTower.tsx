@@ -313,11 +313,13 @@ function NeonSign({
 }
 
 /**
- * ป้ายวางราบบนดาดฟ้า สำหรับตึกที่เตี้ยเกินกว่าจะมีผนังให้แปะ
+ * ป้ายบิลบอร์ดตั้งบนดาดฟ้า สำหรับตึกที่เตี้ยเกินกว่าจะมีผนังให้แปะ
  *
- * matrix นี้ต่างจากป้ายผนัง: ต้องเอียงทั้งสองแกนให้ระนาบเดียวกับพื้น isometric
- * (แกนแรก = ทิศที่ gx เพิ่ม, แกนสอง = ทิศที่ gy เพิ่ม) ป้ายจึงดูนอนราบไปกับหลังคา
- * ดาดฟ้ากว้างเท่ากันทุกตึกไม่ว่าตึกจะเตี้ยแค่ไหน จึงติดป้ายได้โดยไม่ต้องดันความสูง
+ * matrix เอียงเฉพาะแกนนอน (a,b = ทิศ W→S) ส่วนแกนตั้งปล่อยไว้ (c,d = 0,1)
+ * ⇒ ป้ายหันหน้าถูกทิศตามเมือง แต่ยัง "ตั้งฉากกับพื้นโลก" จริงๆ
+ * ถ้าเอียงทั้งสองแกนป้ายจะนอนราบไปกับหลังคาแทน
+ *
+ * ดาดฟ้ากว้างเท่ากันทุกตึกไม่ว่าจะเตี้ยแค่ไหน จึงติดป้ายได้โดยไม่ต้องดันความสูงให้ผิดสเกล
  */
 function RoofSign({
   label,
@@ -328,28 +330,43 @@ function RoofSign({
   center: Point;
   top: number;
 }) {
-  // ดาดฟ้าในระบบพิกัดของ matrix นี้เป็นจัตุรัสด้านละ ~38 หน่วย
-  const usable = 32;
-  const fontSize = Math.min(10, usable / (label.length * 0.72));
-  const w = label.length * fontSize * 0.72 + 5;
-  const h = fontSize + 3;
+  // ความกว้างดาดฟ้าในระบบพิกัดของ matrix นี้ ≈ 38 หน่วย
+  const fontSize = Math.min(10, 30 / (label.length * 0.72));
+  const w = label.length * fontSize * 0.72 + 6;
+  const h = fontSize + 4;
+  const legH = 6;
 
   return (
-    <g
-      transform={`matrix(0.894 0.447 -0.894 0.447 ${center.x} ${center.y - top})`}
-    >
+    <g transform={`matrix(0.894 0.447 0 1 ${center.x} ${center.y - top})`}>
+      {/* ขาตั้งสองข้าง ยึดป้ายกับดาดฟ้า */}
+      <rect x={-w / 3 - 0.6} y={-legH} width={1.2} height={legH} fill="#2c4767" />
+      <rect x={w / 3 - 0.6} y={-legH} width={1.2} height={legH} fill="#2c4767" />
+
+      {/* แสงจากป้ายสาดลงดาดฟ้า */}
       <rect
         x={-w / 2}
-        y={-h / 2}
+        y={-legH - h - 1}
+        width={w}
+        height={h + 2}
+        rx={1}
+        fill="#8fe6ff"
+        opacity={0.1}
+      />
+
+      <rect
+        x={-w / 2}
+        y={-legH - h}
         width={w}
         height={h}
         rx={1}
         fill="#08111f"
-        opacity={0.8}
+        stroke="#2c4767"
+        strokeWidth={0.6}
+        opacity={0.92}
       />
       <text
         x={0}
-        y={0}
+        y={-legH - h / 2}
         textAnchor="middle"
         dominantBaseline="central"
         className="font-bold"
