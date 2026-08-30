@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/*
+ * ธีมมืดแบบ command center — จงใจ dark-only
+ * เมืองกลางคืนต้องมีไฟตึกเรืองแสงถึงจะอ่านกำไร/ขาดทุนออก
+ * ถ้าทำโหมดสว่างด้วย ไฟหน้าต่างจะหายไปกับพื้นหลัง
+ */
+:root {
+  --background: #070d16;
+  --panel: #0e1a2b;
+  --panel-hover: #142339;
+  --panel-raised: #122032;
+  --input: #0a1523;
+  --border: #1d334d;
+  --border-bright: #2a4d70;
+
+  --label: #e4eef8;
+  --label-dim: #7d9ab8;
+
+  --sky-top: #060b14;
+  --sky-bottom: #12233c;
+  --star: #cfe3f7;
+  /* พื้นหลังกล่องเมือง — ต้องเข้ากับ sky เพราะ SVG letterbox โผล่ขอบได้ */
+  --city-bg: #0a1424;
+
+  --grass: #16342c;
+  --grass-alt: #122b25;
+  --road: #22304a;
+  --road-line: #7d90ad;
+  --plot: #1a2c44;
+  --plot-line: #24405f;
+  /* แปลงจัดสรรที่ยังไม่มีตึก — ต้องอ่านออกว่า "ที่ของเรา รอสร้าง" ไม่ใช่ที่รกร้าง */
+  --vacant: #14243a;
+  --vacant-line: #2c4767;
+  --ground-shadow: rgba(0, 0, 0, 0.55);
+
+  --accent: #4cc2ff;
+  --accent-fg: #04121f;
+  --accent-glow: rgba(76, 194, 255, 0.35);
+  --gain: #48d19a;
+  --loss: #ff7a66;
+  --free: #ffc861;
+
+  --warn: #2a2110;
+  --warn-border: #5c4a1c;
+  --warn-fg: #f0cf87;
+}
+
+body {
+  background: var(--background);
+  color: var(--label);
+}
+
+/* ขอบคมแบบ pixel art — ห้ามให้เบราว์เซอร์ไล่เฉดขอบจนเบลอ */
+.pixel-art {
+  shape-rendering: crispEdges;
+}
+
+.glow-panel {
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 8px 28px -12px rgba(0, 0, 0, 0.9);
+}
+
+.scanline {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.022) 0px,
+    rgba(255, 255, 255, 0.022) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-bright);
+}
