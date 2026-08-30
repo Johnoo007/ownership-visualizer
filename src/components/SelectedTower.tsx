@@ -11,7 +11,8 @@ import {
   pnlRatio,
   totals,
 } from "@/lib/portfolio";
-import { DISTRICTS, type CityState, type Holding } from "@/lib/types";
+import { contributionsFor } from "@/lib/contributions";
+import { DISTRICTS, type CityState, type Contribution, type Holding } from "@/lib/types";
 
 /** การ์ดสรุปตึกที่เลือกอยู่ — โผล่บนสุดของแผงขวาเมื่อคลิกตึกในเมือง */
 export function SelectedTower({
@@ -122,6 +123,11 @@ export function SelectedTower({
         />
       </dl>
 
+      <BuildHistory
+        list={contributionsFor(state.contributions, holding.ticker)}
+        invested={invested}
+      />
+
       <div className="mt-2.5 flex gap-2">
         <button
           type="button"
@@ -140,6 +146,86 @@ export function SelectedTower({
       </div>
     </section>
   );
+}
+
+/**
+ * ประวัติ "ไม้ DCA" ของตึกนี้ — โผล่ตอนคลิกตึกเท่านั้น
+ *
+ * จงใจไม่เอาไปวาดในเมือง: เคยลองทำเป็นไม้บรรทัดแปะข้างตึกแล้วไม่เวิร์ก
+ * มันเป็นกราฟที่ไปอยู่ผิดโลก และหน้าตาซ้ำกับเส้นแบ่งชั้น (= จำนวนหุ้น)
+ * ที่นี่เป็นแผงข้อมูลอยู่แล้ว กราฟจึงอยู่ถูกที่ และใส่วันที่/จำนวนเงินได้ครบ
+ */
+function BuildHistory({
+  list,
+  invested,
+}: {
+  list: Contribution[];
+  invested: number;
+}) {
+  if (list.length === 0) {
+    return (
+      <p className="mt-2.5 rounded-lg border border-dashed border-[var(--border)] px-2.5 py-2 text-[10px] text-[var(--label-dim)]">
+        🧱 ยังไม่มีไม้ที่บันทึกไว้สำหรับตัวนี้ — ครั้งหน้าที่ซื้อเพิ่ม แอปจะนับให้เอง
+      </p>
+    );
+  }
+
+  // ใหม่สุดอยู่บน — อ่านจากบนลงล่างคือย้อนเวลากลับไป
+  const rows = [...list].reverse();
+  const shown = rows.slice(0, 8);
+  const max = Math.max(...list.map((c) => c.amountTHB));
+  const total = list.reduce((a, c) => a + c.amountTHB, 0);
+
+  return (
+    <div className="mt-2.5 rounded-lg border border-[var(--border)] bg-[var(--panel-raised)] p-2.5">
+      <div className="flex items-baseline justify-between">
+        <p className="text-[10px] text-[var(--label-dim)]">ไม้ที่ลงไปกับตัวนี้</p>
+        <p className="font-mono text-[11px] font-semibold text-[var(--label)]">
+          {list.length} ไม้ · {formatTHB(total)}
+        </p>
+      </div>
+
+      <ul className="mt-1.5 space-y-1">
+        {shown.map((c, i) => (
+          <li key={`${c.at}-${i}`} className="flex items-center gap-2 text-[10px]">
+            <span className="w-16 shrink-0 font-mono text-[var(--label-dim)]">
+              {formatThaiDate(c.at)}
+            </span>
+            <span className="h-2 flex-1 overflow-hidden rounded-sm bg-[var(--input)]">
+              <span
+                className="block h-full rounded-sm"
+                style={{
+                  width: `${Math.max(6, (c.amountTHB / max) * 100).toFixed(0)}%`,
+                  background: i === 0 ? "var(--free)" : "var(--accent)",
+                }}
+              />
+            </span>
+            <span className="w-16 shrink-0 text-right font-mono tabular-nums text-[var(--label)]">
+              {formatTHB(c.amountTHB)}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {rows.length > shown.length && (
+        <p className="mt-1.5 text-[10px] text-[var(--label-dim)]">
+          + อีก {rows.length - shown.length} ไม้ก่อนหน้านี้
+        </p>
+      )}
+
+      {/* ส่วนที่มีอยู่ก่อนเริ่มบันทึก — ไม่ใช่ศูนย์ แค่ไม่มีประวัติ */}
+      {invested > total + 1 && (
+        <p className="mt-1.5 border-t border-[var(--border)] pt-1.5 text-[10px] text-[var(--label-dim)]">
+          อีก {formatTHB(invested - total)} มีอยู่ก่อนแอปเริ่มนับ
+        </p>
+      )}
+    </div>
+  );
+}
+
+function formatThaiDate(at: string): string {
+  const d = new Date(`${at}T00:00:00`);
+  return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
 }
 
 function Row({

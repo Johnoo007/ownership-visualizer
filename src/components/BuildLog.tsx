@@ -19,7 +19,7 @@ export function BuildLog({ state }: { state: CityState }) {
       <section className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--panel)] px-3 py-2.5 text-xs text-[var(--label-dim)]">
         🏗️ <span className="font-semibold text-[var(--label)]">ยังไม่มีไม้ที่บันทึกไว้</span>{" "}
         — ครั้งหน้าที่อัปเดตพอร์ตหลังซื้อเพิ่ม แอปจะนับให้เองเป็น 1 ไม้
-        แล้วขึ้นขีดที่มุมตึกนั้น
+        แล้วขึ้นเครนบนตึกนั้น
       </section>
     );
   }
@@ -50,7 +50,7 @@ export function BuildLog({ state }: { state: CityState }) {
       <Stat label="รวมที่เติมเข้าตึก" value={formatTHB(s.totalTHB)} />
 
       <span className="ml-auto text-[10px] text-[var(--label-dim)]">
-        1 ขีดที่มุมตึก = 1 ไม้
+        คลิกตึกเพื่อดูไม้ของตัวนั้น
       </span>
     </section>
   );

@@ -74,9 +74,14 @@ export function IsoTower({
 }) {
   const { structure: s, center, height, partIndex, partCount } = placed;
   /**
-   * ของที่ต้องมีใบเดียวต่อ "รายการ" ไม่ใช่ต่อ "ตึก" — ขีดสะสมกับงานที่เพิ่งสร้าง
-   * ต้องอยู่บนหลังที่กำลังก่อสร้าง (หลังสุดท้าย) เพราะเงินใหม่เข้าที่นั่น
-   * ถ้าโชว์ทุกหลังจะกลายเป็นนับไม้ซ้ำ 3 รอบ
+   * งานที่เพิ่งสร้างต้องขึ้นบนหลังที่กำลังก่อสร้าง (หลังสุดท้าย) เพราะเงินใหม่เข้าที่นั่น
+   *
+   * เคยมี "ไม้บรรทัดนับไม้ DCA" แปะข้างตึกด้วย แต่ถอดออกแล้ว — John: "ไม่ค่อย work"
+   * เหตุผลที่มันพัง: (1) มันเป็นกราฟที่เอาไปแปะในเมือง ไม่ใช่สิ่งของในโลกนี้
+   * เหมือนเครน/บิลบอร์ด/กองทอง (2) ขีดแนวนอนไล่ขึ้นไปหน้าตาซ้ำกับเส้นแบ่งชั้น
+   * ที่แปลว่าจำนวนหุ้น — ความหมายคนละเรื่องแต่หน้าตาเหมือนกัน (3) พอ 120 ไม้
+   * ขีดชิดกันจนกลายเป็นแท่งทึบ อ่านไม่ออก
+   * ⇒ ย้ายประวัติไม้ไปอยู่ในการ์ด "ตึกที่เลือก" แทน (SelectedTower)
    */
   const isNewestPart = partIndex === partCount - 1;
 
@@ -236,20 +241,6 @@ export function IsoTower({
           amount={s.recentAdd}
           invested={s.invested}
           height={height}
-        />
-      )}
-
-      {/*
-        ไม้บรรทัดนับไม้ DCA ที่มุมหน้าตึก — 1 ขีด = เติมเงิน 1 ครั้ง
-        เหตุผลที่ต้องมี: ฿4,000 บนพอร์ต ฿300,000 ทำให้ตึกสูงขึ้นแค่ 4%
-        แต่ "อีกหนึ่งขีด" เป็น 1 เต็มเสมอ ไม่ถูกเจือจางเมื่อพอร์ตโตขึ้น
-      */}
-      {s.contributionCount > 0 && height > 0 && isNewestPart && (
-        <DepositRuler
-          S={S}
-          top={solidTop}
-          count={s.contributionCount}
-          highlight={s.recentAdd !== null}
         />
       )}
 
@@ -789,27 +780,7 @@ export function TowerLabel({
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }) {
-  const { structure: s, center, height, partIndex, partCount } = placed;
-  /**
-   * ของที่ต้องมีใบเดียวต่อ "รายการ" ไม่ใช่ต่อ "ตึก" — ขีดสะสมกับงานที่เพิ่งสร้าง
-   * ต้องอยู่บนหลังที่กำลังก่อสร้าง (หลังสุดท้าย) เพราะเงินใหม่เข้าที่นั่น
-   * ถ้าโชว์ทุกหลังจะกลายเป็นนับไม้ซ้ำ 3 รอบ
-   */
-  const isNewestPart = partIndex === partCount - 1;
-
-  /**
-   * ป้ายของตึกหน้าสุดในกลุ่มบอกจำนวนหลังไปเลย เช่น "SPYM ×4"
-   *
-   * ทำไมไม่ให้นับเอาเอง: ตึกที่ชนเพดานสูงเท่ากันหมด ป้ายของตึกแถวหลังก็โดน
-   * ตึกแถวหน้าบัง (เห็นเป็น "PYM" "OGL") ⇒ นับด้วยตาไม่ได้จริงตอนเมืองหนาแน่น
-   * ตึกหน้าสุดของกลุ่มเป็นหลังเดียวที่ไม่มีอะไรบังแน่นอน (depth มากสุด) จึงเอาเลข
-   * ไปแปะไว้ตรงนั้น — ได้ขนาดกลุ่มโดยไม่ต้องเห็นครบทุกหลัง
-   *
-   * (เคยลองตีเส้นอาณาเขตบนพื้นแทน แต่ในมุม isometric ตึกทับพื้นของตัวเองมิด
-   *  มองไม่เห็นอะไรเลย จึงถอดออก)
-   */
-  const signLabel =
-    partCount > 1 && isNewestPart ? `${s.label} ×${partCount}` : s.label;
+  const { structure: s, center, height } = placed;
   const y = labelY;
   const w = Math.max(30, s.label.length * 7.5 + 10);
   const roofY = center.y - height - TILE_H / 2;
@@ -877,101 +848,6 @@ export function TowerLabel({
         >
           {formatTHB(s.invested)} · {formatShares(s.units)} ชั้น
         </text>
-      )}
-    </g>
-  );
-}
-
-/**
- * ไม้บรรทัดนับ "ไม้ DCA" ที่มุมหน้าตึก
- *
- * ทำไมขีดถึงไม่ได้เว้นระยะตามเงิน: ถ้าให้ระยะขีดเป็นสัดส่วนกับเงิน มันจะกลับไป
- * เจอปัญหาเดิม (฿4,000 = 12px มองไม่เห็น) · ขีดวัด *จำนวนครั้งที่ลงมือ*
- * ซึ่งเป็นคนละหน่วยกับความสูง และเป็นหน่วยที่ไม่ถูกเจือจางเมื่อพอร์ตโต
- * ⇒ ความสูงยังซื่อสัตย์กับเงิน 100% ส่วนขีดซื่อสัตย์กับวินัย 100%
- */
-function DepositRuler({
-  S,
-  top,
-  count,
-  highlight,
-}: {
-  S: Point;
-  top: number;
-  count: number;
-  highlight: boolean;
-}) {
-  /**
-   * เกจห้อยลงมาจากใต้ดาดฟ้า ไม่ได้ตั้งจากพื้น
-   * เพราะฐานตึกแถวหลังถูกตึกแถวหน้าบังเสมอในมุม isometric — SPYM ที่สูงที่สุด
-   * ในเมืองคือตัวที่ฐานโดนบังมิดที่สุด ซึ่งเป็นตัวที่ควรเห็นขีดชัดที่สุด
-   */
-  const anchor = top - 6;
-  const usable = anchor - 6;
-  if (usable < 4) return null;
-
-  const gaps = Math.max(1, count - 1);
-  const spacing = Math.min(9, usable / gaps);
-  // ถี่จนขีดติดกันเป็นก้อนแล้ว วาดต่อไปก็อ่านไม่ออก — เปลี่ยนเป็นแถบทึบแทน
-  const tooDense = spacing < 2.4;
-  const span = (count - 1) * spacing;
-
-  /**
-   * เสาตั้งเยื้องออกมาข้างหน้ามุมตึก ไม่ใช่แปะบนผนัง
-   * เพราะแปะบนผนังแล้วขีดจะไปแข่งกับไฟหน้าต่างจนอ่านไม่ออก (ลองแล้วจางหาย)
-   */
-  const x = S.x + 5;
-  const yAt = (v: number) => S.y + 3 - v;
-  const yTop = yAt(anchor);
-  const yBottom = yAt(anchor - span);
-
-  return (
-    <g>
-      {/* แผ่นรองสีเข้ม ให้ขีดเด้งออกจากผนังตึกที่มีไฟระยิบ */}
-      <rect
-        x={x - 4.6}
-        y={yTop - 4}
-        width={9.2}
-        height={span + 8}
-        rx={1.5}
-        fill="#050d18"
-        opacity={0.82}
-        stroke="#2f5a7d"
-        strokeWidth={0.7}
-      />
-
-      <rect
-        x={x - 0.8}
-        y={yTop}
-        width={1.6}
-        height={span}
-        fill={tooDense ? "#7fd9ff" : "#20415e"}
-      />
-
-      {!tooDense &&
-        Array.from({ length: count }, (_, i) => {
-          // ไม้ล่าสุดอยู่บนสุด — อ่านว่า "สร้างขึ้นไปเรื่อยๆ"
-          const y = yAt(anchor - (count - 1 - i) * spacing);
-          const newest = i === count - 1;
-          return (
-            <line
-              key={i}
-              x1={x - 3.4}
-              y1={y}
-              x2={x + 3.4}
-              y2={y}
-              stroke={newest && highlight ? "#ffd88a" : "#7fd9ff"}
-              strokeWidth={newest && highlight ? 2.4 : 1.7}
-              strokeLinecap="round"
-            />
-          );
-        })}
-
-      {/* หมุดปิดหัว-ท้ายเกจ ให้ดูเป็นเครื่องมือวัด ไม่ใช่เส้นบังเอิญ */}
-      <rect x={x - 3} y={yBottom - 0.6} width={6} height={1.6} rx={0.6} fill="#2f5a7d" />
-
-      {highlight && !tooDense && (
-        <circle cx={x} cy={yTop} r={2.8} fill="#ffd88a" className="anim-beacon" />
       )}
     </g>
   );

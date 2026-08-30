@@ -97,10 +97,10 @@ export function Sidebar({
               <span className="text-[var(--label)]">ไฟหน้าต่าง</span> = ยิ่งกำไรยิ่งสว่าง
             </li>
             <li>
-              <span style={{ color: "#7fd9ff" }}>ขีดที่มุมตึก</span> = เติมเงิน 1 ครั้ง
+              <span style={{ color: "var(--free)" }}>แถบทอง + เครน</span> = เพิ่งเติมสัปดาห์นี้
             </li>
             <li>
-              <span style={{ color: "var(--free)" }}>แถบทอง + เครน</span> = เพิ่งเติมสัปดาห์นี้
+              <span className="text-[var(--accent)]">คลิกตึก</span> = ดูไม้ DCA ของตัวนั้น
             </li>
           </ul>
           <p className="mt-2 border-t border-[var(--border)] pt-2 text-[10px] leading-relaxed text-[var(--label-dim)]">
