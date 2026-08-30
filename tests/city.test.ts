@@ -11,7 +11,7 @@ import {
   topConcentration,
   totals,
 } from "../src/lib/portfolio";
-import { THB_PER_PX, floorPlan, groundCells, heightFor, layoutCity } from "../src/lib/iso";
+import { THB_PER_PX, TOWER_CAP_PX, TOWER_CAP_THB, floorPlan, groundCells, heightFor, towerHeights, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
 import { compare } from "../src/lib/history";
 import {
@@ -107,9 +107,13 @@ test("ข้ามขั้นสเกลแล้วสัดส่วนเ�
  */
 test("เติมเงินเข้าตัวใหญ่สุด ห้ามทำให้ตึกหลังไหนในเมืองเตี้ยลงแม้แต่หลังเดียว", () => {
   const before = baseCity();
+  // คีย์ต้องเป็น "ตึกหลังที่เท่าไหร่ของรายการไหน" — หนึ่งรายการกินได้หลายแปลง
   const heightsOf = (st: CityState) =>
     new Map(
-      layoutCity(toStructures(st), ORDER).all.map((p) => [p.structure.label, p.height]),
+      layoutCity(toStructures(st), ORDER).all.map((p) => [
+        `${p.structure.label}#${p.partIndex}`,
+        p.height,
+      ]),
     );
 
   let current = before;
@@ -133,6 +137,7 @@ test("เติมเงินเข้าตัวใหญ่สุด ห้�
 
     const nowH = heightsOf(current);
     for (const [label, h] of nowH) {
+      // ตึกหลังใหม่ที่เพิ่งขึ้นไม่มีค่าเดิมให้เทียบ — ผ่านไป
       assert.ok(
         h >= (prevH.get(label) ?? 0) - 1e-9,
         `รอบ ${round}: ${label} เตี้ยลงจาก ${prevH.get(label)?.toFixed(1)} เหลือ ${h.toFixed(1)} ทั้งที่ไม่ได้ขายอะไร`,
@@ -141,8 +146,17 @@ test("เติมเงินเข้าตัวใหญ่สุด ห้�
   }
 
   // ตัวที่ถูกเติมต้องโตขึ้นจริง ไม่ใช่แค่ "ไม่หด" เพราะชนเพดาน
-  const end = heightsOf(current);
-  assert.ok(end.get("GOOGL")! > start.get("GOOGL")! * 50);
+  // ตัวที่ถูกอัดเงินต้องกลายเป็นกลุ่มอาคารหลายหลัง ไม่ใช่เข็มเดียวสูงลิ่ว
+  const end = layoutCity(toStructures(current), ORDER).all.filter(
+    (p) => p.structure.label === "GOOGL",
+  );
+  assert.ok(end.length > 3, `GOOGL ควรแตกเป็นหลายหลัง ได้ ${end.length}`);
+  assert.ok(
+    end.every((p) => p.height <= TOWER_CAP_PX + 1e-9),
+    "ห้ามมีหลังไหนทะลุเพดาน",
+  );
+  const total = end.reduce((a, p) => a + p.height, 0);
+  assert.ok(total > (start.get("GOOGL#0") ?? 0) * 50, "ความสูงรวมต้องโตขึ้นจริง");
 });
 
 test("ไม้บรรทัดตรึงตายตัว — เงินเท่ากันได้ความสูงเท่ากันเสมอ ไม่ว่าเมืองจะใหญ่แค่ไหน", () => {
@@ -628,3 +642,51 @@ test("ไม้ที่ลงวันที่ในอนาคต ห้า�
   assert.deepEqual(s.recentTickers, ["VOO"]);
   assert.equal(s.rounds, 2, "แต่ยังนับเป็นไม้ที่ลงไปแล้วอยู่ ไม่ได้ทิ้ง");
 });
+
+/**
+ * กฎเหล็กของการแตกตึก: ตึกที่เต็มเพดานแล้วต้องค้างที่เพดานตลอดไป
+ * ห้ามผ่าเงินออกเป็นหลายหลังเท่าๆ กัน (นั่นคือบั๊ก √2 ในเสื้อใหม่)
+ */
+test("แตกตึกแล้วต้องไม่มีหลังไหนเตี้ยลง แม้เดินเงินทีละไม้ตลอดทาง", () => {
+  let prev: number[] = [];
+  let splits = 0;
+
+  for (let thb = 0; thb <= 900_000; thb += 4_000) {
+    const parts = towerHeights(thb);
+    assert.ok(
+      parts.every((h) => h <= TOWER_CAP_PX + 1e-9),
+      `฿${thb}: มีหลังทะลุเพดาน`,
+    );
+    parts.forEach((h, i) => {
+      assert.ok(
+        h >= (prev[i] ?? 0) - 1e-9,
+        `฿${thb}: หลังที่ ${i + 1} เตี้ยลงจาก ${prev[i]?.toFixed(1)} เหลือ ${h.toFixed(1)}`,
+      );
+    });
+    if (parts.length > prev.length) splits++;
+    prev = parts;
+  }
+
+  assert.ok(splits >= 6, `ควรแตกตึกหลายรอบในช่วงนี้ ได้ ${splits}`);
+});
+
+test("อัตราส่วนตึกต่อแปลงหยุดโตหลังแตกตึก — ไม่กลายเป็นเข็มอีกต่อไป", () => {
+  const ratio = (thb: number) => Math.max(...towerHeights(thb)) / 68;
+  assert.ok(ratio(90_000) < 5, "วันนี้ยังทรงเดิม");
+  // ฿560,000 ในตัวเดียว: ตึกเดียวจะเป็น 25.7 เท่า
+  assert.ok(560_000 / THB_PER_PX / 68 > 25, "เทียบกับแบบตึกเดียวที่เป็นเข็มจริง");
+  assert.ok(ratio(560_000) < 6.2, "แตกตึกแล้วต้องค้างที่ ~5.9 เท่า");
+  assert.equal(ratio(5_000_000).toFixed(1), ratio(560_000).toFixed(1), "โตอีกกี่เท่าก็ไม่เพี้ยนเพิ่ม");
+});
+
+test("เงินรวมของทุกหลังต้องเท่ากับเงินที่ลงไปจริง ไม่ตกหล่นตอนแตกตึก", () => {
+  for (const thb of [0, 5_000, 128_000, 128_001, 300_000, 777_777]) {
+    const sum = towerHeights(thb).reduce((a, h) => a + h, 0);
+    const expected = thb / THB_PER_PX;
+    if (thb === 0) { assert.equal(sum, 0); continue; }
+    // เศษเล็กกว่า MIN_H ถูกดันขึ้นเป็น 5px ได้ จึงยอมให้เกินได้เล็กน้อย
+    assert.ok(sum >= expected - 1e-9 && sum <= expected + MIN_H_ALLOWANCE,
+      `฿${thb}: รวมได้ ${sum.toFixed(1)}px ควรเป็น ${expected.toFixed(1)}px`);
+  }
+});
+const MIN_H_ALLOWANCE = 5;

@@ -76,8 +76,43 @@ export function heightFor(invested: number): number {
   return Math.max(MIN_H, invested / THB_PER_PX);
 }
 
+/**
+ * เพดานความสูงต่อ "หนึ่งตึก" — เกินนี้ให้ขึ้นตึกใหม่ข้างๆ แทนที่จะยืดตึกเดิม
+ *
+ * ทำไมต้องมี: ไม้บรรทัดตรึง (THB_PER_PX) แก้ปัญหาตึกหดได้ แต่ทำให้ตึกกลายเป็น
+ * เข็มเมื่อพอร์ตโต — ที่ ฿560,000 ตึกเดียวจะสูง 25.7 เท่าของความกว้างแปลง
+ * แตกเป็นหลายตึกแล้วอัตราส่วนค้างที่ 5.9 เท่าตลอดไป ไม่ว่าพอร์ตจะโตแค่ไหน
+ *
+ * ⚠️ กฎเหล็ก: **ห้ามผ่าตึกเดิมออกเป็นหลายส่วนเท่าๆ กัน**
+ * (฿142,364 → 2 ตึก ตึกละ 222px = ตึกเดิมหดจาก 445px ซึ่งคือบั๊ก √2 กลับมา)
+ * ตึกที่เต็มเพดานแล้วต้อง **ค้างที่เพดานตลอดไป** แล้วให้ตึกใหม่โตจากศูนย์ข้างๆ
+ * ⇒ ความสูงของทุกตึกเป็นฟังก์ชันไม่ลดของเงิน · เดินเงิน ฿0→฿800,000 ทีละไม้
+ *   แล้วไม่มีตึกไหนเตี้ยลงแม้แต่ครั้งเดียว (มีเทสต์ล็อก)
+ */
+export const TOWER_CAP_PX = 400;
+export const TOWER_CAP_THB = TOWER_CAP_PX * THB_PER_PX;
+
+/**
+ * แบ่งเงินของหนึ่งรายการเป็นความสูงของตึกแต่ละหลัง
+ * หลังก่อนหน้าเต็มเพดานเสมอ หลังสุดท้ายคือหลังที่กำลังก่อสร้าง
+ */
+export function towerHeights(invested: number): number[] {
+  const h = heightFor(invested);
+  if (h <= TOWER_CAP_PX) return [h];
+
+  const full = Math.floor(invested / TOWER_CAP_THB);
+  const rest = heightFor(invested - full * TOWER_CAP_THB);
+  const out = Array.from({ length: full }, () => TOWER_CAP_PX);
+  // เศษที่เล็กกว่า MIN_H ยังต้องขึ้นเป็นตึกใหม่ ไม่งั้นตึกจะวูบหายตอนข้ามเพดานพอดี
+  if (invested - full * TOWER_CAP_THB > 0) out.push(rest);
+  return out;
+}
+
 export type PlacedStructure = {
   structure: Structure;
+  /** ตึกหลังที่เท่าไหร่ของรายการนี้ (0 = หลังแรก) — หลังสุดท้ายคือหลังที่กำลังสร้าง */
+  partIndex: number;
+  partCount: number;
   gx: number;
   gy: number;
   center: Point;
@@ -128,21 +163,34 @@ export function layoutCity(
 
     if (rows_.length === 0) return 0;
 
-    const cols = Math.max(1, Math.ceil(Math.sqrt(rows_.length)));
-    const placed: PlacedStructure[] = rows_.map((structure, i) => {
+    /**
+     * รายการเดียวอาจกินหลายแปลง — เงินเกินเพดานแล้วขึ้นตึกใหม่ข้างๆ
+     * ตึกของรายการเดียวกันเรียงติดกัน จะได้อ่านเป็น "กลุ่มอาคารของตัวนั้น"
+     */
+    const parts = rows_.flatMap((structure) => {
+      const heights = towerHeights(structure.invested);
+      return heights.map((height, partIndex) => ({
+        structure,
+        height,
+        partIndex,
+        partCount: heights.length,
+      }));
+    });
+
+    const cols = Math.max(1, Math.ceil(Math.sqrt(parts.length)));
+    const placed: PlacedStructure[] = parts.map((part, i) => {
       const gx = (i % cols) + originX;
       const gy = Math.floor(i / cols) + originY;
       return {
-        structure,
+        ...part,
         gx,
         gy,
         center: tileCenter(gx, gy),
-        height: heightFor(structure.invested),
         depth: gx + gy,
       };
     });
 
-    const usedRows = Math.ceil(rows_.length / cols);
+    const usedRows = Math.ceil(parts.length / cols);
     districts.push({ id: districtId, placed, startRow: originY, rows: usedRows });
     all.push(...placed);
     return usedRows;

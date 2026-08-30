@@ -72,7 +72,13 @@ export function IsoTower({
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }) {
-  const { structure: s, center, height } = placed;
+  const { structure: s, center, height, partIndex, partCount } = placed;
+  /**
+   * ของที่ต้องมีใบเดียวต่อ "รายการ" ไม่ใช่ต่อ "ตึก" — ขีดสะสมกับงานที่เพิ่งสร้าง
+   * ต้องอยู่บนหลังที่กำลังก่อสร้าง (หลังสุดท้าย) เพราะเงินใหม่เข้าที่นั่น
+   * ถ้าโชว์ทุกหลังจะกลายเป็นนับไม้ซ้ำ 3 รอบ
+   */
+  const isNewestPart = partIndex === partCount - 1;
   const palette = s.isFree ? PALETTES.free : (PALETTES[s.district] ?? PALETTES.mission);
 
   const N: Point = { x: center.x, y: center.y - TILE_H / 2 };
@@ -111,7 +117,8 @@ export function IsoTower({
       style={{ filter: hovered && !selected ? "brightness(1.18)" : undefined }}
     >
       <title>
-        {`${s.label} — ${s.sublabel}\nลงเงิน ${formatTHB(s.invested)} · ${formatShares(s.units)} หุ้น`}
+        {`${s.label} — ${s.sublabel}\nลงเงิน ${formatTHB(s.invested)} · ${formatShares(s.units)} หุ้น` +
+          (partCount > 1 ? `\nกลุ่มอาคาร ${partCount} หลัง (หลังที่ ${partIndex + 1})` : "")}
       </title>
 
       {/* เงาทอดไปทางขวา — ยาวตามความสูงจริง (แสงมาจากซ้ายบน) */}
@@ -205,7 +212,7 @@ export function IsoTower({
         ส่วนที่เพิ่งสร้างเดือนนี้ — แถบสีต่างพาดที่ยอดตึก สูงตามเงินที่เพิ่งเติมจริง
         เล็กแค่ไหนก็ตามความจริง แต่ "หาเจอทันที" เพราะสีกับนั่งร้านต่างจากที่เหลือ
       */}
-      {s.recentAdd !== null && height > 0 && (
+      {s.recentAdd !== null && height > 0 && isNewestPart && (
         <FreshWork
           W={W}
           S={S}
@@ -223,7 +230,7 @@ export function IsoTower({
         เหตุผลที่ต้องมี: ฿4,000 บนพอร์ต ฿300,000 ทำให้ตึกสูงขึ้นแค่ 4%
         แต่ "อีกหนึ่งขีด" เป็น 1 เต็มเสมอ ไม่ถูกเจือจางเมื่อพอร์ตโตขึ้น
       */}
-      {s.contributionCount > 0 && height > 0 && (
+      {s.contributionCount > 0 && height > 0 && isNewestPart && (
         <DepositRuler
           S={S}
           top={solidTop}
@@ -768,7 +775,13 @@ export function TowerLabel({
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }) {
-  const { structure: s, center, height } = placed;
+  const { structure: s, center, height, partIndex, partCount } = placed;
+  /**
+   * ของที่ต้องมีใบเดียวต่อ "รายการ" ไม่ใช่ต่อ "ตึก" — ขีดสะสมกับงานที่เพิ่งสร้าง
+   * ต้องอยู่บนหลังที่กำลังก่อสร้าง (หลังสุดท้าย) เพราะเงินใหม่เข้าที่นั่น
+   * ถ้าโชว์ทุกหลังจะกลายเป็นนับไม้ซ้ำ 3 รอบ
+   */
+  const isNewestPart = partIndex === partCount - 1;
   const y = labelY;
   const w = Math.max(30, s.label.length * 7.5 + 10);
   const roofY = center.y - height - TILE_H / 2;

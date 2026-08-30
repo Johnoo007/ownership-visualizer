@@ -242,10 +242,11 @@ export function IsoCity({
               onSelect,
               onHover: setHoveredId,
             };
+            const key = `${placed.structure.id}#${placed.partIndex}`;
             return placed.structure.kind === "site" ? (
-              <IsoSite key={placed.structure.id} {...props} />
+              <IsoSite key={key} {...props} />
             ) : (
-              <IsoTower key={placed.structure.id} {...props} />
+              <IsoTower key={key} {...props} />
             );
           })}
 
@@ -290,6 +291,8 @@ export function IsoCity({
             const hasOwnSign =
               placed.height > 0 || placed.structure.marketValue > 0;
             if (hasOwnSign && !selected && !hovered) return null;
+            // รายการที่กินหลายแปลง ป้ายลอยต้องมีใบเดียว ไม่ใช่ใบต่อหนึ่งตึก
+            if (placed.partIndex > 0) return null;
 
             return (
               <TowerLabel
