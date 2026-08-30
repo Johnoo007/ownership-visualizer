@@ -32,11 +32,21 @@ export function StatsPanel({
 
   return (
     <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+      {/*
+        นับเงินสดด้วย — เงินที่โอนเข้าพอร์ตแล้วแต่ยังไม่ได้ซื้อหุ้น ก็คือเงินที่
+        เก็บมาได้แล้วเหมือนกัน การยังไม่กลายเป็นหุ้นเป็นเรื่องจังหวะ ไม่ใช่ว่ายังไม่มี
+      */}
       <Card
         icon="🧱"
         label="เงินที่ลงไปแล้ว"
-        value={formatTHB(t.invested)}
-        note="ความสูงรวมของเมือง"
+        value={formatTHB(all ? all.returnBase : t.invested)}
+        note={
+          all?.usingDeposits
+            ? "ทุกบาทที่เก็บเข้าพอร์ต · รวมเงินสด"
+            : all
+              ? "ต้นทุนหุ้น + เงินสด"
+              : "ต้นทุนหุ้นในเขตนี้"
+        }
         tone="accent"
       />
       <Card

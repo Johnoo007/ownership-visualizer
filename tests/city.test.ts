@@ -234,10 +234,11 @@ test("ยอดรวมพอร์ตนับเงินสดแบบช�
   // แต่ความสูงเมืองยังเป็นต้นทุนหุ้นล้วน ไม่ขยับตามเงินสดหรือเงินเติมสะสม
   assert.equal(s.invested, totals(base).invested);
 
-  // ไม่กรอกเงินเติมสะสม → ถอยไปเทียบต้นทุนหุ้นแทน ไม่พัง
+  // ไม่กรอกเงินเติมสะสม → ประมาณด้วยต้นทุนหุ้น + เงินสด (ต้องนับเงินสดด้วยเสมอ
+  // เพราะเงินที่โอนเข้าพอร์ตแล้วก็คือเงินที่เก็บมาได้แล้ว)
   const noDeposits = portfolioSummary({ ...base, cash: { usd: 300, thb: 20_000 } });
   assert.equal(noDeposits.usingDeposits, false);
-  assert.equal(noDeposits.returnBase, totals(base).invested);
+  assert.equal(noDeposits.returnBase, totals(base).invested + cash);
 });
 
 test("เมืองว่างต้องไม่ crash", () => {

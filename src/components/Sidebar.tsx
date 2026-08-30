@@ -81,7 +81,10 @@ export function Sidebar({
           </p>
           <ul className="mt-1.5 space-y-1 text-[10.5px] leading-relaxed text-[var(--label-dim)]">
             <li>
-              <span className="text-[var(--label)]">ความสูง</span> = เงินที่ลงไป
+              <span className="text-[var(--label)]">ความสูง</span> = เงินที่ซื้อหุ้นแล้ว
+            </li>
+            <li>
+              <span className="text-[var(--label)]">ไซต์ก่อสร้าง</span> = เงินสดที่รอลงทุน
             </li>
             <li>
               <span className="text-[var(--label)]">จำนวนชั้น</span> = จำนวนหุ้น

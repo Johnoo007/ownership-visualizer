@@ -123,7 +123,7 @@ export type PortfolioSummary = Totals & {
   cash: number;
   /** มูลค่าทั้งพอร์ตแบบที่ชีตนับ = หุ้น + เงินสด */
   marketTotal: number;
-  /** ตัวส่วนของผลตอบแทน — เงินเติมสะสมถ้ามี ไม่งั้นถอยไปใช้ต้นทุนหุ้น */
+  /** เงินที่ใส่เข้าพอร์ตทั้งหมด — เงินเติมสะสมถ้ามี ไม่งั้นประมาณด้วยต้นทุนหุ้น + เงินสด */
   returnBase: number;
   usingDeposits: boolean;
   /** ผลตอบแทนรวมแบบชีต: (เงินสด + มูลค่าหุ้น) ÷ เงินเติมสะสม − 1 */
@@ -142,7 +142,9 @@ export function portfolioSummary(state: CityState): PortfolioSummary {
   const marketTotal = t.marketValue + cash;
 
   const usingDeposits = typeof state.deposits === "number" && state.deposits > 0;
-  const returnBase = usingDeposits ? state.deposits! : t.invested;
+  // ไม่มีเงินเติมสะสม ก็ยังต้องนับเงินสดเข้าไปด้วย — เงินที่โอนเข้าพอร์ตแล้ว
+  // แต่ยังไม่ได้ซื้อหุ้น ก็คือเงินที่เก็บมาได้แล้วเหมือนกัน
+  const returnBase = usingDeposits ? state.deposits! : t.invested + cash;
 
   return {
     ...t,
