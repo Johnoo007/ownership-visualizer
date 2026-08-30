@@ -75,7 +75,7 @@ export default function Home() {
   }
 
   return (
-    <main className="flex h-screen gap-3 overflow-hidden p-3">
+    <main className="flex min-h-screen flex-col gap-3 p-3 lg:h-screen lg:flex-row lg:overflow-hidden">
       <Sidebar state={displayState} view={view} onViewChange={setView} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -146,7 +146,7 @@ export default function Home() {
           </div>
         )}
 
-        <div className="glow-panel relative min-h-0 flex-1 overflow-hidden rounded-xl bg-[var(--city-bg)]">
+        <div className="glow-panel relative h-[54vh] min-h-[340px] overflow-hidden rounded-xl bg-[var(--city-bg)] lg:h-auto lg:min-h-0 lg:flex-1">
           <div className="scanline pointer-events-none absolute inset-0 z-10" />
           <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
             <span className="rounded-md border border-[var(--border-bright)] bg-[var(--panel)]/85 px-2 py-1 text-[10px] tracking-[0.14em] text-[var(--label-dim)] uppercase">
@@ -168,7 +168,7 @@ export default function Home() {
         </div>
       </div>
 
-      <aside className="flex w-[320px] shrink-0 flex-col gap-3 overflow-y-auto">
+      <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-[320px] lg:overflow-y-auto">
         {!viewingPast && <PriceSync state={state} onSynced={replaceCity} />}
 
         <TimeMachine

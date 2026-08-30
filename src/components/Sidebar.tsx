@@ -23,8 +23,8 @@ export function Sidebar({
   const all = totals(state);
 
   return (
-    <aside className="flex w-[200px] shrink-0 flex-col gap-3 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3">
-      <div className="flex items-center gap-2.5 px-1 pt-1">
+    <aside className="flex w-full shrink-0 flex-row items-center gap-3 overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3 lg:w-[200px] lg:flex-col lg:items-stretch lg:overflow-x-visible lg:overflow-y-auto">
+      <div className="flex shrink-0 items-center gap-2.5 px-1 lg:pt-1">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border-bright)] bg-[var(--panel-raised)] text-lg">
           🏙️
         </div>
@@ -38,7 +38,7 @@ export function Sidebar({
         </div>
       </div>
 
-      <nav className="flex flex-col gap-1">
+      <nav className="flex flex-row gap-1 lg:flex-col">
         {NAV.map((item) => {
           const active = view === item.id;
           const t =
@@ -49,7 +49,7 @@ export function Sidebar({
               key={item.id}
               type="button"
               onClick={() => onViewChange(item.id)}
-              className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition ${
+              className={`flex shrink-0 items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition ${
                 active
                   ? "border-[var(--accent)] bg-[var(--accent)]/12"
                   : "border-transparent hover:border-[var(--border)] hover:bg-[var(--panel-hover)]"
@@ -73,7 +73,8 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="mt-auto space-y-2">
+      {/* คู่มืออ่านเมือง — ซ่อนบนจอแคบ ให้เหลือแต่ตัวสลับมุมมอง */}
+      <div className="hidden lg:mt-auto lg:block lg:space-y-2">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-raised)] p-2.5">
           <p className="text-[10px] tracking-wide text-[var(--label-dim)] uppercase">
             อ่านเมืองยังไง
