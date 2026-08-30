@@ -198,6 +198,17 @@ test("ของประดับทุกชนิดที่เขียน�
       `${decor} ไม่โผล่เลยสักช่อง — น่าจะเป็นโค้ดตาย`,
     );
   }
+
+  // ผังถนนมีสองแนวตัดกัน ทุกช่องถนนต้องรู้ว่าตัวเองเป็นแนวไหน
+  // ไม่งั้นรถกับเส้นแบ่งเลนจะวางขวางถนนอีกแนวทั้งหมด
+  const roads = cells.filter((c) => c.kind === "road");
+  assert.ok(roads.every((c) => c.roadAxis), "ช่องถนนต้องระบุแนวเสมอ");
+  for (const axis of ["x", "y"] as const) {
+    assert.ok(
+      roads.some((c) => c.roadAxis === axis || c.roadAxis === "both"),
+      `ไม่มีถนนแนว ${axis} เลย`,
+    );
+  }
 });
 
 test("เมืองว่างต้องไม่ crash", () => {

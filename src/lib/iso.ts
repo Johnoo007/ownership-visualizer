@@ -196,6 +196,11 @@ export type GroundCell = {
   depth: number;
   /** ของประดับ — deterministic ไม่กระพริบตอน re-render */
   decor: "none" | "tree" | "bush" | "car" | "lamp" | "person";
+  /**
+   * แนวของถนนช่องนี้ — รถ เส้นแบ่งเลน และคนเดินริมทางต้องอิงตามนี้
+   * "x" = ถนนพาดตามแกนที่ gx เพิ่ม · "y" = ตามแกนที่ gy เพิ่ม · "both" = สี่แยก
+   */
+  roadAxis?: "x" | "y" | "both";
 };
 
 /**
@@ -277,11 +282,16 @@ export function groundCells(layout: CityLayout): GroundCell[] {
         gy >= tMinGy - PLAN_REACH &&
         gy <= tMaxGy + PLAN_REACH;
 
+      const onRow = roadRows.has(gy);
+      const onCol = inPlan && roadCols.has(gx);
+
       let kind: CellKind = "grass";
+      let roadAxis: GroundCell["roadAxis"];
       if (occupied.has(key)) kind = "plot";
-      else if (inPlan && (roadRows.has(gy) || roadCols.has(gx))) kind = "road";
-      else if (roadRows.has(gy) && !inPlan) kind = "road";
-      else if (inPlan) kind = "vacant";
+      else if (onRow || onCol) {
+        kind = "road";
+        roadAxis = onRow && onCol ? "both" : onRow ? "x" : "y";
+      } else if (inPlan) kind = "vacant";
 
       let decor: GroundCell["decor"] = "none";
       const r = seededRandom(`decor${gx}:${gy}`, gx * 31 + gy);
@@ -312,6 +322,7 @@ export function groundCells(layout: CityLayout): GroundCell[] {
         center: tileCenter(gx, gy),
         depth: gx + gy,
         decor,
+        roadAxis,
       });
     }
   }

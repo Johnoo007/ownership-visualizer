@@ -16,6 +16,23 @@ const FILL: Record<GroundCell["kind"], string> = {
   grass: "var(--grass)",
 };
 
+/**
+ * ทิศทางของถนนแต่ละแนวในพิกัด isometric
+ * dir = ทิศที่รถวิ่ง · perp = ทิศตั้งฉาก (ใช้ดันคนไปเดินริมทาง)
+ */
+const AXIS = {
+  x: { dir: [0.894, 0.447], perp: [-0.894, 0.447] },
+  y: { dir: [-0.894, 0.447], perp: [0.894, 0.447] },
+} as const;
+
+/** สี่แยกไม่มีแนวชัดเจน — เลือกแบบคงที่ต่อช่อง จะได้ไม่กระพริบตอน re-render */
+function axisOf(cell: GroundCell): "x" | "y" {
+  if (cell.roadAxis === "both") {
+    return seededRandom(`ax${cell.gx}:${cell.gy}`, 23) > 0.5 ? "x" : "y";
+  }
+  return cell.roadAxis === "y" ? "y" : "x";
+}
+
 function rhombus(c: Point, w: number, h: number): Point[] {
   return [
     { x: c.x, y: c.y - h / 2 },
@@ -63,13 +80,13 @@ export function IsoGround({ cells }: { cells: GroundCell[] }) {
               />
             )}
 
-            {/* เส้นแบ่งเลน — ลากตามแนวถนน (ทิศที่ gx เพิ่ม) ไม่ใช่ขีดกลางลอยๆ */}
-            {cell.kind === "road" && (
+            {/* เส้นแบ่งเลนลากตามแนวถนนของช่องนั้น — สี่แยกไม่มีเส้นแบ่ง */}
+            {cell.kind === "road" && cell.roadAxis !== "both" && (
               <line
-                x1={cell.center.x - PITCH_W / 4}
-                y1={cell.center.y - PITCH_H / 4}
-                x2={cell.center.x + PITCH_W / 4}
-                y2={cell.center.y + PITCH_H / 4}
+                x1={cell.center.x - (AXIS[axisOf(cell)].dir[0] * PITCH_W) / 4}
+                y1={cell.center.y - (AXIS[axisOf(cell)].dir[1] * PITCH_W) / 4}
+                x2={cell.center.x + (AXIS[axisOf(cell)].dir[0] * PITCH_W) / 4}
+                y2={cell.center.y + (AXIS[axisOf(cell)].dir[1] * PITCH_W) / 4}
                 stroke="var(--road-line)"
                 strokeWidth={1.6}
                 strokeDasharray="7 6"
@@ -119,9 +136,10 @@ function Decor({ cell }: { cell: GroundCell }) {
     // คนบนถนนต้องเดินริมทาง ไม่ยืนกลางเลนให้รถชน
     // ขยับตามแกนที่ตั้งฉากกับแนวถนน (ทิศที่ gy เพิ่ม)
     if (cell.kind === "road") {
+      const perp = AXIS[axisOf(cell)].perp;
       const side = seededRandom(`sd${cell.gx}:${cell.gy}`, 19) > 0.5 ? 1 : -1;
-      cx = cell.center.x + -0.894 * 17 * side;
-      cy = cell.center.y + 0.447 * 17 * side;
+      cx = cell.center.x + perp[0] * 17 * side;
+      cy = cell.center.y + perp[1] * 17 * side;
     }
 
     // เงาสั้นๆ + ขาสองข้างแยกจังหวะ ทำให้อ่านเป็นคนเดิน ไม่ใช่หมุดปัก
@@ -153,16 +171,17 @@ function Decor({ cell }: { cell: GroundCell }) {
     const dir = seededRandom(`dir${cell.gx}:${cell.gy}`, 7) > 0.5 ? 1 : -1;
 
     /**
-     * รถต้องวางตามแนวถนน (แกนที่ gx เพิ่ม = ทิศ 0.894,0.447)
-     * ไม่ใช่แนวนอนของหน้าจอ ไม่งั้นจะกลายเป็นรถขวางถนน
+     * รถวางตามแนวถนน "ของช่องนั้น" — ผังเมืองมีถนนสองแนวตัดกัน
+     * ถ้าใช้แกนเดียวทั้งเมือง รถบนถนนอีกแนวจะขวางเลนหมด
      */
+    const ax = AXIS[axisOf(cell)];
     const L = 8.5;
     const W = 3.6;
     const H = 3.4;
-    const ux = 0.894 * L * dir;
-    const uy = 0.447 * L * dir;
-    const vx = -0.894 * W;
-    const vy = 0.447 * W;
+    const ux = ax.dir[0] * L * dir;
+    const uy = ax.dir[1] * L * dir;
+    const vx = ax.perp[0] * W;
+    const vy = ax.perp[1] * W;
 
     const p = (a: number, b: number, lift = 0) => ({
       x: cx + ux * a + vx * b,
