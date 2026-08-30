@@ -207,11 +207,18 @@ export function IsoTower({
         <GoldPile center={center} value={s.marketValue} seed={s.id} />
       )}
 
-      {/* ตึกสูง = ป้ายไฟบนผนัง · ตึกเตี้ย = ป้ายวางราบบนดาดฟ้า (ดาดฟ้ากว้างเท่ากันทุกตึก) */}
+      {/* ตึกสูง = ป้ายไฟบนผนัง · ที่เหลือ = บิลบอร์ดปักบนดาดฟ้า/บนที่ดิน
+          ที่ดินที่มีแต่กองทองก็ต้องมีป้ายแบบเดียวกัน ไม่งั้นจะเป็นชิ้นเดียวในเมืองที่ใช้ป้ายลอย */}
       {solidTop > NEON_MIN_HEIGHT ? (
         <NeonSign label={s.label} W={W} S={S} top={solidTop} />
       ) : (
-        height > 0 && <RoofSign label={s.label} center={center} top={solidTop} />
+        (height > 0 || s.marketValue > 0) && (
+          <RoofSign
+            label={s.label}
+            center={center}
+            top={height > 0 ? solidTop : GOLD_PILE_CLEARANCE}
+          />
+        )
       )}
 
       {/* ชั้นบนสุดที่ยังสะสมไม่ครบใบ — ขอบเส้นประรอบส่วนที่เป็นเศษ */}
@@ -259,20 +266,74 @@ export function IsoTower({
 /** ต่ำกว่านี้ผนังสั้นกว่าตัวป้าย ติดไปก็ลอยอยู่นอกตึก */
 const NEON_MIN_HEIGHT = 56;
 
+/** ความสูงที่ป้ายต้องอยู่เหนือกองทอง ไม่งั้นป้ายจะจมเข้าไปในกอง */
+const GOLD_PILE_CLEARANCE = 20;
+
 const GOLD = {
-  top: "#f7dd85",
-  left: "#d0a13c",
-  right: "#9d7620",
+  rim: "#fff0b8",
+  top: "#f2cf6b",
+  left: "#c99a35",
+  right: "#94701c",
+  edge: "#5f4610",
 };
 
-/** ตำแหน่งวางแท่งทองในกอง — เรียงจากล่างขึ้นบน (y ลบ = ซ้อนสูงขึ้น) */
-const BAR_SLOTS: Array<[number, number]> = [
-  [-8, 1],
-  [8, 1],
-  [0, -3.5],
-  [-8, -8],
-  [8, -8],
+/**
+ * ตำแหน่งแท่งทองในกอง — วางซ้อนเป็นพีระมิด
+ * [dx, dy, layer] · layer 1 = แท่งที่วางทับอยู่ด้านบน
+ */
+const BAR_SLOTS: Array<[number, number, number]> = [
+  [0, 2, 0],
+  [-9, 4, 0],
+  [9, 4, 0],
+  [-4.5, -1, 1],
+  [4.5, -1, 1],
 ];
+
+/** แท่งทองหนึ่งแท่ง — ทรงสอบเข้าด้านบนแบบแท่งจริง ไม่ใช่กล่องสี่เหลี่ยม */
+function GoldBar({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  const topW = w * 0.66;
+  const b = (dx: number, dy: number) => ({ x: x + dx, y: y + dy });
+
+  const baseS = b(0, w / 4);
+  const baseE = b(w / 2, 0);
+  const baseW = b(-w / 2, 0);
+
+  const topN = b(0, -h - topW / 4);
+  const topE = b(topW / 2, -h);
+  const topS = b(0, -h + topW / 4);
+  const topW_ = b(-topW / 2, -h);
+
+  return (
+    <g>
+      <polygon
+        points={polygonPoints([baseW, baseS, topS, topW_])}
+        fill={GOLD.left}
+      />
+      <polygon points={polygonPoints([baseS, baseE, topE, topS])} fill={GOLD.right} />
+      <polygon
+        points={polygonPoints([topN, topE, topS, topW_])}
+        fill={GOLD.top}
+        stroke={GOLD.rim}
+        strokeWidth={0.5}
+      />
+      {/* ขอบมันวาวด้านบน */}
+      <polyline
+        points={polygonPoints([topW_, topN, topE])}
+        fill="none"
+        stroke={GOLD.rim}
+        strokeWidth={0.8}
+        opacity={0.9}
+      />
+      <polyline
+        points={polygonPoints([baseW, baseS, baseE])}
+        fill="none"
+        stroke={GOLD.edge}
+        strokeWidth={0.5}
+        opacity={0.6}
+      />
+    </g>
+  );
+}
 
 /**
  * กองทองบนที่ดินที่ได้มาฟรี — จำนวนแท่งบอกมูลค่าแบบหยาบๆ
@@ -287,58 +348,47 @@ function GoldPile({
   value: number;
   seed: string;
 }) {
-  const bars =
+  const count =
     value < 2_000 ? 1 : value < 5_000 ? 2 : value < 15_000 ? 3 : value < 40_000 ? 4 : 5;
 
-  const barW = 15;
-  const barH = 5;
+  const barW = 16;
+  const barH = 5.5;
+  const layerLift = 5;
+
+  // วาดจากหลังไปหน้า ไม่งั้นแท่งหลังจะทับแท่งหน้า
+  const slots = BAR_SLOTS.slice(0, count)
+    .map(([dx, dy, layer]) => ({ dx, dy, layer }))
+    .sort((a, b) => a.layer - b.layer || a.dy - b.dy);
 
   return (
     <g>
-      {BAR_SLOTS.slice(0, bars).map(([dx, dy], i) => {
-        const x = center.x + dx;
-        const y = center.y + dy;
-        const top: Point[] = [
-          { x, y: y - barH - barW / 4 },
-          { x: x + barW / 2, y: y - barH },
-          { x, y: y - barH + barW / 4 },
-          { x: x - barW / 2, y: y - barH },
-        ];
+      <ellipse
+        cx={center.x}
+        cy={center.y + 5}
+        rx={20}
+        ry={8}
+        fill="rgba(0,0,0,0.45)"
+      />
 
-        return (
-          <g key={i}>
-            {/* หน้าซ้าย / หน้าขวา / หน้าบน ของแท่งทอง */}
-            <polygon
-              points={polygonPoints([
-                { x: x - barW / 2, y: y - barH },
-                { x, y: y - barH + barW / 4 },
-                { x, y: y + barW / 4 },
-                { x: x - barW / 2, y },
-              ])}
-              fill={GOLD.left}
-            />
-            <polygon
-              points={polygonPoints([
-                { x, y: y - barH + barW / 4 },
-                { x: x + barW / 2, y: y - barH },
-                { x: x + barW / 2, y },
-                { x, y: y + barW / 4 },
-              ])}
-              fill={GOLD.right}
-            />
-            <polygon points={polygonPoints(top)} fill={GOLD.top} />
-          </g>
-        );
-      })}
+      {slots.map((s, i) => (
+        <GoldBar
+          key={i}
+          x={center.x + s.dx}
+          y={center.y + s.dy - s.layer * layerLift}
+          w={barW}
+          h={barH}
+        />
+      ))}
 
-      {/* ประกายบนกอง */}
+      {/* ประกายเล็กๆ บนแท่งบนสุด */}
       {[0, 1].map((i) => {
-        const sx = center.x + (seededRandom(seed + "sp", i) - 0.5) * 22;
-        const sy = center.y - 10 - seededRandom(seed + "sy", i) * 8;
+        const sx = center.x + (seededRandom(seed + "sp", i) - 0.5) * 16;
+        const sy =
+          center.y - (count > 3 ? 12 : 6) - seededRandom(seed + "sy", i) * 3;
         return (
-          <g key={`sp${i}`}>
-            <rect x={sx - 2.5} y={sy - 0.4} width={5} height={0.8} fill="#fff6d5" />
-            <rect x={sx - 0.4} y={sy - 2.5} width={0.8} height={5} fill="#fff6d5" />
+          <g key={`sp${i}`} opacity={0.85}>
+            <rect x={sx - 2} y={sy - 0.3} width={4} height={0.6} fill="#fffbe8" />
+            <rect x={sx - 0.3} y={sy - 2} width={0.6} height={4} fill="#fffbe8" />
           </g>
         );
       })}
