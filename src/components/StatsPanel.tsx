@@ -38,9 +38,9 @@ export function StatsPanel({
       />
       <Card
         icon={t.pnl >= 0 ? "☀️" : "🌙"}
-        label="กำไร / ขาดทุน"
+        label="กำไร / ขาดทุน (฿)"
         value={formatPercent(t.pnlRatio)}
-        note={`${t.pnl >= 0 ? "+" : "−"}${formatTHB(Math.abs(t.pnl)).slice(1)} · ระดับแสงไฟ`}
+        note={`${t.pnl >= 0 ? "+" : "−"}${formatTHB(Math.abs(t.pnl)).slice(1)} · รวมค่าเงิน`}
         tone={t.pnl >= 0 ? "gain" : "loss"}
       />
       <Card

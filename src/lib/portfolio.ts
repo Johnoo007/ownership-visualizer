@@ -30,12 +30,17 @@ export function marketValueTHB(h: Holding, fxRate: number): number {
  * กำไร/ขาดทุนเป็นสัดส่วน · คืน null เมื่อต้นทุนเป็น 0
  * (ของที่ได้มาฟรีคิด % ไม่ได้ — ไม่ใช่บั๊ก ห้ามหารศูนย์แล้วโชว์ ∞%)
  */
-export function pnlRatio(h: Holding, fxRate: number): number | null {
-  const cost = investedTHB(h, fxRate);
+/**
+ * กำไร/ขาดทุนรายตัว — คิด "ในสกุลของหุ้นตัวนั้น" เสมอ (USD สำหรับหุ้น US)
+ *
+ * จงใจไม่แปลงเป็นบาท เพราะระดับรายตัวคือการวัด **ผลตอบแทนตลาดล้วน**
+ * ถ้าเอาค่าเงินมาปนตรงนี้ จะแยกไม่ออกว่าตึกดวงไฟหรี่เพราะบริษัทแย่ หรือเพราะบาทแข็ง
+ * ส่วนผลกระทบค่าเงินไปโผล่ที่ระดับพอร์ตรวม (ดู totals) ซึ่งเป็นฐานบาท
+ */
+export function pnlRatio(h: Holding): number | null {
+  const cost = h.shares * h.avgCost;
   if (cost <= 0) return null;
-  // คิดบนฐานบาทเสมอ — ถ้าบันทึกบาทที่จ่ายจริงไว้ ตัวเลขนี้จะรวมกำไร/ขาดทุนค่าเงินด้วย
-  // (ถ้าไม่มี ค่าเงินจะหารกันหมด ได้ผลเท่ากับคิดในสกุลหุ้น)
-  return marketValueTHB(h, fxRate) / cost - 1;
+  return (h.shares * h.currentPrice) / cost - 1;
 }
 
 export function isFreeHolding(h: Holding): boolean {
@@ -120,7 +125,7 @@ export function toStructures(state: CityState): Structure[] {
     sublabel: h.name,
     invested: investedTHB(h, state.fxRate),
     units: h.shares,
-    health: pnlRatio(h, state.fxRate),
+    health: pnlRatio(h),
     isFree: isFreeHolding(h),
     district: h.district,
     marketValue: marketValueTHB(h, state.fxRate),

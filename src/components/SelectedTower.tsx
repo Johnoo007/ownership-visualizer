@@ -29,7 +29,7 @@ export function SelectedTower({
 }) {
   const invested = investedTHB(holding, state.fxRate);
   const market = marketValueTHB(holding, state.fxRate);
-  const ratio = pnlRatio(holding, state.fxRate);
+  const ratio = pnlRatio(holding);
   const free = isFreeHolding(holding);
   const cityInvested = totals(state).invested;
   const share = cityInvested > 0 ? invested / cityInvested : 0;
@@ -102,7 +102,7 @@ export function SelectedTower({
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
         <Row label="จำนวนชั้น" value={`${formatShares(holding.shares)} หุ้น`} />
         <Row
-          label="ระดับไฟ"
+          label={`ระดับไฟ (${holding.currency})`}
           value={free ? "ของฟรี" : formatPercent(ratio)}
           color={tone}
         />

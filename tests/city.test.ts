@@ -101,7 +101,7 @@ test("ของที่ได้มาฟรี (ต้นทุน 0) ไม�
   const s = baseCity();
   const gld = s.holdings.find((h) => h.id === "c")!;
 
-  assert.equal(pnlRatio(gld, s.fxRate), null, "ห้ามหารศูนย์แล้วได้ Infinity");
+  assert.equal(pnlRatio(gld), null, "ห้ามหารศูนย์แล้วได้ Infinity");
   assert.equal(investedTHB(gld, s.fxRate), 0);
   assert.ok(isFreeHolding(gld));
   assert.equal(heightOf(s, "c"), 0, "ลงเงิน 0 = ที่ดินเปล่า ไม่ใช่ตึก");
@@ -180,26 +180,28 @@ test("อ่านตารางที่วางมาจากชีต", ()
   assert.ok(voo?.ok && voo.holding.currentPrice === 480, "ไม่ระบุราคา → ใช้ต้นทุนไปก่อน");
 });
 
-test("บาทที่จ่ายจริงต้องชนะการคูณค่าเงินวันนี้", () => {
+test("แยกสกุลตามระดับ: ตึกรายตัวเป็นสกุลหุ้น พอร์ตรวมเป็นบาท", () => {
   const usd = {
     id: "x", ticker: "VOO", name: "VOO", shares: 10, avgCost: 600,
     currentPrice: 700, currency: "USD" as const, district: "mission" as const,
   };
-  // ตีด้วยค่าเงินวันนี้ (33) = ฿198,000
-  assert.equal(investedTHB(usd, 33), 198_000);
 
-  // แต่ตอนแลกจริงได้เรต 35.2 → จ่ายไป ฿211,200
+  // รายตัว = ผลตอบแทนตลาดล้วน ห้ามมีค่าเงินปน
+  assert.ok(Math.abs(pnlRatio(usd)! - 700 / 600 + 1) < 1e-12);
+
+  // บันทึกบาทจริงแล้ว ผลตอบแทนรายตัวต้องไม่ขยับ (ยังเป็น USD)
   const withReal = { ...usd, costTHB: 211_200 };
-  assert.equal(investedTHB(withReal, 33), 211_200, "ต้องใช้บาทจริง ไม่คูณ FX ซ้ำ");
+  assert.equal(pnlRatio(withReal), pnlRatio(usd), "costTHB ห้ามไปเปลี่ยนไฟรายตัว");
 
-  // กำไรฝั่งบาทต้องต่ำลง เพราะต้นทุนจริงสูงกว่า (บาทแข็งขึ้น = ขาดทุนค่าเงิน)
-  assert.ok(pnlRatio(withReal, 33)! < pnlRatio(usd, 33)!);
+  // แต่ "เงินที่ลงไป" ต้องใช้บาทจริง ไม่คูณค่าเงินวันนี้ซ้ำ
+  assert.equal(investedTHB(usd, 33), 198_000, "ไม่มีบาทจริง → ตีด้วยค่าเงินวันนี้");
+  assert.equal(investedTHB(withReal, 33), 211_200);
+  assert.equal(investedTHB(withReal, 40), 211_200, "ค่าเงินวันนี้ต้องไม่กระทบเงินที่ลงไปแล้ว");
 
-  // เปลี่ยนค่าเงินวันนี้ ต้องไม่กระทบเงินที่ลงไปแล้ว
-  assert.equal(investedTHB(withReal, 40), 211_200);
-
+  // ระดับพอร์ตรวมคิดฐานบาท จึงรวมผลค่าเงิน → ต่ำกว่าฝั่ง USD เพราะบาทแข็งขึ้น
   const city: CityState = { holdings: [withReal], fxRate: 33, isDemo: false };
   assert.equal(totals(city).invested, 211_200);
+  assert.ok(totals(city).pnlRatio! < pnlRatio(usd)!);
 });
 
 test("เทียบเมืองกับอดีต วัดที่เงินที่ลง ไม่ใช่มูลค่าตลาด", () => {
