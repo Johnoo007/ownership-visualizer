@@ -24,8 +24,18 @@ export type Holding = {
   costTHB?: number;
 };
 
+/**
+ * เงินสดที่ยังไม่ได้ลงทุน — จงใจแยกจาก holdings เพราะมันยังไม่ใช่ความเป็นเจ้าของ
+ * ห้ามนับรวมใน "เงินที่ลงไปแล้ว" ที่เป็นความสูงของเมือง
+ */
+export type Cash = {
+  usd: number;
+  thb: number;
+};
+
 export type CityState = {
   holdings: Holding[];
+  cash?: Cash;
   /** USD → THB */
   fxRate: number;
   /** true = เมืองตัวอย่าง ยังไม่ใช่พอร์ตจริง */
@@ -59,7 +69,8 @@ export type Structure = {
   marketValue: number;
 };
 
-export type StructureKind = "tower";
+export type StructureKind = "tower" | "site";
+// "site" = ไซต์ก่อสร้าง แทนเงินสดที่รอกลายเป็นตึก
 // อนาคต (Kingdom): "wall" = เงินสำรอง · "road" = บิลจ่ายตรงเวลา · "district"
 
 export const DISTRICTS: Record<DistrictId, { label: string; note: string }> = {

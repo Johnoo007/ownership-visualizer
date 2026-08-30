@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  cashTHB,
   formatPercent,
   formatTHB,
   topConcentration,
@@ -22,7 +23,7 @@ export function StatsPanel({
   const top = topConcentration(state, district);
 
   return (
-    <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+    <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
       <Card
         icon="🧱"
         label="เงินที่ลงไปแล้ว"
@@ -48,6 +49,12 @@ export function StatsPanel({
         label="ตึกในเมือง"
         value={String(t.towerCount)}
         note="บริษัทที่เป็นเจ้าของ"
+      />
+      <Card
+        icon="🚧"
+        label="เงินสดรอลงทุน"
+        value={formatTHB(cashTHB(state))}
+        note="ไซต์ก่อสร้าง · ยังไม่นับเป็นความสูง"
       />
       <Card
         icon="🗼"

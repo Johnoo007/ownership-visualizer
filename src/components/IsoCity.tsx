@@ -11,6 +11,7 @@ import {
 } from "@/lib/iso";
 import { DISTRICTS, type Structure } from "@/lib/types";
 import { IsoGround } from "./IsoGround";
+import { IsoSite } from "./IsoSite";
 import { IsoTower, TowerLabel } from "./IsoTower";
 
 const DISTRICT_ORDER = ["mission", "goldengoose"];
@@ -213,17 +214,21 @@ export function IsoCity({
 
           <IsoGround cells={cells} />
 
-          {/* เลเยอร์ตึก — ไกลไปใกล้ ตึกหน้าทับตึกหลังได้ถูกต้อง */}
-          {layout.all.map((placed) => (
-            <IsoTower
-              key={placed.structure.id}
-              placed={placed}
-              selected={placed.structure.id === selectedId}
-              hovered={placed.structure.id === hoveredId}
-              onSelect={onSelect}
-              onHover={setHoveredId}
-            />
-          ))}
+          {/* เลเยอร์สิ่งปลูกสร้าง — ไกลไปใกล้ ตัวหน้าทับตัวหลังได้ถูกต้อง */}
+          {layout.all.map((placed) => {
+            const props = {
+              placed,
+              selected: placed.structure.id === selectedId,
+              hovered: placed.structure.id === hoveredId,
+              onSelect,
+              onHover: setHoveredId,
+            };
+            return placed.structure.kind === "site" ? (
+              <IsoSite key={placed.structure.id} {...props} />
+            ) : (
+              <IsoTower key={placed.structure.id} {...props} />
+            );
+          })}
 
           {/* เลเยอร์ป้าย — บนสุดเสมอ ไม่โดนตึกบัง */}
           {layout.districts.map((d) => {

@@ -116,9 +116,15 @@ export function topConcentration(
   return top ? { label: top.ticker, share: max / totalInvested } : null;
 }
 
+/** เงินสดรวมเป็นบาท */
+export function cashTHB(state: CityState): number {
+  if (!state.cash) return 0;
+  return state.cash.usd * state.fxRate + state.cash.thb;
+}
+
 /** Holding[] → Structure[] — สะพานเดียวที่ renderer ใช้ (Kingdom ต่อยอดตรงนี้) */
 export function toStructures(state: CityState): Structure[] {
-  return state.holdings.map((h) => ({
+  const towers: Structure[] = state.holdings.map((h) => ({
     id: h.id,
     kind: "tower" as const,
     label: h.ticker,
@@ -130,6 +136,32 @@ export function toStructures(state: CityState): Structure[] {
     district: h.district,
     marketValue: marketValueTHB(h, state.fxRate),
   }));
+
+  // เงินสด = ไซต์ก่อสร้างที่รอกลายเป็นตึก
+  // invested = 0 เสมอ เพราะยังไม่ได้ลงทุน จึงต้องไม่ไปเพิ่มความสูงให้เมือง
+  const sites: Structure[] = [];
+  const pushSite = (id: string, label: string, value: number) => {
+    if (value <= 0) return;
+    sites.push({
+      id,
+      kind: "site",
+      label,
+      sublabel: "เงินสดรอลงทุน",
+      invested: 0,
+      units: 0,
+      health: null,
+      isFree: false,
+      district: "mission",
+      marketValue: value,
+    });
+  };
+
+  if (state.cash) {
+    pushSite("cash-usd", "USD", state.cash.usd * state.fxRate);
+    pushSite("cash-thb", "THB", state.cash.thb);
+  }
+
+  return [...towers, ...sites];
 }
 
 const bahtFormatter = new Intl.NumberFormat("th-TH", {

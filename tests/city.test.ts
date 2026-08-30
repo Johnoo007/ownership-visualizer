@@ -5,6 +5,7 @@ import {
   investedTHB,
   isFreeHolding,
   pnlRatio,
+  cashTHB,
   toStructures,
   topConcentration,
   totals,
@@ -147,6 +148,31 @@ test("ตัวชี้วัดความกระจุก แทนกา�
   assert.equal(top?.label, "GOOGL");
   assert.ok(top!.share > 0 && top!.share <= 1);
   assert.equal(topConcentration({ holdings: [], fxRate: 33.3, isDemo: false }), null);
+});
+
+test("เงินสดเป็นไซต์ก่อสร้าง ไม่ใช่ความสูงของเมือง", () => {
+  const withCash: CityState = { ...baseCity(), cash: { usd: 300, thb: 20_000 } };
+
+  // เงินสดยังไม่ใช่ความเป็นเจ้าของ ห้ามไปเพิ่ม "เงินที่ลงไปแล้ว"
+  assert.equal(totals(withCash).invested, totals(baseCity()).invested);
+  assert.equal(totals(withCash).towerCount, totals(baseCity()).towerCount);
+
+  const sites = toStructures(withCash).filter((s) => s.kind === "site");
+  assert.equal(sites.length, 2, "แยกกอง USD กับบาท");
+  assert.ok(sites.every((s) => s.invested === 0), "ไซต์ต้องไม่มีเงินที่ลงไป");
+  assert.equal(cashTHB(withCash), 300 * 33.3 + 20_000);
+
+  // ไซต์ต้องไม่มีความสูง ไม่งั้นเมืองจะสูงขึ้นจากเงินที่ยังไม่ได้ลงทุน
+  const l = layoutCity(toStructures(withCash), ORDER);
+  for (const p of l.all.filter((x) => x.structure.kind === "site")) {
+    assert.equal(p.height, 0, `${p.structure.label} ไม่ควรมีความสูง`);
+  }
+
+  // ไม่มีเงินสด = ไม่มีไซต์
+  assert.equal(toStructures(baseCity()).filter((s) => s.kind === "site").length, 0);
+  // ใส่ 0 ก็ต้องไม่โผล่ไซต์เปล่า
+  const zero: CityState = { ...baseCity(), cash: { usd: 0, thb: 0 } };
+  assert.equal(toStructures(zero).filter((s) => s.kind === "site").length, 0);
 });
 
 test("เมืองว่างต้องไม่ crash", () => {

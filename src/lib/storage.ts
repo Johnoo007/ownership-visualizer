@@ -33,8 +33,16 @@ export function parseCity(raw: unknown): CityState | null {
 
   const fxRate = typeof obj.fxRate === "number" && obj.fxRate > 0 ? obj.fxRate : 33.3;
 
+  const rawCash = obj.cash as { usd?: unknown; thb?: unknown } | undefined;
+  const num = (v: unknown) => (typeof v === "number" && v >= 0 ? v : 0);
+  const cash =
+    rawCash && typeof rawCash === "object"
+      ? { usd: num(rawCash.usd), thb: num(rawCash.thb) }
+      : undefined;
+
   return {
     holdings,
+    cash,
     fxRate,
     isDemo: obj.isDemo === true,
     pricesUpdatedAt:
