@@ -14,7 +14,8 @@ import {
 import { floorPlan, groundCells, heightFor, heightScale, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
 import { compare } from "../src/lib/history";
-import type { CityState } from "../src/lib/types";
+import { AXIS, CELL_STEP, carRoute, computeLanes, laneKey } from "../src/lib/traffic";
+import { CASH_ZONE, type CityState } from "../src/lib/types";
 
 const ORDER = ["mission", "goldengoose"];
 
@@ -319,4 +320,82 @@ test("เทียบเมืองกับอดีต วัดที่เ�
   assert.deepEqual(g.newTowers, ["NVDA"]);
   assert.deepEqual(g.grownTowers, ["GOOGL"]);
   assert.equal(g.days, 30);
+});
+
+/**
+ * รถต้องวิ่งอยู่บนถนนตลอดเส้นทาง — ตรวจทุกคันทีละช่อง
+ *
+ * ตรวจด้วยตาไม่พอ: รถมีเป็นสิบคัน วิ่งวนคนละจังหวะ คันที่หลุดออกนอกถนนอาจ
+ * อยู่นอกจอหรือหลุดแค่ตอนท้ายจังหวะพอดี
+ */
+test("รถทุกคันวิ่งไม่พ้นถนน — ทุกช่องตลอดเส้นทางต้องเป็นถนน", () => {
+  const state = baseCity();
+  const layout = layoutCity(toStructures(state), ORDER, [CASH_ZONE]);
+  const cells = groundCells(layout);
+  const lanes = computeLanes(cells);
+
+  const roadAt = new Set(
+    cells.filter((c) => c.kind === "road").map((c) => `${c.gx},${c.gy}`),
+  );
+
+  const cars = cells.filter((c) => c.decor === "car");
+  assert.ok(cars.length > 0, "ต้องมีรถอย่างน้อยหนึ่งคันให้ตรวจ");
+
+  let driving = 0;
+  for (const car of cars) {
+    assert.equal(car.kind, "road", `รถอยู่บนช่องที่ไม่ใช่ถนน ${car.gx},${car.gy}`);
+
+    const route = carRoute(car, lanes.get(laneKey(car)));
+    if (!route.canDrive) continue;
+    driving++;
+
+    // ทุกช่องที่ผ่านต้องเป็นถนน
+    for (let step = 1; step <= route.cellsAhead; step++) {
+      const gx = route.axis === "x" ? car.gx + route.dir * step : car.gx;
+      const gy = route.axis === "y" ? car.gy + route.dir * step : car.gy;
+      assert.ok(
+        roadAt.has(`${gx},${gy}`),
+        `รถจาก ${car.gx},${car.gy} แนว ${route.axis} วิ่งไปโผล่ที่ ${gx},${gy} ซึ่งไม่ใช่ถนน`,
+      );
+    }
+
+    /**
+     * และระยะพิกเซลต้องพาไปจอดกลางช่องนั้นจริง ไม่ใช่แค่ "นับช่องถูก"
+     * เคยพลาดตรงนี้: ใช้ PITCH_W (112px) เป็นระยะต่อช่อง ทั้งที่ระยะจริง
+     * ระหว่างกลางช่อง = hypot(56,28) ≈ 62.6px รถจึงวิ่งเกินไป 1.79 เท่า
+     */
+    const ax = AXIS[route.axis];
+    const travel = CELL_STEP * route.cellsAhead;
+    const endX = car.center.x + ax.dir[0] * travel * route.dir;
+    const endY = car.center.y + ax.dir[1] * travel * route.dir;
+
+    const tgx = route.axis === "x" ? car.gx + route.dir * route.cellsAhead : car.gx;
+    const tgy = route.axis === "y" ? car.gy + route.dir * route.cellsAhead : car.gy;
+    const target = cells.find((c) => c.gx === tgx && c.gy === tgy)!;
+    const off = Math.hypot(endX - target.center.x, endY - target.center.y);
+
+    assert.ok(
+      off < 2,
+      `รถจาก ${car.gx},${car.gy} ควรจอดกลางช่อง ${tgx},${tgy} แต่เลยไป ${off.toFixed(1)}px`,
+    );
+  }
+
+  assert.ok(driving > 0, "รถต้องมีคันที่วิ่งได้จริง ไม่ใช่จอดหมดทั้งเมือง");
+});
+
+/** เลนต้องไม่กินช่องที่เป็นตึก — ถนนคั่นเขตถูกบังคับให้ทับแถวที่มีตึกได้ */
+test("เลนถนนเก็บเฉพาะช่องที่เป็นถนนจริง ไม่คร่อมตึก", () => {
+  const state = baseCity();
+  const cells = groundCells(layoutCity(toStructures(state), ORDER, [CASH_ZONE]));
+  const lanes = computeLanes(cells);
+
+  for (const [key, lane] of lanes) {
+    const [axis, fixed] = key.split(":");
+    for (const pos of lane.cells) {
+      const gx = axis === "x" ? pos : Number(fixed);
+      const gy = axis === "x" ? Number(fixed) : pos;
+      const cell = cells.find((c) => c.gx === gx && c.gy === gy);
+      assert.equal(cell?.kind, "road", `เลน ${key} กินช่อง ${gx},${gy} ที่ไม่ใช่ถนน`);
+    }
+  }
 });

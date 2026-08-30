@@ -9,6 +9,15 @@ import {
   type GroundCell,
   type Point,
 } from "@/lib/iso";
+import {
+  AXIS,
+  CELL_STEP,
+  axisOf,
+  carRoute,
+  computeLanes,
+  laneKey,
+  type Lane,
+} from "@/lib/traffic";
 
 const FILL: Record<GroundCell["kind"], string> = {
   plot: "var(--plot)",
@@ -17,23 +26,6 @@ const FILL: Record<GroundCell["kind"], string> = {
   grass: "var(--grass)",
 };
 
-/**
- * ทิศทางของถนนแต่ละแนวในพิกัด isometric
- * dir = ทิศที่รถวิ่ง · perp = ทิศตั้งฉาก (ใช้ดันคนไปเดินริมทาง)
- */
-const AXIS = {
-  x: { dir: [0.894, 0.447], perp: [-0.894, 0.447] },
-  y: { dir: [-0.894, 0.447], perp: [0.894, 0.447] },
-} as const;
-
-/** สี่แยกไม่มีแนวชัดเจน — เลือกแบบคงที่ต่อช่อง จะได้ไม่กระพริบตอน re-render */
-function axisOf(cell: GroundCell): "x" | "y" {
-  if (cell.roadAxis === "both") {
-    return seededRandom(`ax${cell.gx}:${cell.gy}`, 23) > 0.5 ? "x" : "y";
-  }
-  return cell.roadAxis === "y" ? "y" : "x";
-}
-
 function rhombus(c: Point, w: number, h: number): Point[] {
   return [
     { x: c.x, y: c.y - h / 2 },
@@ -41,30 +33,6 @@ function rhombus(c: Point, w: number, h: number): Point[] {
     { x: c.x, y: c.y + h / 2 },
     { x: c.x - w / 2, y: c.y },
   ];
-}
-
-/** ปลายเลนถนนแต่ละสาย — ใช้จำกัดระยะวิ่งของรถไม่ให้เลยถนนไปอยู่บนหญ้า */
-type Lane = { min: number; max: number };
-
-function laneKey(cell: GroundCell): string {
-  return axisOf(cell) === "x" ? `x:${cell.gy}` : `y:${cell.gx}`;
-}
-
-function computeLanes(cells: GroundCell[]): Map<string, Lane> {
-  const lanes = new Map<string, Lane>();
-  for (const c of cells) {
-    if (c.kind !== "road") continue;
-    const key = laneKey(c);
-    const pos = axisOf(c) === "x" ? c.gx : c.gy;
-    const cur = lanes.get(key);
-    lanes.set(
-      key,
-      cur
-        ? { min: Math.min(cur.min, pos), max: Math.max(cur.max, pos) }
-        : { min: pos, max: pos },
-    );
-  }
-  return lanes;
 }
 
 /** พื้นทั้งผืน วาดก่อนตึกเสมอ — แปลงที่ดิน / ถนน / หญ้าและต้นไม้ */
@@ -211,21 +179,7 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
     const body = hue > 0.66 ? "#b8513f" : hue > 0.33 ? "#43649c" : "#9a9488";
     const bodyDark = hue > 0.66 ? "#8c3a2c" : hue > 0.33 ? "#2f4a78" : "#736e64";
     const roof = hue > 0.66 ? "#d3695a" : hue > 0.33 ? "#5b7fb8" : "#b0aa9e";
-    // วิ่งไปข้างหน้าหรือย้อนกลับ — สลับให้ถนนดูมีสองเลนจริง
-    /**
-     * เลือกทิศวิ่งโดยดูว่าฝั่งไหนยังมีถนนเหลือให้วิ่ง
-     * ถ้าสุ่มได้ฝั่งที่ตัน ให้กลับทิศ ไม่งั้นรถจะวิ่งทะลุออกนอกถนน
-     */
-    const pos = axisOf(cell) === "x" ? cell.gx : cell.gy;
-    const toMax = lane ? lane.max - pos : 2;
-    const toMin = lane ? pos - lane.min : 2;
-
-    let dir = seededRandom(`dir${cell.gx}:${cell.gy}`, 7) > 0.5 ? 1 : -1;
-    if ((dir > 0 ? toMax : toMin) < 1) dir = -dir;
-
-    const cellsAhead = dir > 0 ? toMax : toMin;
-    // อยู่ปลายเลนทั้งสองฝั่งแล้ว (ถนนสั้นมาก) ก็จอดอยู่กับที่ ดีกว่าวิ่งทะลุ
-    const canDrive = cellsAhead >= 1;
+    const { dir, cellsAhead, canDrive } = carRoute(cell, lane);
 
     /**
      * รถวางตามแนวถนน "ของช่องนั้น" — ผังเมืองมีถนนสองแนวตัดกัน
@@ -251,11 +205,10 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
     const backR = p(-1, 1);
 
     /**
-     * ระยะวิ่งหยุดที่กลางช่องสุดท้ายของเลนพอดี ไม่บวกเกินไปอีกช่อง
-     * (เดิมบวก 1 รถเลยไหลทะลุออกนอกถนนตอนใกล้จบจังหวะ)
-     * และผูกเวลากับระยะ ทุกคันจึงวิ่งเร็วเท่ากัน
+     * ระยะวิ่ง = ระยะพิกเซลจริงต่อช่อง × จำนวนช่องที่ถนนยังต่อกันอยู่
+     * หยุดที่กลางช่องสุดท้ายพอดี · ผูกเวลากับระยะ ทุกคันจึงวิ่งเร็วเท่ากัน
      */
-    const travel = PITCH_W * cellsAhead;
+    const travel = CELL_STEP * cellsAhead;
     const speed = 11 + seededRandom(`cs${cell.gx}:${cell.gy}`, 37) * 5; // วินาทีต่อช่อง
 
     const driveStyle = canDrive
