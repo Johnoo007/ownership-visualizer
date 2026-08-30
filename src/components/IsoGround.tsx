@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   PITCH_H,
   PITCH_W,
@@ -42,8 +43,34 @@ function rhombus(c: Point, w: number, h: number): Point[] {
   ];
 }
 
+/** ปลายเลนถนนแต่ละสาย — ใช้จำกัดระยะวิ่งของรถไม่ให้เลยถนนไปอยู่บนหญ้า */
+type Lane = { min: number; max: number };
+
+function laneKey(cell: GroundCell): string {
+  return axisOf(cell) === "x" ? `x:${cell.gy}` : `y:${cell.gx}`;
+}
+
+function computeLanes(cells: GroundCell[]): Map<string, Lane> {
+  const lanes = new Map<string, Lane>();
+  for (const c of cells) {
+    if (c.kind !== "road") continue;
+    const key = laneKey(c);
+    const pos = axisOf(c) === "x" ? c.gx : c.gy;
+    const cur = lanes.get(key);
+    lanes.set(
+      key,
+      cur
+        ? { min: Math.min(cur.min, pos), max: Math.max(cur.max, pos) }
+        : { min: pos, max: pos },
+    );
+  }
+  return lanes;
+}
+
 /** พื้นทั้งผืน วาดก่อนตึกเสมอ — แปลงที่ดิน / ถนน / หญ้าและต้นไม้ */
 export function IsoGround({ cells }: { cells: GroundCell[] }) {
+  const lanes = useMemo(() => computeLanes(cells), [cells]);
+
   return (
     <g className="pixel-art">
       {cells.map((cell) => {
@@ -101,13 +128,17 @@ export function IsoGround({ cells }: { cells: GroundCell[] }) {
       {cells
         .filter((c) => c.decor !== "none")
         .map((cell) => (
-          <Decor key={`d-${cell.gx},${cell.gy}`} cell={cell} />
+          <Decor
+            key={`d-${cell.gx},${cell.gy}`}
+            cell={cell}
+            lane={cell.kind === "road" ? lanes.get(laneKey(cell)) : undefined}
+          />
         ))}
     </g>
   );
 }
 
-function Decor({ cell }: { cell: GroundCell }) {
+function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
   const { x, y } = cell.center;
   const jitterX = (seededRandom(`jx${cell.gx}:${cell.gy}`, 3) - 0.5) * 18;
   const jitterY = (seededRandom(`jy${cell.gx}:${cell.gy}`, 5) - 0.5) * 8;
@@ -207,15 +238,22 @@ function Decor({ cell }: { cell: GroundCell }) {
     const backR = p(-1, 1);
 
     /**
-     * รถวิ่งไปตามเลนข้ามหลายช่อง แล้ววนกลับมาเริ่มใหม่
-     * เริ่ม/จบนอกระยะที่มองเห็นของช่องตัวเอง จังหวะวนจึงไม่สะดุดตา
+     * ระยะวิ่งจำกัดแค่ถึงปลายเลนของถนนสายนั้น ไม่งั้นรถจะวิ่งเลยถนนไปอยู่บนหญ้า
+     * และให้ความเร็วเท่ากันทุกคันโดยผูกเวลากับระยะ (คันใกล้ปลายจึงใช้เวลาน้อยกว่า)
      */
-    const travel = PITCH_W * 3;
+    const pos = axisOf(cell) === "x" ? cell.gx : cell.gy;
+    // วิ่งไปทางปลายเลนฝั่งที่หันหน้าไป
+    const cellsAhead = lane
+      ? Math.max(1, dir > 0 ? lane.max - pos + 1 : pos - lane.min + 1)
+      : 2;
+    const travel = PITCH_W * cellsAhead;
+    const speed = 11 + seededRandom(`cs${cell.gx}:${cell.gy}`, 37) * 5; // วินาทีต่อช่อง
+
     const driveStyle = {
       "--drive-x": `${(ax.dir[0] * travel * dir).toFixed(1)}px`,
       "--drive-y": `${(ax.dir[1] * travel * dir).toFixed(1)}px`,
-      "--dur": `${(9 + seededRandom(`cd${cell.gx}:${cell.gy}`, 37) * 8).toFixed(1)}s`,
-      "--delay": `-${(seededRandom(`cl${cell.gx}:${cell.gy}`, 41) * 12).toFixed(1)}s`,
+      "--dur": `${((cellsAhead * speed) / 4).toFixed(1)}s`,
+      "--delay": `-${(seededRandom(`cl${cell.gx}:${cell.gy}`, 41) * 6).toFixed(1)}s`,
     } as React.CSSProperties;
 
     return (
