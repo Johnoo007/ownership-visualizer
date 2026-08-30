@@ -94,8 +94,8 @@ function Decor({ cell }: { cell: GroundCell }) {
   const { x, y } = cell.center;
   const jitterX = (seededRandom(`jx${cell.gx}:${cell.gy}`, 3) - 0.5) * 18;
   const jitterY = (seededRandom(`jy${cell.gx}:${cell.gy}`, 5) - 0.5) * 8;
-  const cx = x + jitterX;
-  const cy = y + jitterY;
+  let cx = x + jitterX;
+  let cy = y + jitterY;
 
   if (cell.decor === "lamp") {
     return (
@@ -113,45 +113,119 @@ function Decor({ cell }: { cell: GroundCell }) {
 
   if (cell.decor === "person") {
     const shirt = seededRandom(`p${cell.gx}:${cell.gy}`, 13);
-    const color = shirt > 0.66 ? "#c9705f" : shirt > 0.33 ? "#5b86bd" : "#7ba98c";
+    const color = shirt > 0.66 ? "#b9634f" : shirt > 0.33 ? "#4f77aa" : "#6b9a80";
+    const stride = seededRandom(`st${cell.gx}:${cell.gy}`, 17) > 0.5 ? 1 : -1;
+
+    // คนบนถนนต้องเดินริมทาง ไม่ยืนกลางเลนให้รถชน
+    // ขยับตามแกนที่ตั้งฉากกับแนวถนน (ทิศที่ gy เพิ่ม)
+    if (cell.kind === "road") {
+      const side = seededRandom(`sd${cell.gx}:${cell.gy}`, 19) > 0.5 ? 1 : -1;
+      cx = cell.center.x + -0.894 * 17 * side;
+      cy = cell.center.y + 0.447 * 17 * side;
+    }
+
+    // เงาสั้นๆ + ขาสองข้างแยกจังหวะ ทำให้อ่านเป็นคนเดิน ไม่ใช่หมุดปัก
     return (
       <g>
-        <ellipse cx={cx} cy={cy + 0.5} rx={2.4} ry={1.1} fill="rgba(0,0,0,0.45)" />
-        <rect x={cx - 1.3} y={cy - 5} width={2.6} height={5} rx={0.6} fill={color} />
-        <circle cx={cx} cy={cy - 6.4} r={1.5} fill="#e8c9a8" />
+        <ellipse cx={cx} cy={cy + 0.4} rx={2} ry={0.9} fill="rgba(0,0,0,0.5)" />
+        <rect x={cx - 1.5 * stride} y={cy - 2.6} width={1} height={2.8} fill="#2c3242" />
+        <rect x={cx + 0.5 * stride} y={cy - 2.6} width={1} height={2.8} fill="#3a4152" />
+        <path
+          d={`M ${cx - 1.5} ${cy - 2.4} L ${cx - 1.2} ${cy - 6.2} L ${cx + 1.2} ${cy - 6.2} L ${cx + 1.5} ${cy - 2.4} Z`}
+          fill={color}
+        />
+        <rect x={cx - 0.6} y={cy - 7.8} width={1.2} height={1.4} fill="#c9a689" />
+        <circle cx={cx} cy={cy - 8.4} r={1.25} fill="#e0bd9a" />
+        <path
+          d={`M ${cx - 1.25} ${cy - 8.7} a 1.25 1.25 0 0 1 2.5 0 Z`}
+          fill="#3a2f28"
+        />
       </g>
     );
   }
 
   if (cell.decor === "car") {
     const hue = seededRandom(`car${cell.gx}:${cell.gy}`, 11);
-    const body = hue > 0.66 ? "#c05a4a" : hue > 0.33 ? "#4a6fa8" : "#b8b0a2";
+    const body = hue > 0.66 ? "#b8513f" : hue > 0.33 ? "#43649c" : "#9a9488";
+    const bodyDark = hue > 0.66 ? "#8c3a2c" : hue > 0.33 ? "#2f4a78" : "#736e64";
+    const roof = hue > 0.66 ? "#d3695a" : hue > 0.33 ? "#5b7fb8" : "#b0aa9e";
+    // วิ่งไปข้างหน้าหรือย้อนกลับ — สลับให้ถนนดูมีสองเลนจริง
+    const dir = seededRandom(`dir${cell.gx}:${cell.gy}`, 7) > 0.5 ? 1 : -1;
+
+    /**
+     * รถต้องวางตามแนวถนน (แกนที่ gx เพิ่ม = ทิศ 0.894,0.447)
+     * ไม่ใช่แนวนอนของหน้าจอ ไม่งั้นจะกลายเป็นรถขวางถนน
+     */
+    const L = 8.5;
+    const W = 3.6;
+    const H = 3.4;
+    const ux = 0.894 * L * dir;
+    const uy = 0.447 * L * dir;
+    const vx = -0.894 * W;
+    const vy = 0.447 * W;
+
+    const p = (a: number, b: number, lift = 0) => ({
+      x: cx + ux * a + vx * b,
+      y: cy + uy * a + vy * b - lift,
+    });
+
+    const frontL = p(1, -1);
+    const frontR = p(1, 1);
+    const backL = p(-1, -1);
+    const backR = p(-1, 1);
 
     return (
       <g>
-        <ellipse cx={cx} cy={cy + 2} rx={9} ry={3.5} fill="rgba(0,0,0,0.45)" />
-        {/* ตัวรถวางตามแนวถนน (แกน W→E ของ isometric) */}
+        <ellipse cx={cx} cy={cy + 1.5} rx={9} ry={4} fill="rgba(0,0,0,0.5)" />
+
+        {/* ล้อ */}
+        {[p(0.6, -1), p(0.6, 1), p(-0.6, -1), p(-0.6, 1)].map((w, i) => (
+          <ellipse key={i} cx={w.x} cy={w.y} rx={1.5} ry={1} fill="#14161c" />
+        ))}
+
+        {/* ตัวถัง 3 หน้า */}
         <polygon
-          points={polygonPoints([
-            { x: cx - 9, y: cy - 1 },
-            { x: cx, y: cy - 5.5 },
-            { x: cx + 9, y: cy - 1 },
-            { x: cx, y: cy + 3.5 },
-          ])}
+          points={polygonPoints([backR, frontR, p(1, 1, H), p(-1, 1, H)])}
+          fill={bodyDark}
+        />
+        <polygon
+          points={polygonPoints([frontL, frontR, p(1, 1, H), p(1, -1, H)])}
           fill={body}
         />
         <polygon
           points={polygonPoints([
-            { x: cx - 4.5, y: cy - 3.5 },
-            { x: cx, y: cy - 6 },
-            { x: cx + 4.5, y: cy - 3.5 },
-            { x: cx, y: cy - 1 },
+            p(-1, -1, H),
+            p(1, -1, H),
+            p(1, 1, H),
+            p(-1, 1, H),
           ])}
-          fill="#2c3c56"
+          fill={roof}
         />
-        {/* ไฟหน้า */}
-        <circle cx={cx + 8} cy={cy - 1.5} r={1.4} fill="#ffe9a8" />
-        <circle cx={cx + 8} cy={cy - 1.5} r={3} fill="#ffe9a8" opacity={0.18} />
+
+        {/* กระจก/หลังคาห้องโดยสาร */}
+        <polygon
+          points={polygonPoints([
+            p(-0.5, -0.72, H),
+            p(0.45, -0.72, H),
+            p(0.45, 0.72, H),
+            p(-0.5, 0.72, H),
+          ])}
+          fill="#1d2c44"
+        />
+
+        {/* ไฟหน้าอยู่ที่หัวรถ ไม่ลอยข้างตัว */}
+        <circle cx={p(1, -0.55, H * 0.45).x} cy={p(1, -0.55, H * 0.45).y} r={1} fill="#ffeeb5" />
+        <circle cx={p(1, 0.55, H * 0.45).x} cy={p(1, 0.55, H * 0.45).y} r={1} fill="#ffeeb5" />
+        <ellipse
+          cx={p(1.9, 0, H * 0.4).x}
+          cy={p(1.9, 0, H * 0.4).y}
+          rx={5.5}
+          ry={2.4}
+          fill="#ffeeb5"
+          opacity={0.12}
+        />
+        {/* ไฟท้าย */}
+        <circle cx={p(-1, 0, H * 0.5).x} cy={p(-1, 0, H * 0.5).y} r={0.9} fill="#ff6b5a" />
       </g>
     );
   }
