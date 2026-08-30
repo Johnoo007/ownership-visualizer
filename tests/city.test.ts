@@ -11,7 +11,7 @@ import {
   topConcentration,
   totals,
 } from "../src/lib/portfolio";
-import { floorPlan, groundCells, heightFor, heightScale, layoutCity } from "../src/lib/iso";
+import { THB_PER_PX, floorPlan, groundCells, heightFor, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
 import { compare } from "../src/lib/history";
 import {
@@ -99,10 +99,68 @@ test("ข้ามขั้นสเกลแล้วสัดส่วนเ�
   );
 });
 
-test("สเกลความสูงขยับเป็นขั้น ไม่ผูกกับตึกใหญ่สุดโดยตรง", () => {
-  assert.equal(heightScale(0), 10_000);
-  assert.ok(heightScale(200_000) > 200_000, "reference ต้องคลุมค่ามากสุดเสมอ");
-  assert.equal(heightScale(9_000), 10_000, "ต่ำกว่าฐานยังใช้ฐานเดิม");
+/**
+ * บั๊กที่เคยมีจริง: ไม้บรรทัดเป็นขั้นบันได ×√2 ที่ปรับตามตึกใหญ่สุด
+ * พอตึกสูงสุดโตทะลุขั้น ตึก "ทุกหลัง" หดพร้อมกัน 29% — รวมตัวที่ไม่ได้แตะเลย
+ * ตัวอย่าง: ตึกใหญ่สุดเติมอีก ฿24,000 แล้วเตี้ยลง 356px → 261px
+ */
+test("เติมเงินเข้าตัวใหญ่สุด ห้ามทำให้ตึกหลังไหนในเมืองเตี้ยลงแม้แต่หลังเดียว", () => {
+  const before = baseCity();
+  const heightsOf = (st: CityState) =>
+    new Map(
+      layoutCity(toStructures(st), ORDER).all.map((p) => [p.structure.label, p.height]),
+    );
+
+  let current = before;
+  const start = heightsOf(current);
+
+  // อัดเงินเข้าตัวที่ใหญ่ที่สุดซ้ำๆ ให้ทะลุทุกขั้นที่ไม้บรรทัดเดิมเคยกระโดด
+  for (let round = 0; round < 40; round++) {
+    // ⚠️ ต้องเทียบเป็นบาท ไม่ใช่สกุลเดิม — SCB 12,800 บาท ดูใหญ่กว่า GOOGL $860
+    const c = current;
+    const biggest = [...c.holdings].sort(
+      (a, b) => investedTHB(b, c.fxRate) - investedTHB(a, c.fxRate),
+    )[0];
+    const prevH = heightsOf(current);
+
+    current = {
+      ...current,
+      holdings: current.holdings.map((h) =>
+        h.id === biggest.id ? { ...h, shares: h.shares * 1.35 } : h,
+      ),
+    };
+
+    const nowH = heightsOf(current);
+    for (const [label, h] of nowH) {
+      assert.ok(
+        h >= (prevH.get(label) ?? 0) - 1e-9,
+        `รอบ ${round}: ${label} เตี้ยลงจาก ${prevH.get(label)?.toFixed(1)} เหลือ ${h.toFixed(1)} ทั้งที่ไม่ได้ขายอะไร`,
+      );
+    }
+  }
+
+  // ตัวที่ถูกเติมต้องโตขึ้นจริง ไม่ใช่แค่ "ไม่หด" เพราะชนเพดาน
+  const end = heightsOf(current);
+  assert.ok(end.get("GOOGL")! > start.get("GOOGL")! * 50);
+});
+
+test("ไม้บรรทัดตรึงตายตัว — เงินเท่ากันได้ความสูงเท่ากันเสมอ ไม่ว่าเมืองจะใหญ่แค่ไหน", () => {
+  assert.equal(heightFor(THB_PER_PX * 100), 100);
+  // เมืองเล็กกับเมืองใหญ่ ตึก ฿50,000 ต้องสูงเท่ากันเป๊ะ
+  const small = layoutCity(toStructures(baseCity()), ORDER).all;
+  const huge = layoutCity(
+    toStructures({
+      ...baseCity(),
+      holdings: [
+        ...baseCity().holdings,
+        { id: "z", ticker: "MEGA", name: "Mega", shares: 5000, avgCost: 500, currentPrice: 500, currency: "USD", district: "mission" },
+      ],
+    }),
+    ORDER,
+  ).all;
+  const h = (list: typeof small, label: string) =>
+    list.find((p) => p.structure.label === label)!.height;
+  assert.equal(h(small, "GOOGL"), h(huge, "GOOGL"));
 });
 
 test("ของที่ได้มาฟรี (ต้นทุน 0) ไม่พัง และไม่มีตึก", () => {
@@ -252,8 +310,8 @@ test("เมืองว่างต้องไม่ crash", () => {
   assert.equal(empty.all.length, 0);
   assert.ok(empty.bounds.width > 0);
 
-  assert.equal(heightFor(0, 0), 0, "ไม่ลงเงิน = ไม่มีตึก");
-  assert.ok(heightFor(1000, 0) > 0, "มีเงินแต่ reference พัง → ยังมีความสูงขั้นต่ำ");
+  assert.equal(heightFor(0), 0, "ไม่ลงเงิน = ไม่มีตึก");
+  assert.ok(heightFor(1000) > 0, "เงินน้อยมากก็ยังมีความสูงขั้นต่ำ");
 
   const t = totals({ holdings: [], fxRate: 33.3, isDemo: false });
   assert.equal(t.invested, 0);

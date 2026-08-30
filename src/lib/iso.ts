@@ -16,7 +16,6 @@ export const TILE_H = 34;
  * MIN_H ต้องเล็กจริงๆ ไม่งั้นตัวที่ลงเงินหลักหมื่นจะดูเท่ากับตัวที่ลงเงิน 0
  */
 export const MIN_H = 5;
-export const MAX_H = 360;
 
 /** เกินนี้เส้นชั้นจะถี่จนเละ เปลี่ยนไปวาดเป็น texture แทน */
 export const MAX_DRAWN_FLOORS = 40;
@@ -47,43 +46,34 @@ export function polygonPoints(points: Point[]): string {
   return points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 }
 
-/** ตึกเต็มความสูงเมื่อลงเงินถึงค่านี้ */
-export const BASE_REF = 10_000;
-
 /**
- * ขั้นละ √2 ไม่ใช่ 2 เท่า — ตอนข้ามขั้นเมืองจะถอยกล้องออกแค่ 29% แทนที่จะเป็น 50%
- * และเสียพื้นที่แนวตั้งน้อยกว่ามากในกรณีที่ค่ามากสุดเพิ่งพ้นขั้นเดิม
- */
-const STEP = Math.SQRT2;
-
-/**
- * ค่าอ้างอิงของเมือง — จงใจ "ไม่" ผูกกับตึกที่ใหญ่ที่สุดโดยตรง
+ * ไม้บรรทัดของเมือง: ฿ ต่อความสูง 1 พิกเซล — **ค่าคงที่ตลอดอายุแอป ห้ามเปลี่ยน**
  *
- * ถ้า normalize ด้วย max ตรงๆ ตึกใหญ่สุดจะเต็มเพดานตลอดไป ⇒ เติมเงินเข้าตัวนั้น
- * (ซึ่งคือสิ่งที่ DCA ทำทุกเดือน) แล้วภาพไม่ขยับเลย = พังทั้งแนวคิด
- * ใช้ขั้นละ 2 เท่าแทน: ภายในขั้นเดียวกัน เติมเงินแล้วตึกสูงขึ้นจริง
- * และการข้ามขั้น (พอร์ตโตเท่าตัว) คือโมเมนต์ที่ควรรู้สึกได้
+ * ⚠️ ของเดิมเป็นขั้นบันได ×√2 ที่ปรับตามตึกใหญ่สุด แล้วมันพังตรงนี้:
+ * พอตึกที่สูงสุดโตทะลุขั้น ไม้บรรทัดจะกระโดด **ตึกทุกหลังในเมืองหดพร้อมกัน 29%**
+ * ตัวอย่าง: ตึก ~฿90,000 → เติมอีก ฿24,000 แล้ว **เตี้ยลงจาก 356px เหลือ 261px**
+ * ส่วน GOOGL ที่ไม่ได้แตะเลยหดจาก 159px เหลือ 112px
+ * ⇒ เมืองหดตอนเจ้าของทำสิ่งที่ถูกที่สุดคือเติมเงิน ซึ่งขัดสัญญาข้อแรกของแอปตรงๆ
+ *
+ * ไม้บรรทัดที่ขยับได้ = ความคืบหน้าถูกกินคืนเป็นระยะ · ตรึงไว้แล้วตึกจะไม่มีวันหด
+ * เมืองสูงเกินจอเมื่อไหร่ ให้ **กล้องถอยออก** (viewBox ขยายเอง) ไม่ใช่ให้ตึกเตี้ยลง
+ * ต่างกันตรงที่ถอยกล้องแล้วสัดส่วนตึกต่อที่ดินยังเท่าเดิม ตาอ่านออกว่าเมืองใหญ่ขึ้น
+ *
+ * เลข 320 มาจากการรักษาหน้าตาเมือง ณ วันที่เปลี่ยน (ตึก ~฿90,000 ≈ 281px ≈ ของเดิม)
  */
-export function heightScale(maxInvested: number): number {
-  if (maxInvested <= 0) return BASE_REF;
-  const level = Math.max(
-    0,
-    Math.ceil(Math.log(maxInvested / BASE_REF) / Math.log(STEP)),
-  );
-  return BASE_REF * Math.pow(STEP, level);
-}
+export const THB_PER_PX = 320;
 
 /**
  * ความสูงเป็นสัดส่วนตรงกับเงินที่ลงไป (linear ห้าม log)
  * log จะทำให้ตัวที่แทบไม่มีอะไรดูใหญ่เกินจริง — ตัวเล็กควรเห็นว่าเล็ก
+ *
+ * ไม่มีเพดาน: เพดานคือสิ่งที่บังคับให้ต้องมีไม้บรรทัดปรับได้ตั้งแต่แรก
  */
-export function heightFor(invested: number, reference: number): number {
+export function heightFor(invested: number): number {
   // ลงเงิน 0 (ของที่ได้มาฟรี) = ไม่มีตึก เหลือแค่ที่ดิน — ตรงกฎ "ความสูง = เงินที่ลงไป"
   // ถ้าดัน MIN_H ให้ ตึก ฿0 จะสูงเท่าตึก ฿1,572 ซึ่งโกหกสายตา
   if (invested <= 0) return 0;
-  if (reference <= 0) return MIN_H;
-  const ratio = Math.min(1, invested / reference);
-  return Math.max(MIN_H, ratio * MAX_H);
+  return Math.max(MIN_H, invested / THB_PER_PX);
 }
 
 export type PlacedStructure = {
@@ -123,9 +113,6 @@ export function layoutCity(
   /** เขตที่ให้ไปอยู่ "อีกทิศ" (ยื่นออกไปตามแกน gx) แทนที่จะต่อแถวลงมา */
   asideDistricts: string[] = [],
 ): CityLayout {
-  const maxInvested = structures.reduce((m, s) => Math.max(m, s.invested), 0);
-  const reference = heightScale(maxInvested);
-
   const districts: DistrictLayout[] = [];
   const all: PlacedStructure[] = [];
   let rowOffset = 0;
@@ -150,7 +137,7 @@ export function layoutCity(
         gx,
         gy,
         center: tileCenter(gx, gy),
-        height: heightFor(structure.invested, reference),
+        height: heightFor(structure.invested),
         depth: gx + gy,
       };
     });
