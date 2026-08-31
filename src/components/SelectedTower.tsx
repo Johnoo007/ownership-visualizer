@@ -13,6 +13,7 @@ import {
 } from "@/lib/portfolio";
 import { contributionsFor } from "@/lib/contributions";
 import { DISTRICTS, type CityState, type Contribution, type Holding } from "@/lib/types";
+import { plural, pluralize } from "@/lib/text";
 
 /** การ์ดสรุปตึกที่เลือกอยู่ — โผล่บนสุดของแผงขวาเมื่อคลิกตึกในเมือง */
 export function SelectedTower({
@@ -101,7 +102,7 @@ export function SelectedTower({
       </div>
 
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
-        <Row label="Floors" value={`${formatShares(holding.shares)} shares`} />
+        <Row label="Floors" value={`${formatShares(holding.shares)} ${pluralize(holding.shares, "share")}`} />
         <Row
           label={`Light level (${holding.currency})`}
           value={free ? "free" : formatPercent(ratio)}
@@ -181,7 +182,7 @@ function BuildHistory({
       <div className="flex items-baseline justify-between">
         <p className="text-[10px] text-[var(--label-dim)]">Rounds put into this one</p>
         <p className="font-mono text-[11px] font-semibold text-[var(--label)]">
-          {list.length} rounds · {formatTHB(total)}
+          {plural(list.length, "round")} · {formatTHB(total)}
         </p>
       </div>
 
@@ -209,7 +210,7 @@ function BuildHistory({
 
       {rows.length > shown.length && (
         <p className="mt-1.5 text-[10px] text-[var(--label-dim)]">
-          + {rows.length - shown.length} earlier rounds
+          + {plural(rows.length - shown.length, "earlier round")}
         </p>
       )}
 

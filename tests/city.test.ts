@@ -14,6 +14,7 @@ import {
 import { THB_PER_PX, TOWER_CAP_PX, TOWER_CAP_THB, floorPlan, groundCells, heightFor, towerHeights, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
 import { compare } from "../src/lib/history";
+import { plural, pluralize } from "../src/lib/text";
 import {
   appendContributions,
   detectContributions,
@@ -726,4 +727,20 @@ test("หุ้นที่กินหลายแปลงต้องจั�
     assert.ok(!seen.has(key), `แปลง ${key} ถูกใช้ซ้ำสองตึก`);
     seen.add(key);
   }
+});
+
+/**
+ * พหูพจน์อังกฤษ — ภาษาไทยไม่มีพจน์ พอเปลี่ยน UI เป็นอังกฤษความผิดแบบนี้
+ * จึงโผล่พร้อมกันทั้งแอป (Golden Goose ตึกเดียวขึ้นว่า "1 towers")
+ */
+test("นับ 1 ต้องเป็นเอกพจน์ ที่เหลือพหูพจน์ — รวมเศษและศูนย์", () => {
+  assert.equal(plural(1, "tower"), "1 tower");
+  assert.equal(plural(0, "tower"), "0 towers");
+  assert.equal(plural(17, "tower"), "17 towers");
+  assert.equal(plural(1, "earlier round"), "1 earlier round");
+  assert.equal(plural(3, "new tower"), "3 new towers");
+
+  assert.equal(pluralize(1, "share"), "share");
+  assert.equal(pluralize(0.316, "share"), "shares", "เศษหุ้นเป็นพหูพจน์");
+  assert.equal(pluralize(2, "share"), "shares");
 });

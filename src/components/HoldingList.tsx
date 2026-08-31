@@ -9,6 +9,7 @@ import {
   pnlRatio,
 } from "@/lib/portfolio";
 import type { CityState, Holding } from "@/lib/types";
+import { pluralize } from "@/lib/text";
 
 export function HoldingList({
   state,
@@ -74,7 +75,7 @@ export function HoldingList({
             <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[var(--label-dim)]">
               <span className="font-mono">{formatTHB(investedTHB(h, state.fxRate))}</span>
               <span>·</span>
-              <span>{formatShares(h.shares)} shares</span>
+              <span>{formatShares(h.shares)} {pluralize(h.shares, "share")}</span>
 
               {selected && (
                 <span className="ml-auto flex gap-2">

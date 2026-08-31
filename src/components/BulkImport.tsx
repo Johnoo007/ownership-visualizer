@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { parseHoldingsTable, SAMPLE_TABLE } from "@/lib/importCsv";
 import { formatTHB, investedTHB } from "@/lib/portfolio";
 import type { CityState, Holding } from "@/lib/types";
+import { plural } from "@/lib/text";
 
 /** Paste table from sheetทีเดียวจบ — ไม่ต้องกรอกทีละตัว 15 รอบ */
 export function BulkImport({
@@ -77,7 +78,7 @@ export function BulkImport({
       {rows.length > 0 && (
         <div className="mt-2 space-y-1 text-[10.5px]">
           <p className="text-[var(--label-dim)]">
-            Parsed <span className="text-[var(--gain)]">{good.length} towers</span>
+            Parsed <span className="text-[var(--gain)]">{plural(good.length, "tower")}</span>
             {good.length > 0 && ` · ${formatTHB(previewTotal)} invested`}
           </p>
           {bad.map((r) =>
@@ -110,7 +111,7 @@ export function BulkImport({
         }}
         className="mt-2 w-full rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-medium text-[var(--accent-fg)] transition disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Build {good.length} towers
+        Build {plural(good.length, "tower")}
       </button>
     </section>
   );

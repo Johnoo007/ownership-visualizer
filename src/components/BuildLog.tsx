@@ -3,6 +3,7 @@
 import { RECENT_DAYS, summarize } from "@/lib/contributions";
 import { formatTHB } from "@/lib/portfolio";
 import type { CityState } from "@/lib/types";
+import { plural } from "@/lib/text";
 
 /**
  * รายงานการก่อสร้าง — ตอบคำถาม "ฉันเพิ่งทำอะไรลงไป"
@@ -41,7 +42,7 @@ export function BuildLog({ state }: { state: CityState }) {
         </span>
       ) : (
         <span className="font-semibold text-[var(--label)]">
-          🧱 You have built this city over {s.rounds} rounds
+          🧱 You have built this city over {plural(s.rounds, "round")}
         </span>
       )}
 

@@ -2,6 +2,7 @@
 
 import { formatTHB, totals } from "@/lib/portfolio";
 import type { CityState, DistrictId } from "@/lib/types";
+import { plural } from "@/lib/text";
 
 export type CityView = "all" | DistrictId;
 
@@ -65,7 +66,7 @@ export function Sidebar({
                   {item.label}
                 </span>
                 <span className="block truncate text-[10px] text-[var(--label-dim)]">
-                  {t.towerCount} towers · {formatTHB(t.invested)}
+                  {plural(t.towerCount, "tower")} · {formatTHB(t.invested)}
                 </span>
               </span>
             </button>

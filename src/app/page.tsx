@@ -16,6 +16,7 @@ import { formatSnapshotDate, type Snapshot } from "@/lib/history";
 import { toStructures } from "@/lib/portfolio";
 import { exportCity, importCity } from "@/lib/storage";
 import type { Holding } from "@/lib/types";
+import { plural } from "@/lib/text";
 
 function Legend({
   color,
@@ -139,7 +140,7 @@ export default function Home() {
         {backup && state.holdings.length === 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs">
             <span className="text-[var(--label)]">
-              Previous city had {backup.holdings.length} towers — restorable
+              Previous city had {plural(backup.holdings.length, "tower")} — restorable
             </span>
             <button
               type="button"

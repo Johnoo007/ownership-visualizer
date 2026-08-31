@@ -10,6 +10,7 @@ import {
 } from "@/lib/history";
 import { formatTHB } from "@/lib/portfolio";
 import type { CityState } from "@/lib/types";
+import { plural } from "@/lib/text";
 
 /**
  * ความทรงจำของเมือง — เก็บภาพพอร์ตตามเวลาแล้วเทียบกับวันนี้
@@ -70,7 +71,7 @@ export function TimeMachine({
               <p className="text-[10px] text-[var(--label-dim)]">
                 that you built yourself
                 {growth.newTowers.length > 0 &&
-                  ` · ${growth.newTowers.length} new towers`}
+                  ` · ${plural(growth.newTowers.length, "new tower")}`}
                 {growth.grownTowers.length > 0 &&
                   ` · ${growth.grownTowers.length} grew taller`}
               </p>

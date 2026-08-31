@@ -9,6 +9,7 @@ import {
   type SyncResult,
 } from "@/lib/quotes";
 import type { CityState } from "@/lib/types";
+import { pluralize } from "@/lib/text";
 
 /**
  * แถบความสดของราคา + ปุ่มดึงราคาล่าสุด
@@ -98,7 +99,7 @@ export function PriceSync({
           </p>
           {result.failed.length > 0 && (
             <p className="text-[var(--free)]">
-              {result.failed.length} failed ({result.failed.join(", ")}) —
+              {result.failed.length} {pluralize(result.failed.length, "symbol")} failed ({result.failed.join(", ")}) —
               still using the prices you entered
             </p>
           )}

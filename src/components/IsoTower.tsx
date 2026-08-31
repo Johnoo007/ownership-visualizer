@@ -11,6 +11,7 @@ import {
   type Point,
 } from "@/lib/iso";
 import { formatShares, formatTHB } from "@/lib/portfolio";
+import { plural, pluralize } from "@/lib/text";
 
 type Palette = {
   top: string;
@@ -136,8 +137,8 @@ export function IsoTower({
       style={{ filter: hovered && !selected ? "brightness(1.18)" : undefined }}
     >
       <title>
-        {`${s.label} — ${s.sublabel}\n${formatTHB(s.invested)} in · ${formatShares(s.units)} shares` +
-          (partCount > 1 ? `\nComplex of ${partCount} towers (no. ${partIndex + 1})` : "")}
+        {`${s.label} — ${s.sublabel}\n${formatTHB(s.invested)} in · ${formatShares(s.units)} ${pluralize(s.units, "share")}` +
+          (partCount > 1 ? `\nComplex of ${plural(partCount, "tower")} (no. ${partIndex + 1})` : "")}
       </title>
 
       {/* เงาทอดไปทางขวา — ยาวตามความสูงจริง (แสงมาจากซ้ายบน) */}
