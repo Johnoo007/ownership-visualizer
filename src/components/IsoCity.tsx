@@ -38,8 +38,16 @@ export function IsoCity({
     () => layoutCity(structures, DISTRICT_ORDER, ASIDE_DISTRICTS),
     [structures],
   );
-  const cells = useMemo(() => groundCells(layout), [layout]);
   const wall = useMemo(() => wallRing(layout, wallCoverage), [layout, wallCoverage]);
+  /**
+   * ช่องที่กำแพงกั้นจริง — ก่อแล้วและไม่ใช่ประตู
+   * ถนนที่ลอดใต้กำแพงต้องถูกตัด ไม่งั้นรถจะวิ่งทะลุกำแพงออกไปนอกเมือง
+   */
+  const blocked = useMemo(
+    () => new Set(wall.filter((w) => w.built && !w.gate).map((w) => `${w.gx},${w.gy}`)),
+    [wall],
+  );
+  const cells = useMemo(() => groundCells(layout, blocked), [layout, blocked]);
 
   // กรอบต้องคลุมกำแพงด้วย ไม่ใช่แค่ตึก
   const bounds = useMemo(() => boundsWithWall(layout, wall), [layout, wall]);

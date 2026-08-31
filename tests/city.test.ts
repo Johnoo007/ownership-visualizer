@@ -937,3 +937,67 @@ test("ช่วงกำแพงต้องออกมาเรียงต�
   assert.equal(ring.length, new Set(ring.map((w) => `${w.gx},${w.gy}`)).size,
     "ห้ามมีช่องซ้ำหลังเรียง");
 });
+
+/**
+ * รถห้ามวิ่งทะลุกำแพง — พอกำแพงล้อมทั้งแผนที่ ถนนหลายเส้นลอดใต้แนวกำแพง
+ * ถ้าไม่ตัดถนนตรงนั้น รถจะวิ่งผ่านหินออกไปข้างนอกเมือง
+ */
+test("รถวิ่งทะลุกำแพงไม่ได้ — แต่ผ่านประตูและช่องที่ยังไม่ก่อได้", () => {
+  const state: CityState = { ...baseCity(), cash: { usd: 300, thb: 20_000 } };
+  const layout = layoutCity(toStructures(state), ORDER, [CASH_ZONE]);
+  const wall = wallRing(layout, 1);
+
+  const blocked = new Set(
+    wall.filter((w) => w.built && !w.gate).map((w) => `${w.gx},${w.gy}`),
+  );
+  const cells = groundCells(layout, blocked);
+  const lanes = computeLanes(cells);
+  const roadAt = new Set(
+    cells.filter((c) => c.kind === "road").map((c) => `${c.gx},${c.gy}`),
+  );
+
+  // ช่องที่กำแพงยืนอยู่ต้องไม่เป็นถนนอีกต่อไป
+  for (const key of blocked) {
+    assert.ok(!roadAt.has(key), `ช่อง ${key} ยังเป็นถนนทั้งที่มีกำแพงทับ`);
+  }
+
+  // และรถทุกคันต้องไม่วิ่งผ่านช่องที่มีกำแพง
+  const cars = cells.filter((c) => c.decor === "car");
+  assert.ok(cars.length > 0, "ต้องมีรถให้ตรวจ");
+  for (const car of cars) {
+    const route = carRoute(car, lanes.get(laneKey(car)));
+    for (let step = 1; step <= route.cellsAhead; step++) {
+      const gx = route.axis === "x" ? car.gx + route.dir * step : car.gx;
+      const gy = route.axis === "y" ? car.gy + route.dir * step : car.gy;
+      assert.ok(
+        !blocked.has(`${gx},${gy}`),
+        `รถจาก ${car.gx},${car.gy} วิ่งทะลุกำแพงที่ ${gx},${gy}`,
+      );
+    }
+  }
+
+  // ห้ามมีของประดับโผล่ใต้กำแพง
+  for (const c of cells) {
+    if (c.kind === "wall") assert.equal(c.decor, "none", `มีของประดับใต้กำแพงที่ ${c.gx},${c.gy}`);
+  }
+
+  // ประตูต้องยังเปิดให้ผ่านได้ ไม่ถูกกั้น
+  const gate = wall.find((w) => w.gate);
+  assert.ok(gate, "ต้องมีประตูเมือง");
+  assert.ok(!blocked.has(`${gate!.gx},${gate!.gy}`), "ประตูต้องไม่ถูกกั้น");
+});
+
+test("ช่วงกำแพงที่ยังไม่ก่อต้องไม่กั้นถนน — รูคือรูจริง", () => {
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+  const half = wallRing(layout, 0.5);
+  const blocked = new Set(
+    half.filter((w) => w.built && !w.gate).map((w) => `${w.gx},${w.gy}`),
+  );
+  for (const open of half.filter((w) => !w.built)) {
+    assert.ok(
+      !blocked.has(`${open.gx},${open.gy}`),
+      `ช่องที่ยังไม่ก่อ ${open.gx},${open.gy} ไม่ควรกั้นอะไร`,
+    );
+  }
+  assert.ok(blocked.size > 0 && blocked.size < half.length, "ครึ่งวงต้องกั้นแค่บางส่วน");
+});

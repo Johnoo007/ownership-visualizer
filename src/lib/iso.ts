@@ -252,7 +252,7 @@ export function layoutCity(
   return { districts, all, bounds: boundsOf(all) };
 }
 
-export type CellKind = "plot" | "road" | "vacant" | "grass";
+export type CellKind = "plot" | "road" | "vacant" | "grass" | "wall";
 
 export type GroundCell = {
   gx: number;
@@ -295,7 +295,17 @@ const ROAD_SPACING = 3;
  * พื้นทั้งผืนของเมือง — แปลงที่ดินใต้ตึก, ถนนคั่นระหว่างเขต, และหญ้า/ต้นไม้รอบนอก
  * คำนวณแยกจากตึกเพราะพื้นต้องวาดก่อนเสมอ (ไม่เข้าคิว depth sort เดียวกับตึก)
  */
-export function groundCells(layout: CityLayout): GroundCell[] {
+export function groundCells(
+  layout: CityLayout,
+  /**
+   * ช่องที่กำแพงยืนอยู่ (เฉพาะช่วงที่ก่อแล้ว และไม่ใช่ประตู)
+   *
+   * ต้องส่งเข้ามาเพราะ **กำแพงต้องตัดถนน** ไม่งั้นรถจะวิ่งทะลุกำแพงออกไปข้างนอก
+   * ช่วงที่ยังไม่ได้ก่อจงใจไม่กั้น — รูคือรูจริง รถลอดออกไปได้ ตรงกับความหมาย
+   * ส่วนประตูก็ปล่อยเป็นถนน รถจะได้วิ่งผ่านประตูได้เหมือนเมืองจริง
+   */
+  blocked: ReadonlySet<string> = new Set(),
+): GroundCell[] {
   // ล้อมทุกอย่างที่อยู่บนแผนที่ ทั้งตึกและไซต์เงินสด
   const gxs = layout.all.map((p) => p.gx);
   const gys = layout.all.map((p) => p.gy);
@@ -362,7 +372,8 @@ export function groundCells(layout: CityLayout): GroundCell[] {
 
       let kind: CellKind = "grass";
       let roadAxis: GroundCell["roadAxis"];
-      if (occupied.has(key)) kind = "plot";
+      if (blocked.has(key)) kind = "wall";
+      else if (occupied.has(key)) kind = "plot";
       else if (onRow || onCol) {
         kind = "road";
         roadAxis = onRow && onCol ? "both" : onRow ? "x" : "y";
@@ -376,7 +387,9 @@ export function groundCells(layout: CityLayout): GroundCell[] {
         gy >= tMinGy - DECOR_REACH &&
         gy <= tMaxGy + DECOR_REACH;
 
-      if (kind === "road") {
+      if (kind === "wall") {
+        decor = "none";
+      } else if (kind === "road") {
         if (r > 0.62) decor = "car";
         else if (r > 0.3) decor = "lamp";
         else if (r > 0.12) decor = "person"; // คนเดินริมถนน

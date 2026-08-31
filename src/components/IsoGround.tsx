@@ -24,6 +24,8 @@ const FILL: Record<GroundCell["kind"], string> = {
   road: "var(--road)",
   vacant: "var(--vacant)",
   grass: "var(--grass)",
+  // ใต้กำแพง — พื้นมืดๆ ไม่ต้องมีลาย ตัวกำแพงทับอยู่แล้ว
+  wall: "#1b1a15",
 };
 
 function rhombus(c: Point, w: number, h: number): Point[] {
