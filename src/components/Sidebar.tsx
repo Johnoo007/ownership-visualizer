@@ -1,6 +1,6 @@
 "use client";
 
-import { formatTHB, totals } from "@/lib/portfolio";
+import { formatPercent, formatTHB, totals } from "@/lib/portfolio";
 import type { CityState, DistrictId } from "@/lib/types";
 import { plural } from "@/lib/text";
 
@@ -74,8 +74,26 @@ export function Sidebar({
                   {/* ของฟรีไม่มีตึก ต้องบอกแยก ไม่งั้นเลขจะไม่ตรงกับที่นับได้ในเมือง */}
                   {t.landCount > 0 && ` + ${plural(t.landCount, "plot")}`}
                 </span>
-                <span className="block truncate font-mono text-[10.5px] text-[var(--label-dim)]">
-                  {formatTHB(t.invested)}
+                {/*
+                  ⚠️ ต้องเป็น "มูลค่าตลาด" ไม่ใช่ต้นทุน — เลขลอยๆ ข้างชื่อเขต
+                  คนอ่านว่า "เขตนี้มีค่าเท่าไหร่" เสมอ ไม่มีใครอ่านว่าต้นทุน
+                  (เคยโชว์ต้นทุน ฿300,000 ทั้งที่มูลค่าจริง ฿330,000 — ต่างกัน ฿30,000)
+                  ใส่ % กำกับด้วย จะได้ชัดว่าเป็นมูลค่า ไม่ใช่เงินที่ลงไป
+                  ไม่รวมเงินสด ทั้ง 3 แถวจึงบวกกันได้ลงตัว (เงินสดมีการ์ดของตัวเอง)
+                */}
+                <span className="flex items-baseline gap-1.5 truncate font-mono text-[10.5px]">
+                  <span className="text-[var(--label-dim)]">
+                    {formatTHB(t.marketValue)}
+                  </span>
+                  {t.pnlRatio !== null && (
+                    <span
+                      style={{
+                        color: t.pnlRatio >= 0 ? "var(--gain)" : "var(--loss)",
+                      }}
+                    >
+                      {formatPercent(t.pnlRatio)}
+                    </span>
+                  )}
                 </span>
               </span>
             </button>

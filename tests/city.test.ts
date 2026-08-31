@@ -780,3 +780,29 @@ test("หุ้นที่แตกเป็นหลายตึกต้อ�
   assert.equal(t.towerCount, 3);
   assert.equal(t.towerCount, standing);
 });
+
+/**
+ * เลขที่ sidebar โชว์ข้างชื่อเขตต้องเป็น "มูลค่าตลาด" ไม่ใช่ต้นทุน
+ * เคยโชว์ต้นทุน ฿300,000 ทั้งที่มูลค่าจริง ฿330,000 — คนอ่านเลขลอยๆ ข้างชื่อเขต
+ * ว่า "เขตนี้มีค่าเท่าไหร่" เสมอ
+ */
+test("มูลค่าตลาดของแต่ละเขตบวกกันต้องเท่ากับทั้งเมือง และต่างจากต้นทุนจริง", () => {
+  const s = baseCity();
+  const all = totals(s);
+  const mission = totals(s, "mission");
+  const gg = totals(s, "goldengoose");
+
+  assert.ok(
+    Math.abs(mission.marketValue + gg.marketValue - all.marketValue) < 0.01,
+    "แยกเขตแล้วบวกกลับต้องได้เท่าเดิม",
+  );
+  assert.ok(
+    Math.abs(mission.invested + gg.invested - all.invested) < 0.01,
+    "ต้นทุนก็ต้องบวกกลับได้เหมือนกัน",
+  );
+  assert.notEqual(all.marketValue, all.invested, "สองตัวนี้ต้องไม่ใช่เลขเดียวกัน");
+
+  // เงินสดไม่อยู่ในเขตไหน จึงห้ามโผล่ในผลรวมของเขต
+  const withCash: CityState = { ...s, cash: { usd: 1000, thb: 50_000 } };
+  assert.equal(totals(withCash).marketValue, all.marketValue, "เงินสดห้ามปนมูลค่าเขต");
+});
