@@ -1,4 +1,5 @@
 import { CASH_ZONE, type CityState, type Currency, type DistrictId, type Holding, type Structure } from "./types";
+import { towerHeights } from "./iso";
 import { contributionsFor, recentAddFor } from "./contributions";
 
 /** แปลงจำนวนเงินในสกุลใดก็ได้ให้เป็นบาท */
@@ -51,7 +52,16 @@ export type Totals = {
   pnl: number;
   /** สัดส่วนกำไร/ขาดทุน เทียบเฉพาะส่วนที่มีต้นทุนจริง */
   pnlRatio: number | null;
+  /**
+   * ตึกที่ "ยืนอยู่จริงในเมือง" — ไม่ใช่จำนวนหุ้นที่ถือ
+   *
+   * ต่างกัน 2 ทาง: (1) ของที่ได้มาฟรี (ต้นทุน 0) ถูกวาดเป็นที่ดินเปล่า+กองทอง
+   * ไม่ใช่ตึก จึงไม่นับ (2) ตัวที่เงินเกินเพดานแตกเป็นหลายหลัง จึงนับมากกว่า 1
+   * ⇒ เลขนี้ต้องตรงกับสิ่งที่นับได้ด้วยตาในเมือง ไม่งั้น sidebar โกหกภาพ
+   */
   towerCount: number;
+  /** ของที่ได้มาฟรี — มีมูลค่าแต่ไม่มีตึก */
+  landCount: number;
   shareCount: number;
 };
 
@@ -77,7 +87,11 @@ export function totals(state: CityState, district?: DistrictId): Totals {
     marketValue,
     pnl,
     pnlRatio: invested > 0 ? marketValue / invested - 1 : null,
-    towerCount: rows.length,
+    towerCount: rows.reduce(
+      (n, h) => n + (investedTHB(h, state.fxRate) > 0 ? towerHeights(investedTHB(h, state.fxRate)).length : 0),
+      0,
+    ),
+    landCount: rows.filter((h) => investedTHB(h, state.fxRate) <= 0).length,
     shareCount,
   };
 }

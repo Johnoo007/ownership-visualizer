@@ -10,6 +10,7 @@ import {
 } from "@/lib/portfolio";
 import type { CityState, DistrictId } from "@/lib/types";
 import type { CityView } from "./Sidebar";
+import { plural } from "@/lib/text";
 
 /** แถบสถิติด้านบน — การ์ดเรียงแนวนอนเต็มความกว้าง */
 export function StatsPanel({
@@ -68,7 +69,11 @@ export function StatsPanel({
         icon="🏢"
         label="Towers"
         value={String(t.towerCount)}
-        note="Companies you own"
+        note={
+          t.landCount > 0
+            ? `+ ${plural(t.landCount, "free plot")} · ${plural(t.towerCount + t.landCount, "holding")}`
+            : `${plural(t.towerCount, "holding")} you own`
+        }
       />
       <Card
         icon="🚧"

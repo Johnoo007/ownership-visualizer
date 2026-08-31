@@ -65,8 +65,17 @@ export function Sidebar({
                 >
                   {item.label}
                 </span>
+                {/*
+                  แยกสองบรรทัด: ยอดเงินเป็นเลขที่ต้องอ่านได้เสมอ ห้ามโดนตัดท้าย
+                  (บรรทัดเดียวยาวเกินความกว้าง sidebar แล้วกลายเป็น "฿34…")
+                */}
                 <span className="block truncate text-[10px] text-[var(--label-dim)]">
-                  {plural(t.towerCount, "tower")} · {formatTHB(t.invested)}
+                  {plural(t.towerCount, "tower")}
+                  {/* ของฟรีไม่มีตึก ต้องบอกแยก ไม่งั้นเลขจะไม่ตรงกับที่นับได้ในเมือง */}
+                  {t.landCount > 0 && ` + ${plural(t.landCount, "plot")}`}
+                </span>
+                <span className="block truncate font-mono text-[10.5px] text-[var(--label-dim)]">
+                  {formatTHB(t.invested)}
                 </span>
               </span>
             </button>

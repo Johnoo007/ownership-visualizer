@@ -744,3 +744,39 @@ test("นับ 1 ต้องเป็นเอกพจน์ ที่เห�
   assert.equal(pluralize(0.316, "share"), "shares", "เศษหุ้นเป็นพหูพจน์");
   assert.equal(pluralize(2, "share"), "shares");
 });
+
+/**
+ * เลขจำนวนตึกต้องตรงกับสิ่งที่นับได้ด้วยตาในเมือง
+ * ของฟรี (ต้นทุน 0) วาดเป็นที่ดินเปล่า+กองทอง ไม่ใช่ตึก จึงห้ามนับเป็นตึก
+ */
+test("จำนวนตึกต้องเท่ากับตึกที่ยืนอยู่จริงในเมือง ไม่ใช่จำนวนหุ้นที่ถือ", () => {
+  const state = baseCity();
+  const t = totals(state);
+  const standing = layoutCity(toStructures(state), ORDER).all.filter(
+    (p) => p.structure.kind === "tower" && p.height > 0,
+  ).length;
+
+  assert.equal(t.towerCount, standing, "sidebar ต้องไม่โกหกภาพในเมือง");
+  assert.equal(t.landCount, 1, "GLD ต้นทุน 0 = ที่ดินเปล่า 1 แปลง");
+  assert.equal(
+    t.towerCount + t.landCount,
+    state.holdings.length,
+    "ตึก + ที่ดิน ต้องครบทุกตัวที่ถือ ไม่ตกหล่น",
+  );
+});
+
+test("หุ้นที่แตกเป็นหลายตึกต้องถูกนับหลายหลัง ไม่ใช่หลังเดียว", () => {
+  const big: CityState = {
+    fxRate: 32, isDemo: false,
+    holdings: [
+      // ฿384,000 = 3 หลังเต็มเพดาน
+      { id: "a", ticker: "SPYM", name: "S&P", shares: 12_000, avgCost: 1, currentPrice: 1, currency: "USD", district: "mission" },
+    ],
+  };
+  const t = totals(big);
+  const standing = layoutCity(toStructures(big), ORDER).all.filter(
+    (p) => p.structure.kind === "tower" && p.height > 0,
+  ).length;
+  assert.equal(t.towerCount, 3);
+  assert.equal(t.towerCount, standing);
+});
