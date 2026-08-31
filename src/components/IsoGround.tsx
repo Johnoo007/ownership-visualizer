@@ -212,13 +212,24 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
      */
     const travel = CELL_STEP * cellsAhead;
     const speed = 11 + seededRandom(`cs${cell.gx}:${cell.gy}`, 37) * 5; // วินาทีต่อช่อง
+    const dur = (cellsAhead * speed) / 4;
+
+    /**
+     * จุดเริ่มของแต่ละคันเป็น "สัดส่วนของรอบ" ไม่ใช่วินาทีคงที่
+     *
+     * เหตุผล: ตอนกดหยุด รถจะค้างอยู่ตรงเฟรมนั้นจริงๆ ถ้าดันไปค้างช่วง 0–10%
+     * หรือ 85–100% ซึ่งเป็นช่วงที่ keyframe ทำ opacity fade รถคันนั้นจะจางหรือหายไปเลย
+     * ⇒ บังคับให้ทุกคันเริ่มอยู่ในช่วง 15–85% ของรอบ = ทึบเต็มที่เสมอ
+     * และหน่วงเป็นสัดส่วนยังทำให้รถกระจายทั่วถนนเท่าๆ กันไม่ว่ารอบจะสั้นยาวแค่ไหน
+     */
+    const phase = 0.15 + seededRandom(`cl${cell.gx}:${cell.gy}`, 41) * 0.7;
 
     const driveStyle = canDrive
       ? ({
           "--drive-x": `${(ax.dir[0] * travel * dir).toFixed(1)}px`,
           "--drive-y": `${(ax.dir[1] * travel * dir).toFixed(1)}px`,
-          "--dur": `${((cellsAhead * speed) / 4).toFixed(1)}s`,
-          "--delay": `-${(seededRandom(`cl${cell.gx}:${cell.gy}`, 41) * 6).toFixed(1)}s`,
+          "--dur": `${dur.toFixed(1)}s`,
+          "--delay": `-${(dur * phase).toFixed(1)}s`,
         } as React.CSSProperties)
       : undefined;
 

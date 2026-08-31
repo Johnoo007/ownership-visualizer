@@ -146,17 +146,43 @@ body {
   animation: city-window var(--dur, 18s) steps(1, end) infinite;
   animation-delay: var(--delay, 0s);
 }
-.city-animate .anim-crane {
+/*
+ * ของที่ "เคลื่อนที่" (รถ/คน/เครน) ต้องหยุดค้างตรงที่มันอยู่ แล้วเดินต่อจากจุดเดิม
+ *
+ * ⚠️ ต่างจากของที่ "กะพริบ" (ดาว/ไฟ/หน้าต่าง) โดยตั้งใจ:
+ * ถอด animation ออกทั้งก้อน = ตำแหน่งรีเซ็ตกลับจุดเริ่ม → กดหยุดแล้วรถกระโดด
+ * ⇒ ผูก animation ไว้ตลอด แล้วสลับแค่ play-state จะได้ต่อเนื่องทั้งตอนหยุดและเล่นต่อ
+ *
+ * ส่วนของที่กะพริบยังใช้วิธีถอด class เหมือนเดิม เพราะการค้างกลางจังหวะกะพริบ
+ * จะทำให้ไฟบางดวงดับค้าง ซึ่งอ่านผิดความหมาย (ไฟหน้าต่าง = กำไร/ขาดทุน)
+ */
+.anim-crane {
   animation: city-crane var(--dur, 14s) ease-in-out infinite;
   transform-box: fill-box;
   transform-origin: var(--pivot, 50% 100%);
 }
-.city-animate .anim-walk {
+.anim-walk {
   animation: city-walk var(--dur, 9s) ease-in-out infinite alternate;
 }
-.city-animate .anim-car {
+.anim-car {
   animation: city-drive var(--dur, 12s) linear infinite;
   animation-delay: var(--delay, 0s);
+}
+
+/*
+ * ⚠️ ต้องอยู่ "หลัง" ประกาศ animation แบบย่อเสมอ
+ * shorthand `animation:` รีเซ็ต animation-play-state กลับเป็น running ทุกครั้ง
+ * ถ้าวางกฎนี้ไว้ก่อน มันจะโดนล้างทิ้งและหยุดไม่ได้เลย
+ */
+.anim-crane,
+.anim-walk,
+.anim-car {
+  animation-play-state: paused;
+}
+.city-animate .anim-crane,
+.city-animate .anim-walk,
+.city-animate .anim-car {
+  animation-play-state: running;
 }
 
 .glow-panel {
