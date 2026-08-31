@@ -41,7 +41,7 @@ export function TimeMachine({
     <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3">
       <div className="flex items-center gap-2">
         <h2 className="text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase">
-          ความทรงจำของเมือง
+          City memory
         </h2>
         <button
           type="button"
@@ -49,30 +49,30 @@ export function TimeMachine({
           disabled={state.holdings.length === 0}
           className="ml-auto rounded-md border border-[var(--border-bright)] px-2 py-1 text-[10.5px] text-[var(--label)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-40"
         >
-          บันทึกภาพวันนี้
+          Save today’s snapshot
         </button>
       </div>
 
       {history.length === 0 ? (
         <p className="mt-2 text-[10.5px] leading-relaxed text-[var(--label-dim)]">
-          ยังไม่มีภาพเก่าเก็บไว้ — กดบันทึกไว้วันนี้ แล้วอีกไม่กี่เดือนจะได้เห็นว่าเมืองโตมาแค่ไหน
+          No past snapshots yet — save one today and in a few months you will see how far the city grew
         </p>
       ) : (
         <>
           {growth && growth.days > 0 && (
             <div className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--panel-raised)] p-2.5">
               <p className="text-[10px] text-[var(--label-dim)]">
-                เทียบกับ {growth.days} วันก่อน
+                vs {growth.days} {growth.days === 1 ? "day" : "days"} ago
               </p>
               <p className="font-mono text-base font-semibold text-[var(--gain)]">
                 +{formatTHB(growth.investedDelta).slice(1)}
               </p>
               <p className="text-[10px] text-[var(--label-dim)]">
-                ที่นายก่อขึ้นมาเอง
+                that you built yourself
                 {growth.newTowers.length > 0 &&
-                  ` · ตึกใหม่ ${growth.newTowers.length} หลัง`}
+                  ` · ${growth.newTowers.length} new towers`}
                 {growth.grownTowers.length > 0 &&
-                  ` · สูงขึ้น ${growth.grownTowers.length} หลัง`}
+                  ` · ${growth.grownTowers.length} grew taller`}
               </p>
             </div>
           )}
@@ -87,7 +87,7 @@ export function TimeMachine({
                   : "border-[var(--border)] text-[var(--label-dim)] hover:border-[var(--border-bright)]"
               }`}
             >
-              วันนี้
+              Today
             </button>
             {past.slice(-6).map((s) => (
               <button

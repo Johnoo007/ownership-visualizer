@@ -132,9 +132,9 @@ export function IsoCity({
   if (structures.length === 0) {
     return (
       <div className="flex h-full min-h-[380px] flex-col items-center justify-center gap-3 text-center">
-        <p className="text-lg font-medium text-[var(--label)]">ยังไม่มีตึกในเมือง</p>
+        <p className="text-lg font-medium text-[var(--label)]">No towers in the city yet</p>
         <p className="max-w-xs text-sm text-[var(--label-dim)]">
-          เพิ่มหุ้นตัวแรกทางขวา แล้วตึกหลังแรกจะขึ้นทันที
+          Add your first holding on the right and the first tower goes up immediately
         </p>
       </div>
     );
@@ -313,14 +313,14 @@ export function IsoCity({
         <button
           type="button"
           onClick={toggleAnimate}
-          title={animate ? "หยุดความเคลื่อนไหว" : "ให้เมืองเคลื่อนไหว"}
+          title={animate ? "Stop the motion" : "Let the city move"}
           className={`h-8 rounded-md border px-2 text-[11px] transition ${
             animate
               ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
               : "border-[var(--border-bright)] bg-[var(--panel)]/90 text-[var(--label-dim)]"
           }`}
         >
-          {animate ? "▶ เคลื่อนไหว" : "⏸ หยุดนิ่ง"}
+          {animate ? "▶ Motion on" : "⏸ Still"}
         </button>
         <ZoomButton label="−" onClick={() => setScale((s) => Math.max(0.4, s - 0.2))} />
         <ZoomButton label="+" onClick={() => setScale((s) => Math.min(3, s + 0.2))} />

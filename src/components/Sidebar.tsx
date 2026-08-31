@@ -6,9 +6,9 @@ import type { CityState, DistrictId } from "@/lib/types";
 export type CityView = "all" | DistrictId;
 
 const NAV: { id: CityView; icon: string; label: string; note: string }[] = [
-  { id: "all", icon: "🏙️", label: "ทั้งเมือง", note: "ทุกเขตรวมกัน" },
-  { id: "mission", icon: "🚀", label: "Mission", note: "เขตเติบโต" },
-  { id: "goldengoose", icon: "🪿", label: "Golden Goose", note: "เขตปันผล" },
+  { id: "all", icon: "🏙️", label: "Whole city", note: "All districts" },
+  { id: "mission", icon: "🚀", label: "Mission", note: "Growth" },
+  { id: "goldengoose", icon: "🪿", label: "Golden Goose", note: "Dividends" },
 ];
 
 export function Sidebar({
@@ -33,7 +33,7 @@ export function Sidebar({
             Ownership
           </p>
           <p className="truncate text-[10.5px] text-[var(--label-dim)]">
-            เมืองของฉัน
+            My city
           </p>
         </div>
       </div>
@@ -65,7 +65,7 @@ export function Sidebar({
                   {item.label}
                 </span>
                 <span className="block truncate text-[10px] text-[var(--label-dim)]">
-                  {t.towerCount} ตึก · {formatTHB(t.invested)}
+                  {t.towerCount} towers · {formatTHB(t.invested)}
                 </span>
               </span>
             </button>
@@ -77,36 +77,36 @@ export function Sidebar({
       <div className="hidden lg:mt-auto lg:block lg:space-y-2">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-raised)] p-2.5">
           <p className="text-[10px] tracking-wide text-[var(--label-dim)] uppercase">
-            อ่านเมืองยังไง
+            How to read the city
           </p>
           <ul className="mt-1.5 space-y-1 text-[10.5px] leading-relaxed text-[var(--label-dim)]">
             <li>
-              <span className="text-[var(--label)]">ความสูง</span> = เงินที่ซื้อหุ้นแล้ว
+              <span className="text-[var(--label)]">Height</span> = money already invested
             </li>
             <li>
-              <span className="text-[var(--label)]">ไซต์ก่อสร้าง</span> = เงินสดที่รอลงทุน
+              <span className="text-[var(--label)]">Build sites</span> = cash waiting to invest
             </li>
             <li>
-              <span className="text-[var(--label)]">จำนวนชั้น</span> = จำนวนหุ้น
+              <span className="text-[var(--label)]">Floors</span> = shares held
             </li>
             <li>
-              <span className="text-[var(--gain)]">ป้ายเขียว</span> /{" "}
-              <span className="text-[var(--loss)]">แดง</span> = กำไร/ขาดทุน
+              <span className="text-[var(--gain)]">Green</span> /{" "}
+              <span className="text-[var(--loss)]">red sign</span> = gain / loss
             </li>
             <li>
-              <span className="text-[var(--label)]">ไฟหน้าต่าง</span> = ยิ่งกำไรยิ่งสว่าง
+              <span className="text-[var(--label)]">Lit windows</span> = brighter when up
             </li>
             <li>
-              <span style={{ color: "var(--free)" }}>แถบทอง + เครน</span> = เพิ่งเติมสัปดาห์นี้
+              <span style={{ color: "var(--free)" }}>Gold band + crane</span> = added this week
             </li>
             <li>
-              <span className="text-[var(--accent)]">คลิกตึก</span> = ดูไม้ DCA ของตัวนั้น
+              <span className="text-[var(--accent)]">Click a tower</span> = see its DCA rounds
             </li>
           </ul>
           <p className="mt-2 border-t border-[var(--border)] pt-2 text-[10px] leading-relaxed text-[var(--label-dim)]">
-            ตลาดแดง = ไฟหรี่ลง
+            Market down = lights dim
             <br />
-            แต่ตึกไม่มีวันหด
+            but buildings never shrink
           </p>
         </div>
 

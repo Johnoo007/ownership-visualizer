@@ -88,7 +88,7 @@ export function HoldingForm({
           placeholder="GOOGL"
         />
         <Field
-          label="ชื่อบริษัท"
+          label="Company name"
           value={form.name}
           onChange={(v) => setForm({ ...form, name: v })}
           placeholder="Alphabet"
@@ -96,7 +96,7 @@ export function HoldingForm({
       </div>
 
       <Field
-        label="จำนวนหุ้น (เศษหุ้นได้)"
+        label="Shares (fractional ok)"
         value={form.shares}
         onChange={(v) => setForm({ ...form, shares: v })}
         placeholder="5.0234"
@@ -105,15 +105,15 @@ export function HoldingForm({
 
       <div className="grid grid-cols-2 gap-2">
         <Field
-          label="ต้นทุนเฉลี่ย/หุ้น"
+          label="Avg cost / share"
           value={form.avgCost}
           onChange={(v) => setForm({ ...form, avgCost: v })}
           placeholder="172"
           inputMode="decimal"
-          hint="ได้มาฟรีใส่ 0"
+          hint="use 0 if it was free"
         />
         <Field
-          label="ราคาตอนนี้/หุ้น"
+          label="Price now / share"
           value={form.currentPrice}
           onChange={(v) => setForm({ ...form, currentPrice: v })}
           placeholder="205"
@@ -122,18 +122,18 @@ export function HoldingForm({
       </div>
 
       <Field
-        label="บาทที่จ่ายจริง (ทั้งก้อน)"
+        label="Actual baht paid (whole position)"
         value={form.costTHB}
         onChange={(v) => setForm({ ...form, costTHB: v })}
-        placeholder="เว้นว่างได้"
+        placeholder="optional"
         inputMode="decimal"
-        hint="ใส่แล้วจะใช้ตัวนี้เป็นความสูงตึก แทนการคูณค่าเงินวันนี้"
+        hint="if set, this drives tower height instead of today&rsquo;s FX rate"
       />
 
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
           <span className="text-[10.5px] tracking-wide text-[var(--label-dim)] uppercase">
-            สกุลเงิน
+            Currency
           </span>
           <select
             value={form.currency}
@@ -149,7 +149,7 @@ export function HoldingForm({
 
         <label className="block">
           <span className="text-[10.5px] tracking-wide text-[var(--label-dim)] uppercase">
-            เขต
+            District
           </span>
           <select
             value={form.district}
@@ -158,8 +158,8 @@ export function HoldingForm({
             }
             className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-sm text-[var(--label)]"
           >
-            <option value="mission">Mission (เติบโต)</option>
-            <option value="goldengoose">Golden Goose (ปันผล)</option>
+            <option value="mission">Mission (growth)</option>
+            <option value="goldengoose">Golden Goose (dividends)</option>
           </select>
         </label>
       </div>
@@ -170,7 +170,7 @@ export function HoldingForm({
           disabled={!valid}
           className="flex-1 rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--accent-fg)] transition disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {editing ? "บันทึกการแก้ไข" : "สร้างตึก"}
+          {editing ? "Save changes" : "Build tower"}
         </button>
         {editing && (
           <button
@@ -178,7 +178,7 @@ export function HoldingForm({
             onClick={onCancel}
             className="rounded-md border border-[var(--border)] px-3 py-2 text-sm text-[var(--label-dim)]"
           >
-            ยกเลิก
+            Cancel
           </button>
         )}
       </div>

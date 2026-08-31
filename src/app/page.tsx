@@ -72,7 +72,7 @@ export default function Home() {
   if (!state || !displayState) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-[var(--label-dim)]">กำลังโหลดเมือง…</p>
+        <p className="text-sm text-[var(--label-dim)]">Loading the city…</p>
       </main>
     );
   }
@@ -88,14 +88,14 @@ export default function Home() {
               City Overview
             </p>
             <h1 className="text-xl leading-tight font-semibold text-[var(--label)]">
-              เมืองแห่งความเป็นเจ้าของ
+              City of Ownership
             </h1>
           </div>
 
           {state.isDemo ? (
             <div className="ml-auto flex items-center gap-2 rounded-lg border border-[var(--warn-border)] bg-[var(--warn)] px-3 py-1.5 text-xs">
               <span className="font-medium text-[var(--warn-fg)]">
-                โหมดตัวอย่าง — ตัวเลขสมมติ ไม่ใช่พอร์ตจริง
+                Sample mode — made-up numbers, not your real portfolio
               </span>
               <button
                 type="button"
@@ -106,13 +106,13 @@ export default function Home() {
                 }}
                 className="rounded-md border border-[var(--warn-border)] px-2 py-1 font-medium text-[var(--warn-fg)] transition hover:bg-[var(--warn-border)]/30"
               >
-                เริ่มพอร์ตจริง
+                Start real portfolio
               </button>
             </div>
           ) : (
             <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 text-xs text-[var(--label-dim)]">
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--gain)]" />
-              พอร์ตจริงของคุณ
+              Your real portfolio
             </div>
           )}
         </header>
@@ -120,14 +120,14 @@ export default function Home() {
         {viewingPast && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--accent)] bg-[var(--accent)]/10 px-3 py-2 text-xs">
             <span className="font-medium text-[var(--accent)]">
-              กำลังดูเมืองเมื่อ {formatSnapshotDate(viewingPast.at)} — แก้ไขไม่ได้
+              Viewing the city as of {formatSnapshotDate(viewingPast.at)} — read only
             </span>
             <button
               type="button"
               onClick={() => setViewingPast(null)}
               className="ml-auto rounded-md border border-[var(--accent)] px-2 py-1 font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
             >
-              กลับมาวันนี้
+              Back to today
             </button>
           </div>
         )}
@@ -139,14 +139,14 @@ export default function Home() {
         {backup && state.holdings.length === 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs">
             <span className="text-[var(--label)]">
-              เมืองก่อนหน้ามี {backup.holdings.length} ตึก — กู้คืนได้
+              Previous city had {backup.holdings.length} towers — restorable
             </span>
             <button
               type="button"
               onClick={restoreBackup}
               className="ml-auto rounded-md border border-[var(--accent)] px-2 py-1 font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/10"
             >
-              กู้คืนเมืองก่อนหน้า
+              Restore previous city
             </button>
           </div>
         )}
@@ -160,11 +160,11 @@ export default function Home() {
           </div>
 
           <div className="absolute top-3 right-3 z-10 flex flex-col gap-1 rounded-lg border border-[var(--border-bright)] bg-[var(--panel)]/85 px-2.5 py-2">
-            <Legend color="#7b9fd4" label="Mission — เติบโต" />
-            <Legend color="#6fc49a" label="Golden Goose — ปันผล" />
-            <Legend color="#f0cf7a" label="ได้มาฟรี — ที่ดินเปล่า" />
-            <Legend color="#6ee7a5" label="ป้ายเขียว = กำไร" dot />
-            <Legend color="#ff8f7d" label="ป้ายแดง = ขาดทุน" dot />
+            <Legend color="#7b9fd4" label="Mission — growth" />
+            <Legend color="#6fc49a" label="Golden Goose — dividends" />
+            <Legend color="#f0cf7a" label="Free — bare land" />
+            <Legend color="#6ee7a5" label="Green sign = gain" dot />
+            <Legend color="#ff8f7d" label="Red sign = loss" dot />
           </div>
           <IsoCity
             structures={structures}
@@ -206,7 +206,7 @@ export default function Home() {
           }`}
         >
           <h2 className="mb-2 text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase">
-            {editing ? `แก้ไข ${editing.ticker}` : "สร้างตึกใหม่"}
+            {editing ? `Edit ${editing.ticker}` : "Build a new tower"}
           </h2>
           <HoldingForm
             editing={editing}
@@ -222,7 +222,7 @@ export default function Home() {
         <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)]">
           <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
             <h2 className="text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase">
-              ตึกทั้งหมด
+              All towers
             </h2>
             <label className="ml-auto flex items-center gap-1.5 text-[10.5px] text-[var(--label-dim)]">
               USD→THB
@@ -254,19 +254,19 @@ export default function Home() {
         {!viewingPast && (
           <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3">
             <h2 className="text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase">
-              เงินสดรอลงทุน
+              Cash on hand
             </h2>
             <p className="mt-1 text-[10px] leading-relaxed text-[var(--label-dim)]">
-              โผล่เป็นไซต์ก่อสร้างในเมือง · นับรวมในมูลค่าพอร์ต แต่ไม่นับเป็นความสูง
-              เพราะยังไม่ได้เป็นเจ้าของอะไร
+              Shows up as build sites · counted in portfolio value but never as
+              height, because it does not own anything yet
             </p>
             <label className="mt-2 block">
               <span className="text-[10.5px] tracking-wide text-[var(--label-dim)] uppercase">
-                เงินเติมสะสม (฿)
+                Total deposits (฿)
               </span>
               <input
                 value={state.deposits ?? ""}
-                placeholder="ทุกบาทที่โอนเข้าพอร์ต"
+                placeholder="every baht transferred in"
                 onChange={(e) => {
                   const v = Number(e.target.value);
                   if (e.target.value === "") setDeposits(0);
@@ -284,7 +284,7 @@ export default function Home() {
               {(["usd", "thb"] as const).map((cur) => (
                 <label key={cur} className="block">
                   <span className="text-[10.5px] tracking-wide text-[var(--label-dim)] uppercase">
-                    {cur === "usd" ? "USD" : "บาท"}
+                    {cur === "usd" ? "USD" : "THB"}
                   </span>
                   <input
                     value={state.cash?.[cur] ?? 0}
@@ -318,14 +318,14 @@ export default function Home() {
             onClick={() => exportCity(state)}
             className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2 text-xs text-[var(--label-dim)] transition hover:border-[var(--accent)] hover:text-[var(--label)]"
           >
-            บันทึกเป็นไฟล์
+            Save to file
           </button>
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
             className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2 text-xs text-[var(--label-dim)] transition hover:border-[var(--accent)] hover:text-[var(--label)]"
           >
-            โหลดจากไฟล์
+            Load from file
           </button>
           <input
             ref={fileInput}
@@ -341,7 +341,7 @@ export default function Home() {
                 setSelectedId(null);
                 setEditing(null);
               } else {
-                alert("ไฟล์นี้อ่านไม่ได้ — ต้องเป็นไฟล์ที่ export จากแอปนี้");
+                alert("Could not read this file — it must be a JSON exported from this app");
               }
               e.target.value = "";
             }}

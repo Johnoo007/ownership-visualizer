@@ -37,7 +37,7 @@ export function PriceSync({
       onSynced(next);
       setResult(r);
     } catch {
-      setError("ดึงราคาไม่สำเร็จ — ลองใหม่อีกครั้ง (ราคาเดิมยังอยู่ครบ)");
+      setError("Could not fetch prices — try again (existing prices are untouched)");
     } finally {
       setBusy(false);
     }
@@ -52,7 +52,7 @@ export function PriceSync({
         />
         <div className="min-w-0 flex-1">
           <p className="text-[10px] tracking-wide text-[var(--label-dim)] uppercase">
-            ราคาตลาด
+            Market prices
           </p>
           <p
             className="truncate text-xs"
@@ -67,22 +67,22 @@ export function PriceSync({
           disabled={busy || state.holdings.length === 0 || state.isDemo}
           className="rounded-lg border border-[var(--accent)] px-2.5 py-1.5 text-xs font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/10 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {busy ? "กำลังดึง…" : "ดึงราคาล่าสุด"}
+          {busy ? "Fetching…" : "Fetch latest"}
         </button>
       </div>
 
       {/* ห้ามเอาราคาจริงมาทับต้นทุนสมมติ — จะได้กำไร/ขาดทุนที่อ่านผิดโดยดูเหมือนจริง */}
       {state.isDemo ? (
         <p className="mt-2 text-[10.5px] leading-relaxed text-[var(--label-dim)]">
-          เมืองตัวอย่างใช้ตัวเลขสมมติทั้งหมด — กด “เริ่มพอร์ตจริง” ก่อนถึงจะดึงราคาตลาดได้
+          The sample city uses made-up numbers — hit “Start real portfolio” before fetching live prices
         </p>
       ) : (
         stale &&
         !busy && (
           <p className="mt-2 text-[10.5px] leading-relaxed text-[var(--label-dim)]">
             {age === null
-              ? "ราคาที่แสดงเป็นค่าที่กรอกเอง — กำไร/ขาดทุนและระดับไฟจะยังไม่ตรงกับตลาดจริง"
-              : "ราคาเก่าเกิน 2 วันแล้ว ตัวเลขกำไร/ขาดทุนเชื่อไม่ได้เต็มที่"}
+              ? "Prices are hand-entered — gain/loss and window lights will not match the real market"
+              : "Prices are over 2 days old — gain/loss is not fully trustworthy"}
           </p>
         )
       )}
@@ -92,17 +92,17 @@ export function PriceSync({
       {result && !error && (
         <div className="mt-2 space-y-1 text-[10.5px] text-[var(--label-dim)]">
           <p>
-            อัปเดตแล้ว{" "}
-            <span className="text-[var(--gain)]">{result.updated.length} ตัว</span>
-            {result.fxRate && ` · ค่าเงิน ${result.fxRate.toFixed(2)}`}
+            Updated{" "}
+            <span className="text-[var(--gain)]">{result.updated.length}</span>
+            {result.fxRate && ` · FX ${result.fxRate.toFixed(2)}`}
           </p>
           {result.failed.length > 0 && (
             <p className="text-[var(--free)]">
-              ดึงไม่ได้ {result.failed.length} ตัว ({result.failed.join(", ")}) —
-              ยังใช้ราคาเดิมที่กรอกไว้
+              {result.failed.length} failed ({result.failed.join(", ")}) —
+              still using the prices you entered
             </p>
           )}
-          <p className="opacity-70">ที่มา: Yahoo Finance · หน่วง ~15 นาที</p>
+          <p className="opacity-70">Source: Yahoo Finance · ~15 min delayed</p>
         </div>
       )}
     </section>

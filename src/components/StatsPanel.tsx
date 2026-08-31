@@ -38,49 +38,49 @@ export function StatsPanel({
       */}
       <Card
         icon="🧱"
-        label="เงินที่ลงไปแล้ว"
+        label="Money in"
         value={formatTHB(all ? all.returnBase : t.invested)}
         note={
           all?.usingDeposits
-            ? "ทุกบาทที่เก็บเข้าพอร์ต · รวมเงินสด"
+            ? "Every baht in · incl. cash"
             : all
-              ? "ต้นทุนหุ้น + เงินสด"
-              : "ต้นทุนหุ้นในเขตนี้"
+              ? "Stock cost + cash"
+              : "Stock cost in this district"
         }
         tone="accent"
       />
       <Card
         icon="📈"
-        label="มูลค่าพอร์ตตอนนี้"
+        label="Portfolio value"
         value={formatTHB(shownMarket)}
-        note={all ? "หุ้น + เงินสด" : "เฉพาะเขตนี้"}
+        note={all ? "Stocks + cash" : "This district only"}
       />
       <Card
         icon={shownPnl >= 0 ? "☀️" : "🌙"}
-        label="กำไร / ขาดทุน (฿)"
+        label="Gain / loss (฿)"
         value={formatPercent(shownReturn)}
         note={`${shownPnl >= 0 ? "+" : "−"}${formatTHB(Math.abs(shownPnl)).slice(1)} · ${
-          all?.usingDeposits ? "เทียบเงินเติมสะสม" : "เทียบต้นทุนหุ้น"
+          all?.usingDeposits ? "vs total deposits" : "vs stock cost"
         }`}
         tone={shownPnl >= 0 ? "gain" : "loss"}
       />
       <Card
         icon="🏢"
-        label="ตึกในเมือง"
+        label="Towers"
         value={String(t.towerCount)}
-        note="บริษัทที่เป็นเจ้าของ"
+        note="Companies you own"
       />
       <Card
         icon="🚧"
-        label="เงินสดรอลงทุน"
+        label="Cash on hand"
         value={formatTHB(cashTHB(state))}
-        note="ไซต์ก่อสร้าง · ยังไม่นับเป็นความสูง"
+        note="Build sites · not height"
       />
       <Card
         icon="🗼"
-        label="ตึกที่ใหญ่ที่สุด"
+        label="Biggest tower"
         value={top ? `${top.label} ${(top.share * 100).toFixed(0)}%` : "—"}
-        note="กินพื้นที่เมืองเท่านี้"
+        note="Share of the whole city"
         tone="free"
       />
     </section>

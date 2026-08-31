@@ -188,7 +188,7 @@ export function toStructures(state: CityState, now: Date = new Date()): Structur
       id,
       kind: "site",
       label,
-      sublabel: "เงินสดรอลงทุน",
+      sublabel: "Waiting to be invested",
       invested: value,
       units: 0,
       health: null,
@@ -209,7 +209,7 @@ export function toStructures(state: CityState, now: Date = new Date()): Structur
   return [...towers, ...sites];
 }
 
-const bahtFormatter = new Intl.NumberFormat("th-TH", {
+const bahtFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 

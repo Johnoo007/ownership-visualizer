@@ -5,7 +5,7 @@ import { parseHoldingsTable, SAMPLE_TABLE } from "@/lib/importCsv";
 import { formatTHB, investedTHB } from "@/lib/portfolio";
 import type { CityState, Holding } from "@/lib/types";
 
-/** วางตารางจากชีตทีเดียวจบ — ไม่ต้องกรอกทีละตัว 15 รอบ */
+/** Paste table from sheetทีเดียวจบ — ไม่ต้องกรอกทีละตัว 15 รอบ */
 export function BulkImport({
   state,
   onImport,
@@ -34,7 +34,7 @@ export function BulkImport({
         onClick={() => setOpen(true)}
         className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs text-[var(--label-dim)] transition hover:border-[var(--accent)] hover:text-[var(--label)]"
       >
-        วางตารางจากชีต
+        Paste table from sheet
       </button>
     );
   }
@@ -43,7 +43,7 @@ export function BulkImport({
     <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3">
       <div className="flex items-center gap-2">
         <h2 className="text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase">
-          วางตารางจากชีต
+          Paste table from sheet
         </h2>
         <button
           type="button"
@@ -53,17 +53,17 @@ export function BulkImport({
           }}
           className="ml-auto rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--label-dim)]"
         >
-          ปิด
+          Close
         </button>
       </div>
 
       <p className="mt-1.5 text-[10px] leading-relaxed text-[var(--label-dim)]">
-        ทีละบรรทัด:{" "}
+        One per line:{" "}
         <span className="text-[var(--label)]">
-          ticker, หุ้น, ต้นทุน/หุ้น, ราคาตอนนี้, สกุล, เขต
+          ticker, shares, cost/share, price now, currency, district
         </span>
         <br />
-        สามช่องแรกจำเป็น ที่เหลือเว้นได้ (ค่าเริ่มต้น USD · Mission)
+        First three are required, the rest are optional (defaults: USD · Mission)
       </p>
 
       <textarea
@@ -77,13 +77,13 @@ export function BulkImport({
       {rows.length > 0 && (
         <div className="mt-2 space-y-1 text-[10.5px]">
           <p className="text-[var(--label-dim)]">
-            อ่านได้ <span className="text-[var(--gain)]">{good.length} ตึก</span>
-            {good.length > 0 && ` · รวมเงินที่ลง ${formatTHB(previewTotal)}`}
+            Parsed <span className="text-[var(--gain)]">{good.length} towers</span>
+            {good.length > 0 && ` · ${formatTHB(previewTotal)} invested`}
           </p>
           {bad.map((r) =>
             r.ok ? null : (
               <p key={r.line} className="text-[var(--loss)]">
-                บรรทัด {r.line}: {r.reason} — “{r.text.slice(0, 40)}”
+                Line {r.line}: {r.reason} — “{r.text.slice(0, 40)}”
               </p>
             ),
           )}
@@ -97,7 +97,7 @@ export function BulkImport({
           onChange={(e) => setReplace(e.target.checked)}
           className="accent-[var(--accent)]"
         />
-        แทนที่ตึกทั้งหมดที่มีอยู่ (ไม่ติ๊ก = เพิ่มต่อท้าย)
+        Replace all existing towers (unchecked = append)
       </label>
 
       <button
@@ -110,7 +110,7 @@ export function BulkImport({
         }}
         className="mt-2 w-full rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-medium text-[var(--accent-fg)] transition disabled:cursor-not-allowed disabled:opacity-40"
       >
-        สร้าง {good.length} ตึก
+        Build {good.length} towers
       </button>
     </section>
   );

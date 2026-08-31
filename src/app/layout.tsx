@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "เมืองแห่งความเป็นเจ้าของ",
-  description: "พอร์ตหุ้นในรูปเมือง — ความสูงคือเงินที่ลงไป ชั้นคือหุ้นที่สะสม",
+  title: "City of Ownership",
+  description: "Your portfolio as a city — height is money in, floors are shares held",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

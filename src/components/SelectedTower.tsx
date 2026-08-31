@@ -50,7 +50,7 @@ export function SelectedTower({
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] tracking-wide text-[var(--label-dim)] uppercase">
-            ตึกที่เลือก
+            Selected tower
           </p>
           <div className="flex items-baseline gap-2">
             <h2 className="font-mono text-lg font-bold text-[var(--label)]">
@@ -69,12 +69,12 @@ export function SelectedTower({
           onClick={onClose}
           className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--label-dim)] transition hover:border-[var(--accent)] hover:text-[var(--label)]"
         >
-          ปิด
+          Close
         </button>
       </div>
 
       <div className="mt-2.5 rounded-lg border border-[var(--border)] bg-[var(--panel-raised)] p-2.5">
-        <p className="text-[10px] text-[var(--label-dim)]">ความสูงของตึกนี้มาจาก</p>
+        <p className="text-[10px] text-[var(--label-dim)]">This tower&rsquo;s height comes from</p>
         <p className="font-mono text-xl font-semibold text-[var(--label)]">
           {formatTHB(invested)}
         </p>
@@ -88,37 +88,37 @@ export function SelectedTower({
           />
         </div>
         <p className="mt-1 text-[10px] text-[var(--label-dim)]">
-          {(share * 100).toFixed(1)}% ของทั้งเมือง
+          {(share * 100).toFixed(1)}% of the whole city
         </p>
         {/* บอกให้ชัดว่าเลขนี้คือบาทที่จ่ายจริง หรือแค่ตีค่าด้วยค่าเงินวันนี้ */}
         <p className="mt-1 text-[10px]" style={{ color: hasRealTHBCost(holding) ? "var(--gain)" : "var(--free)" }}>
           {hasRealTHBCost(holding)
-            ? "✓ บาทที่จ่ายจริง"
+            ? "✓ actual baht paid"
             : holding.currency === "USD"
-              ? `≈ ตีจากดอลลาร์ที่ค่าเงิน ${state.fxRate}`
-              : "บาทโดยตรง"}
+              ? `≈ converted from USD at ${state.fxRate}`
+              : "baht directly"}
         </p>
       </div>
 
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
-        <Row label="จำนวนชั้น" value={`${formatShares(holding.shares)} หุ้น`} />
+        <Row label="Floors" value={`${formatShares(holding.shares)} shares`} />
         <Row
-          label={`ระดับไฟ (${holding.currency})`}
-          value={free ? "ของฟรี" : formatPercent(ratio)}
+          label={`Light level (${holding.currency})`}
+          value={free ? "free" : formatPercent(ratio)}
           color={tone}
         />
-        <Row label="มูลค่าตลาด" value={formatTHB(market)} />
+        <Row label="Market value" value={formatTHB(market)} />
         <Row
-          label="กำไร/ขาดทุน"
+          label="Gain / loss"
           value={`${market - invested >= 0 ? "+" : "−"}${formatTHB(Math.abs(market - invested)).slice(1)}`}
           color={tone}
         />
         <Row
-          label="ต้นทุน/หุ้น"
-          value={free ? "0 (ฟรี)" : `${holding.avgCost} ${holding.currency}`}
+          label="Avg cost"
+          value={free ? "0 (free)" : `${holding.avgCost} ${holding.currency}`}
         />
         <Row
-          label="ราคาตอนนี้"
+          label="Price now"
           value={`${holding.currentPrice} ${holding.currency}`}
         />
       </dl>
@@ -134,14 +134,14 @@ export function SelectedTower({
           onClick={() => onEdit(holding)}
           className="flex-1 rounded-lg border border-[var(--border-bright)] px-3 py-1.5 text-xs text-[var(--label)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
         >
-          แก้ไขตึกนี้
+          Edit this tower
         </button>
         <button
           type="button"
           onClick={() => onRemove(holding.id)}
           className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--loss)] transition hover:border-[var(--loss)]"
         >
-          รื้อทิ้ง
+          Demolish
         </button>
       </div>
     </section>
@@ -165,7 +165,7 @@ function BuildHistory({
   if (list.length === 0) {
     return (
       <p className="mt-2.5 rounded-lg border border-dashed border-[var(--border)] px-2.5 py-2 text-[10px] text-[var(--label-dim)]">
-        🧱 ยังไม่มีไม้ที่บันทึกไว้สำหรับตัวนี้ — ครั้งหน้าที่ซื้อเพิ่ม แอปจะนับให้เอง
+        🧱 No rounds recorded for this one yet — the next buy will be counted automatically
       </p>
     );
   }
@@ -179,9 +179,9 @@ function BuildHistory({
   return (
     <div className="mt-2.5 rounded-lg border border-[var(--border)] bg-[var(--panel-raised)] p-2.5">
       <div className="flex items-baseline justify-between">
-        <p className="text-[10px] text-[var(--label-dim)]">ไม้ที่ลงไปกับตัวนี้</p>
+        <p className="text-[10px] text-[var(--label-dim)]">Rounds put into this one</p>
         <p className="font-mono text-[11px] font-semibold text-[var(--label)]">
-          {list.length} ไม้ · {formatTHB(total)}
+          {list.length} rounds · {formatTHB(total)}
         </p>
       </div>
 
@@ -209,14 +209,14 @@ function BuildHistory({
 
       {rows.length > shown.length && (
         <p className="mt-1.5 text-[10px] text-[var(--label-dim)]">
-          + อีก {rows.length - shown.length} ไม้ก่อนหน้านี้
+          + {rows.length - shown.length} earlier rounds
         </p>
       )}
 
       {/* ส่วนที่มีอยู่ก่อนเริ่มบันทึก — ไม่ใช่ศูนย์ แค่ไม่มีประวัติ */}
       {invested > total + 1 && (
         <p className="mt-1.5 border-t border-[var(--border)] pt-1.5 text-[10px] text-[var(--label-dim)]">
-          อีก {formatTHB(invested - total)} มีอยู่ก่อนแอปเริ่มนับ
+          {formatTHB(invested - total)} more was already there before tracking started
         </p>
       )}
     </div>
@@ -225,7 +225,7 @@ function BuildHistory({
 
 function formatThaiDate(at: string): string {
   const d = new Date(`${at}T00:00:00`);
-  return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
 }
 
 function Row({

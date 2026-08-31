@@ -109,14 +109,14 @@ export const CASH_ZONE = "cash";
 export const DISTRICTS: Record<string, { label: string; note: string }> = {
   mission: {
     label: "Mission To The Moon",
-    note: "เขตเติบโต — US growth",
+    note: "Growth district — US equities",
   },
   goldengoose: {
     label: "Golden Goose",
-    note: "เขตกระแสเงินสด — ปันผล",
+    note: "Cash-flow district — dividends",
   },
   [CASH_ZONE]: {
-    label: "เงินสดรอลงทุน",
-    note: "ไซต์ก่อสร้างนอกเมือง",
+    label: "Cash on hand",
+    note: "Construction yards outside the city",
   },
 };

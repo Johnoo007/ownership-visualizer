@@ -30,7 +30,7 @@ export function HoldingList({
   if (rows.length === 0) {
     return (
       <p className="py-6 text-center text-xs text-[var(--label-dim)]">
-        ยังไม่มีตึก — เพิ่มตัวแรกด้านบน
+        No towers yet — add your first one above
       </p>
     );
   }
@@ -74,7 +74,7 @@ export function HoldingList({
             <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[var(--label-dim)]">
               <span className="font-mono">{formatTHB(investedTHB(h, state.fxRate))}</span>
               <span>·</span>
-              <span>{formatShares(h.shares)} หุ้น</span>
+              <span>{formatShares(h.shares)} shares</span>
 
               {selected && (
                 <span className="ml-auto flex gap-2">
@@ -86,7 +86,7 @@ export function HoldingList({
                     }}
                     className="text-[var(--accent)] hover:underline"
                   >
-                    แก้
+                    Edit
                   </button>
                   <button
                     type="button"
@@ -96,7 +96,7 @@ export function HoldingList({
                     }}
                     className="text-[var(--loss)] hover:underline"
                   >
-                    ลบ
+                    Delete
                   </button>
                 </span>
               )}

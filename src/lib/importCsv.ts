@@ -4,6 +4,8 @@ export type ParsedRow =
   | { ok: true; holding: Holding }
   | { ok: false; line: number; text: string; reason: string };
 
+// จงใจเก็บคำไทยไว้ — ตัวนี้อ่าน "ชีตของ John" ซึ่งหัวตารางเป็นไทย
+// ไม่ใช่ข้อความที่โชว์บนหน้าจอ จึงไม่ต้องแปลตาม UI ของเว็บ
 const HEADER_WORDS = ["ticker", "symbol", "shares", "หุ้น", "ต้นทุน"];
 
 /**
@@ -38,7 +40,7 @@ export function parseHoldingsTable(text: string): ParsedRow[] {
         cols;
 
       if (!rawTicker) {
-        rows.push({ ok: false, line: i + 1, text: line, reason: "ไม่มี ticker" });
+        rows.push({ ok: false, line: i + 1, text: line, reason: "no ticker" });
         return;
       }
 
@@ -50,7 +52,7 @@ export function parseHoldingsTable(text: string): ParsedRow[] {
           ok: false,
           line: i + 1,
           text: line,
-          reason: "จำนวนหุ้นไม่ถูกต้อง",
+          reason: "invalid share count",
         });
         return;
       }
@@ -59,7 +61,7 @@ export function parseHoldingsTable(text: string): ParsedRow[] {
           ok: false,
           line: i + 1,
           text: line,
-          reason: "ต้นทุนไม่ถูกต้อง (ของฟรีใส่ 0)",
+          reason: "invalid cost (use 0 for free holdings)",
         });
         return;
       }

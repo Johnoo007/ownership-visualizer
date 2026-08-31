@@ -17,9 +17,9 @@ export function BuildLog({ state }: { state: CityState }) {
   if (s.rounds === 0) {
     return (
       <section className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--panel)] px-3 py-2.5 text-xs text-[var(--label-dim)]">
-        🏗️ <span className="font-semibold text-[var(--label)]">ยังไม่มีไม้ที่บันทึกไว้</span>{" "}
-        — ครั้งหน้าที่อัปเดตพอร์ตหลังซื้อเพิ่ม แอปจะนับให้เองเป็น 1 ไม้
-        แล้วขึ้นเครนบนตึกนั้น
+        🏗️ <span className="font-semibold text-[var(--label)]">No rounds recorded yet</span>{" "}
+        — next time you update the portfolio after buying, it counts as 1 round
+        and raises a crane on that tower
       </section>
     );
   }
@@ -36,21 +36,21 @@ export function BuildLog({ state }: { state: CityState }) {
     >
       {building ? (
         <span className="font-semibold" style={{ color: "var(--warn-fg)" }}>
-          🏗️ กำลังก่อสร้าง — {RECENT_DAYS} วันนี้เติม{" "}
-          {formatTHB(s.recentTHB)} เข้า {s.recentTickers.join(" · ")}
+          🏗️ Under construction — {formatTHB(s.recentTHB)} added to{" "}
+          {s.recentTickers.join(" · ")} in the last {RECENT_DAYS} days
         </span>
       ) : (
         <span className="font-semibold text-[var(--label)]">
-          🧱 เมืองนี้สร้างด้วยมือนายมาแล้ว {s.rounds} ไม้
+          🧱 You have built this city over {s.rounds} rounds
         </span>
       )}
 
-      <Stat label="ไม้ทั้งหมด" value={`${s.rounds} ไม้`} />
-      <Stat label="ปีนี้" value={`${s.thisYearRounds} ไม้ · ${formatTHB(s.thisYearTHB)}`} />
-      <Stat label="รวมที่เติมเข้าตึก" value={formatTHB(s.totalTHB)} />
+      <Stat label="All rounds" value={`${s.rounds}`} />
+      <Stat label="This year" value={`${s.thisYearRounds} · ${formatTHB(s.thisYearTHB)}`} />
+      <Stat label="Total added" value={formatTHB(s.totalTHB)} />
 
       <span className="ml-auto text-[10px] text-[var(--label-dim)]">
-        คลิกตึกเพื่อดูไม้ของตัวนั้น
+        Click a tower for its rounds
       </span>
     </section>
   );

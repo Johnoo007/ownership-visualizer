@@ -24,7 +24,7 @@ export async function syncPrices(
   const symbols = [...new Set(state.holdings.map(yahooSymbol)), FX_SYMBOL];
 
   const res = await fetch(`/api/prices?symbols=${encodeURIComponent(symbols.join(","))}`);
-  if (!res.ok) throw new Error("ดึงราคาไม่สำเร็จ");
+  if (!res.ok) throw new Error("Could not fetch prices");
 
   const data = (await res.json()) as {
     quotes: Record<string, { price: number; currency: string }>;
@@ -69,13 +69,17 @@ export function priceAgeHours(state: CityState): number | null {
 }
 
 export function formatAge(hours: number | null): string {
-  if (hours === null) return "ยังไม่เคยอัปเดต";
+  if (hours === null) return "never updated";
   if (hours < 1) {
     const mins = Math.max(1, Math.round(hours * 60));
-    return `${mins} นาทีที่แล้ว`;
+    return `${mins} min ago`;
   }
-  if (hours < 24) return `${Math.round(hours)} ชั่วโมงที่แล้ว`;
-  return `${Math.round(hours / 24)} วันที่แล้ว`;
+  if (hours < 24) {
+    const hrs = Math.round(hours);
+    return `${hrs} ${hrs === 1 ? "hr" : "hrs"} ago`;
+  }
+  const days = Math.round(hours / 24);
+  return `${days} ${days === 1 ? "day" : "days"} ago`;
 }
 
 /** เกินนี้ถือว่าเก่าจนตัวเลขกำไร/ขาดทุนเชื่อไม่ได้แล้ว */

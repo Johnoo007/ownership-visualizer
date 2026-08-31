@@ -58,7 +58,7 @@ export async function GET(request: Request) {
     .slice(0, 40);
 
   if (symbols.length === 0) {
-    return NextResponse.json({ error: "ต้องระบุ symbols" }, { status: 400 });
+    return NextResponse.json({ error: "symbols is required" }, { status: 400 });
   }
 
   const quotes: Record<string, Quote> = {};
@@ -79,6 +79,6 @@ export async function GET(request: Request) {
     quotes,
     failed,
     fetchedAt: new Date().toISOString(),
-    source: "Yahoo Finance (unofficial) · ราคาหน่วง ~15 นาที",
+    source: "Yahoo Finance (unofficial) · ~15 min delayed",
   });
 }

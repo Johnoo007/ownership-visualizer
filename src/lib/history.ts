@@ -101,7 +101,7 @@ export function compare(past: Snapshot, present: CityState): Growth {
 
 export function formatSnapshotDate(at: string): string {
   const d = new Date(at);
-  return d.toLocaleDateString("th-TH", {
+  return d.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "2-digit",

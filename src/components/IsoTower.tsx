@@ -136,8 +136,8 @@ export function IsoTower({
       style={{ filter: hovered && !selected ? "brightness(1.18)" : undefined }}
     >
       <title>
-        {`${s.label} — ${s.sublabel}\nลงเงิน ${formatTHB(s.invested)} · ${formatShares(s.units)} หุ้น` +
-          (partCount > 1 ? `\nกลุ่มอาคาร ${partCount} หลัง (หลังที่ ${partIndex + 1})` : "")}
+        {`${s.label} — ${s.sublabel}\n${formatTHB(s.invested)} in · ${formatShares(s.units)} shares` +
+          (partCount > 1 ? `\nComplex of ${partCount} towers (no. ${partIndex + 1})` : "")}
       </title>
 
       {/* เงาทอดไปทางขวา — ยาวตามความสูงจริง (แสงมาจากซ้ายบน) */}
@@ -846,7 +846,7 @@ export function TowerLabel({
             strokeLinejoin: "round",
           }}
         >
-          {formatTHB(s.invested)} · {formatShares(s.units)} ชั้น
+          {formatTHB(s.invested)} · {formatShares(s.units)} floors
         </text>
       )}
     </g>
