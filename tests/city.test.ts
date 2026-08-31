@@ -928,3 +928,25 @@ test("วงกำแพงล้อมเฉพาะตัวเมือง �
     );
   }
 });
+
+/**
+ * ลำดับการวาดกำแพงต้องเรียงตามความลึก ไม่ใช่ลำดับรอบวง
+ * ลำดับรอบวงทำให้สองในสี่ด้านไล่ย้อนกลับ แล้วช่วงที่ไกลกว่าไปวาดทับช่วงที่ใกล้กว่า
+ */
+test("ช่วงกำแพงต้องออกมาเรียงตามความลึก ทุกด้าน ไม่ใช่ตามลำดับรอบวง", () => {
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+  const ring = wallRing(layout, 1);
+
+  for (let i = 1; i < ring.length; i++) {
+    assert.ok(
+      ring[i].depth >= ring[i - 1].depth,
+      `ช่วงที่ ${i} ลึก ${ring[i].depth} มาหลังช่วงที่ลึก ${ring[i - 1].depth} = วาดทับผิด`,
+    );
+  }
+
+  // ต้องครบทั้งสี่ด้านจริง ไม่ใช่หายไปตอนเรียง
+  const sides = new Set(ring.map((w) => w.side));
+  assert.equal(sides.size, 4, `ต้องมีครบ 4 ด้าน ได้ ${[...sides].join(",")}`);
+  assert.equal(ring.length, new Set(ring.map((w) => `${w.gx},${w.gy}`)).size,
+    "ห้ามมีช่องซ้ำหลังเรียง");
+});

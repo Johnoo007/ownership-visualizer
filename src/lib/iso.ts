@@ -583,10 +583,21 @@ export function wallRing(layout: CityLayout, coverage: number): WallSegment[] {
 
   const builtCount = Math.round(Math.max(0, Math.min(1, coverage)) * ring.length);
 
-  return ring.map((r, i) => ({
-    ...r,
-    center: tileCenter(r.gx, r.gy),
-    depth: r.gx + r.gy,
-    built: i < builtCount,
-  }));
+  /**
+   * ⚠️ ลำดับใน ring ใช้ตัดสินว่า "ก่อถึงไหนแล้ว" เท่านั้น ห้ามใช้เป็นลำดับการวาด
+   *
+   * วงไล่ตามเข็ม: ด้านบน (gx เพิ่ม) กับด้านขวา (gy เพิ่ม) บังเอิญได้ความลึกเพิ่มขึ้น
+   * ตามลำดับพอดี แต่ด้านล่าง (gx ลด) กับด้านซ้าย (gy ลด) ไล่ย้อนกลับ
+   * ⇒ ถ้าวาดตามลำดับวง สองด้านนั้นจะเอาช่วงที่อยู่ไกลกว่าไปวาดทับช่วงที่อยู่ใกล้กว่า
+   *   กำแพงเลยดูเป็นก้อนซ้อนผิดรูป (John: "โอเคแค่สองด้าน อีกสองด้านยังผิด")
+   * ⇒ ต้องเรียงตามความลึกก่อนคืนออกไปเสมอ แบบเดียวกับตึก
+   */
+  return ring
+    .map((r, i) => ({
+      ...r,
+      center: tileCenter(r.gx, r.gy),
+      depth: r.gx + r.gy,
+      built: i < builtCount,
+    }))
+    .sort((a, b) => a.depth - b.depth || a.gx - b.gx);
 }
