@@ -3,7 +3,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   groundCells,
+  boundsWithWall,
   layoutCity,
+  wallRing,
   PITCH_H,
   PITCH_W,
   seededRandom,
@@ -12,6 +14,7 @@ import {
 import { CASH_ZONE, DISTRICTS, type Structure } from "@/lib/types";
 import { IsoGround } from "./IsoGround";
 import { IsoSite } from "./IsoSite";
+import { IsoWall } from "./IsoWall";
 import { IsoTower, TowerLabel } from "./IsoTower";
 import { useAnimation } from "./useAnimation";
 
@@ -21,10 +24,13 @@ const ASIDE_DISTRICTS = [CASH_ZONE];
 
 export function IsoCity({
   structures,
+  wallCoverage,
   selectedId,
   onSelect,
 }: {
   structures: Structure[];
+  /** สัดส่วนกำแพงที่ก่อแล้ว 0..1 — เงินสำรองฉุกเฉิน (Kingdom v1) */
+  wallCoverage: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }) {
@@ -33,8 +39,10 @@ export function IsoCity({
     [structures],
   );
   const cells = useMemo(() => groundCells(layout), [layout]);
+  const wall = useMemo(() => wallRing(layout, wallCoverage), [layout, wallCoverage]);
 
-  const { bounds } = layout;
+  // กรอบต้องคลุมกำแพงด้วย ไม่ใช่แค่ตึก
+  const bounds = useMemo(() => boundsWithWall(layout, wall), [layout, wall]);
   const stars = useMemo(() => {
     if (structures.length === 0) return [];
     // กระจายเกินกรอบ เพราะ letterbox ทำให้เห็นพื้นที่นอก viewBox
@@ -233,7 +241,17 @@ export function IsoCity({
 
           <IsoGround cells={cells} />
 
-          {/* เลเยอร์สิ่งปลูกสร้าง — ไกลไปใกล้ ตัวหน้าทับตัวหลังได้ถูกต้อง */}
+          {/*
+            เลเยอร์สิ่งปลูกสร้าง — ไกลไปใกล้ ตัวหน้าทับตัวหลังได้ถูกต้อง
+            กำแพงต้องเข้าคิวความลึกเดียวกับตึก ไม่ใช่วาดก่อน/หลังทั้งวง
+            เพราะวงกำแพงคร่อมเมืองอยู่ ด้านข้างของวงมีทั้งส่วนที่ลึกกว่าและตื้นกว่าตึก
+          */}
+          {wall
+            .filter((w) => w.depth < layout.all[0].depth)
+            .map((w) => (
+              <IsoWall key={`wb-${w.gx},${w.gy}`} segments={[w]} />
+            ))}
+
           {layout.all.map((placed) => {
             const props = {
               placed,
@@ -249,6 +267,12 @@ export function IsoCity({
               <IsoTower key={key} {...props} />
             );
           })}
+
+          {wall
+            .filter((w) => w.depth >= layout.all[0].depth)
+            .map((w) => (
+              <IsoWall key={`wf-${w.gx},${w.gy}`} segments={[w]} />
+            ))}
 
           {/* เลเยอร์ป้าย — บนสุดเสมอ ไม่โดนตึกบัง */}
           {layout.districts.map((d) => {

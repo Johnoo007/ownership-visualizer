@@ -296,10 +296,18 @@ const ROAD_SPACING = 3;
  * คำนวณแยกจากตึกเพราะพื้นต้องวาดก่อนเสมอ (ไม่เข้าคิว depth sort เดียวกับตึก)
  */
 export function groundCells(layout: CityLayout): GroundCell[] {
-  if (layout.all.length === 0) return [];
+  /**
+   * ⚠️ ล้อมเฉพาะ "ตัวเมือง" (ตึก) ไม่รวมไซต์เงินสด
+   *
+   * ไซต์เงินสดถูกวางไว้ไกลออกไปอีกทิศโดยตั้งใจ (นอกเมือง) ถ้าเอามาคิดขอบเขตด้วย
+   * วงกำแพงจะยืดไปคร่อมที่ว่างระหว่างกลาง กลายเป็นแนวยาวพาดผ่านทุ่ง ไม่ล้อมอะไรเลย
+   * และตรงกับความหมายด้วย: กำแพงปกป้องสิ่งที่เป็นเจ้าของแล้ว ไม่ใช่เงินที่ยังรอลงทุน
+   */
+  const towers = layout.all.filter((p) => p.structure.kind === "tower");
+  if (towers.length === 0) return [];
 
-  const gxs = layout.all.map((p) => p.gx);
-  const gys = layout.all.map((p) => p.gy);
+  const gxs = towers.map((p) => p.gx);
+  const gys = towers.map((p) => p.gy);
   const minGx = Math.min(...gxs) - GROUND_PAD;
   const maxGx = Math.max(...gxs) + GROUND_PAD;
   const minGy = Math.min(...gys) - GROUND_PAD;
@@ -484,4 +492,101 @@ export function seededRandom(seed: string, index: number): number {
     h = Math.imul(h, 16777619);
   }
   return ((h >>> 0) % 10000) / 10000;
+}
+
+/**
+ * กำแพงอยู่ห่างจากขอบเมืองกี่ช่อง
+ *
+ * เคยตั้งไว้ 5 แล้ววงใหญ่จนเมืองเหลือเป็นกระจุกเล็กๆ กลางที่ว่าง — กล้องต้องถอย
+ * ออกไปคลุมทั้งวง ตึกเลยหดหมด · กำแพงเมืองจริงกอดตัวเมืองไว้ ไม่ได้ล้อมทุ่ง
+ */
+const WALL_MARGIN = 2;
+
+export type WallSegment = {
+  gx: number;
+  gy: number;
+  center: Point;
+  depth: number;
+  /** สร้างแล้วหรือยัง — ยังไม่สร้าง = ตอม่อเปล่า เห็นเป็นช่องโหว่ */
+  built: boolean;
+  /** ด้านไหนของวง ใช้เลือกทิศวางตัวกำแพง */
+  side: "nw" | "ne" | "se" | "sw";
+  /** มุมของวง วาดเป็นป้อม */
+  corner: boolean;
+};
+
+/**
+ * วงกำแพงล้อมเมือง — Kingdom v1
+ *
+ * สัดส่วนที่สร้างแล้วคือ "ความยาว" ไม่ใช่ "ความสูง" โดยตั้งใจ:
+ * กำแพงเตี้ยทั้งวงยังแปลว่าล้อมครบ แต่กำแพงสูงครึ่งวงแปลว่ามีรูให้เดินเข้า
+ * ⇒ ช่องโหว่ = เดือนที่ยังไม่มีเงินคุ้ม ซึ่งเป็นสิ่งที่ต้องรู้สึกได้ ไม่ใช่ตัวเลข
+ *
+ * เริ่มก่อจากด้านหลังไล่มาข้างหน้า ⇒ **รูอยู่ด้านหน้าเสมอ มองเห็นแน่นอน**
+ * (ถ้าให้รูไปอยู่หลังเมือง มันจะถูกตึกบังแล้วความรู้สึก "ยังไม่ปลอดภัย" หายไป)
+ */
+/**
+ * กรอบภาพที่เผื่อที่ให้วงกำแพงแล้ว — ต้องใช้แทน layout.bounds ตอนตั้ง viewBox
+ * ไม่งั้นกล้องจะเล็งเฉพาะตึก แล้วกำแพงโดนตัดขอบหายไปครึ่งวง
+ */
+export function boundsWithWall(layout: CityLayout, segments: WallSegment[]) {
+  const b = layout.bounds;
+  if (segments.length === 0) return b;
+
+  let minX = b.minX;
+  let maxX = b.minX + b.width;
+  let minY = b.minY;
+  let maxY = b.minY + b.height;
+
+  for (const w of segments) {
+    minX = Math.min(minX, w.center.x - PITCH_W / 2 - 8);
+    maxX = Math.max(maxX, w.center.x + PITCH_W / 2 + 8);
+    minY = Math.min(minY, w.center.y - PITCH_H / 2 - 52);
+    maxY = Math.max(maxY, w.center.y + PITCH_H / 2 + 8);
+  }
+
+  return { minX, minY, width: maxX - minX, height: maxY - minY };
+}
+
+export function wallRing(layout: CityLayout, coverage: number): WallSegment[] {
+  /**
+   * ⚠️ ล้อมเฉพาะ "ตัวเมือง" (ตึก) ไม่รวมไซต์เงินสด
+   *
+   * ไซต์เงินสดถูกวางไว้ไกลออกไปอีกทิศโดยตั้งใจ (นอกเมือง) ถ้าเอามาคิดขอบเขตด้วย
+   * วงกำแพงจะยืดไปคร่อมที่ว่างระหว่างกลาง กลายเป็นแนวยาวพาดผ่านทุ่ง ไม่ล้อมอะไรเลย
+   * และตรงกับความหมายด้วย: กำแพงปกป้องสิ่งที่เป็นเจ้าของแล้ว ไม่ใช่เงินที่ยังรอลงทุน
+   */
+  const towers = layout.all.filter((p) => p.structure.kind === "tower");
+  if (towers.length === 0) return [];
+
+  const gxs = towers.map((p) => p.gx);
+  const gys = towers.map((p) => p.gy);
+  const x0 = Math.min(...gxs) - WALL_MARGIN;
+  const x1 = Math.max(...gxs) + WALL_MARGIN;
+  const y0 = Math.min(...gys) - WALL_MARGIN;
+  const y1 = Math.max(...gys) + WALL_MARGIN;
+
+  const ring: Array<{ gx: number; gy: number; side: WallSegment["side"]; corner: boolean }> = [];
+  const push = (gx: number, gy: number, side: WallSegment["side"]) =>
+    ring.push({
+      gx,
+      gy,
+      side,
+      corner: (gx === x0 || gx === x1) && (gy === y0 || gy === y1),
+    });
+
+  // ไล่ตามเข็ม เริ่มมุมหลังสุด (x0,y0) — ด้านหลังก่อน ด้านหน้าทีหลัง
+  for (let gx = x0; gx <= x1; gx++) push(gx, y0, "ne");
+  for (let gy = y0 + 1; gy <= y1; gy++) push(x1, gy, "se");
+  for (let gx = x1 - 1; gx >= x0; gx--) push(gx, y1, "sw");
+  for (let gy = y1 - 1; gy > y0; gy--) push(x0, gy, "nw");
+
+  const builtCount = Math.round(Math.max(0, Math.min(1, coverage)) * ring.length);
+
+  return ring.map((r, i) => ({
+    ...r,
+    center: tileCenter(r.gx, r.gy),
+    depth: r.gx + r.gy,
+    built: i < builtCount,
+  }));
 }

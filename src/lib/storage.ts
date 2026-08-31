@@ -51,9 +51,21 @@ export function parseCity(raw: unknown): CityState | null {
       )
     : undefined;
 
+  const rawReserve = obj.reserve as
+    | { amountTHB?: unknown; monthlyBurnTHB?: unknown }
+    | undefined;
+  const reserve =
+    rawReserve && typeof rawReserve === "object"
+      ? {
+          amountTHB: num(rawReserve.amountTHB),
+          monthlyBurnTHB: num(rawReserve.monthlyBurnTHB),
+        }
+      : undefined;
+
   return {
     holdings,
     cash,
+    reserve,
     contributions,
     deposits:
       typeof obj.deposits === "number" && obj.deposits > 0 ? obj.deposits : undefined,

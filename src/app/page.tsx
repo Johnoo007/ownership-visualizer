@@ -17,6 +17,8 @@ import { toStructures } from "@/lib/portfolio";
 import { exportCity, importCity } from "@/lib/storage";
 import type { Holding } from "@/lib/types";
 import { plural } from "@/lib/text";
+import { ReservePanel } from "@/components/ReservePanel";
+import { reserveStatus } from "@/lib/reserve";
 
 /** คู่มืออ่านเมือง — กดดูเมื่ออยากดู ไม่เกะกะตอนไม่ได้ใช้ */
 function MapLegend() {
@@ -85,6 +87,7 @@ export default function Home() {
     removeHolding,
     setFxRate,
     setCash,
+    setReserve,
     setDeposits,
     replaceCity,
     importHoldings,
@@ -202,6 +205,7 @@ export default function Home() {
           <MapLegend />
           <IsoCity
             structures={structures}
+            wallCoverage={reserveStatus(displayState.reserve).coverage}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
@@ -284,6 +288,10 @@ export default function Home() {
             }}
           />
         </section>
+
+        {!viewingPast && (
+          <ReservePanel state={displayState} onChange={setReserve} />
+        )}
 
         {!viewingPast && (
           <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3">

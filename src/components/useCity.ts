@@ -81,6 +81,27 @@ export function useCity() {
     );
   }, []);
 
+  /** กำแพงเมือง — แยกจาก cash ที่รอลงทุน และไม่แตะยอดพอร์ตใดๆ */
+  const setReserve = useCallback(
+    (field: "amountTHB" | "monthlyBurnTHB", value: number) => {
+      setState((prev) =>
+        prev
+          ? {
+              ...prev,
+              isDemo: false,
+              reserve: {
+                amountTHB: 0,
+                monthlyBurnTHB: 0,
+                ...prev.reserve,
+                [field]: value > 0 ? value : 0,
+              },
+            }
+          : prev,
+      );
+    },
+    [],
+  );
+
   const replaceCity = useCallback((next: CityState) => {
     setState(next);
   }, []);
@@ -117,6 +138,7 @@ export function useCity() {
     removeHolding,
     setFxRate,
     setCash,
+    setReserve,
     setDeposits,
     replaceCity,
     importHoldings,

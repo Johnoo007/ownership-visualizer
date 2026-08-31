@@ -11,10 +11,11 @@ import {
   topConcentration,
   totals,
 } from "../src/lib/portfolio";
-import { THB_PER_PX, TOWER_CAP_PX, TOWER_CAP_THB, floorPlan, groundCells, heightFor, towerHeights, layoutCity } from "../src/lib/iso";
+import { THB_PER_PX, TOWER_CAP_PX, TOWER_CAP_THB, floorPlan, groundCells, heightFor, towerHeights, wallRing, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
 import { compare } from "../src/lib/history";
 import { plural, pluralize } from "../src/lib/text";
+import { reserveStatus } from "../src/lib/reserve";
 import {
   appendContributions,
   detectContributions,
@@ -805,4 +806,125 @@ test("มูลค่าตลาดของแต่ละเขตบวก�
   // เงินสดไม่อยู่ในเขตไหน จึงห้ามโผล่ในผลรวมของเขต
   const withCash: CityState = { ...s, cash: { usd: 1000, thb: 50_000 } };
   assert.equal(totals(withCash).marketValue, all.marketValue, "เงินสดห้ามปนมูลค่าเขต");
+});
+
+/* ── Kingdom v1: กำแพงเมือง = เงินสำรองฉุกเฉิน ─────────────────── */
+
+/**
+ * กฎที่ John เคาะเอง (2026-08-10): ห้ามบวกเงินสำรองเข้ายอดพอร์ต
+ * เหตุผลของเขา: "ไม่งั้นจะเหมือนเราเลยเป้าไปแล้ว"
+ * ⇒ เติมเงินสำรองเท่าไหร่ ทุกยอดของเมืองต้องนิ่งสนิท
+ */
+test("เงินสำรองห้ามไหลเข้ายอดพอร์ต ความสูงตึก หรือจำนวนตึก", () => {
+  const before = baseCity();
+  const after: CityState = {
+    ...before,
+    reserve: { amountTHB: 120_000, monthlyBurnTHB: 5_000 },
+  };
+
+  const t0 = totals(before);
+  const t1 = totals(after);
+  assert.equal(t1.invested, t0.invested, "เงินที่ลงไปต้องไม่ขยับ");
+  assert.equal(t1.marketValue, t0.marketValue, "มูลค่าพอร์ตต้องไม่ขยับ");
+  assert.equal(t1.towerCount, t0.towerCount, "จำนวนตึกต้องไม่ขยับ");
+
+  const p0 = portfolioSummary(before);
+  const p1 = portfolioSummary(after);
+  assert.equal(p1.marketTotal, p0.marketTotal, "ยอดรวมทั้งพอร์ตต้องไม่ขยับ");
+  assert.equal(p1.cash, p0.cash, "ห้ามไปโผล่ในเงินสดรอลงทุน");
+
+  const h0 = layoutCity(toStructures(before), ORDER).all.map((p) => p.height);
+  const h1 = layoutCity(toStructures(after), ORDER).all.map((p) => p.height);
+  assert.deepEqual(h1, h0, "ความสูงตึกทุกหลังต้องเท่าเดิมเป๊ะ");
+
+  // และห้ามกลายเป็น structure ในเมือง
+  assert.equal(
+    toStructures(after).length,
+    toStructures(before).length,
+    "กำแพงไม่ใช่สิ่งปลูกสร้างในผัง",
+  );
+});
+
+test("กำแพงวัดเป็นเดือน ไม่ใช่บาท — ไม่รู้รายจ่ายก็ต้องไม่เดา", () => {
+  assert.equal(reserveStatus(undefined).months, null);
+  assert.equal(reserveStatus({ amountTHB: 120_000, monthlyBurnTHB: 0 }).months, null,
+    "มีเงินแต่ไม่รู้รายจ่าย = บอกไม่ได้ว่ากันได้กี่เดือน");
+
+  const s = reserveStatus({ amountTHB: 120_000, monthlyBurnTHB: 20_000 });
+  assert.equal(s.months, 6);
+  assert.equal(s.coverage, 1);
+  assert.equal(s.gapTHB, 0);
+  assert.ok(s.complete);
+
+  // เงินเท่าเดิมแต่ค่าใช้จ่ายสูงขึ้น = กำแพงสั้นลงจริง ไม่ใช่บั๊ก
+  const pricier = reserveStatus({ amountTHB: 120_000, monthlyBurnTHB: 40_000 });
+  assert.equal(pricier.months, 3);
+  assert.equal(pricier.coverage, 0.5);
+  assert.equal(pricier.gapTHB, 120_000);
+});
+
+test("กำแพงยาวขึ้นตามเงินแบบไม่ลดลง และตันที่เป้า ไม่ล้น", () => {
+  let prev = -1;
+  for (let amount = 0; amount <= 300_000; amount += 5_000) {
+    const c = reserveStatus({ amountTHB: amount, monthlyBurnTHB: 20_000 }).coverage;
+    assert.ok(c >= prev, `฿${amount}: กำแพงสั้นลงทั้งที่เงินเพิ่ม`);
+    assert.ok(c <= 1, `฿${amount}: coverage ${c} เกิน 1`);
+    prev = c;
+  }
+  assert.equal(prev, 1, "เติมเกินเป้าแล้วต้องตันที่เต็มวง");
+});
+
+test("วงกำแพงล้อมเมืองจริง ไม่ทับแปลงตึก และก่อจากหลังมาหน้า", () => {
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+  const plots = new Set(layout.all.map((p) => `${p.gx},${p.gy}`));
+
+  const full = wallRing(layout, 1);
+  assert.ok(full.length > 8, `วงต้องมีหลายช่วง ได้ ${full.length}`);
+  assert.ok(full.every((w) => w.built), "coverage 1 = ก่อครบทุกช่วง");
+  for (const w of full) {
+    assert.ok(!plots.has(`${w.gx},${w.gy}`), `กำแพงทับแปลงตึกที่ ${w.gx},${w.gy}`);
+  }
+  assert.equal(full.filter((w) => w.corner).length, 4, "ป้อมมุมต้องมี 4 มุมพอดี");
+
+  assert.equal(wallRing(layout, 0).filter((w) => w.built).length, 0);
+
+  // ครึ่งวง: ช่วงที่ก่อแล้วต้องอยู่ "หลัง" ช่วงที่ยังไม่ได้ก่อ → รูอยู่ด้านหน้า มองเห็น
+  const half = wallRing(layout, 0.5);
+  const builtDepth = half.filter((w) => w.built).map((w) => w.depth);
+  const gapDepth = half.filter((w) => !w.built).map((w) => w.depth);
+  assert.ok(
+    Math.max(...gapDepth) > Math.max(...builtDepth),
+    "รูของกำแพงต้องอยู่ด้านหน้า ไม่ใช่ซ่อนหลังเมือง",
+  );
+});
+
+test("วงกำแพงล้อมเฉพาะตัวเมือง ไม่ยืดไปคร่อมไซต์เงินสดที่อยู่นอกเมือง", () => {
+  const state: CityState = { ...baseCity(), cash: { usd: 500, thb: 30_000 } };
+  const layout = layoutCity(toStructures(state), ORDER, [CASH_ZONE]);
+
+  const towers = layout.all.filter((p) => p.structure.kind === "tower");
+  const sites = layout.all.filter((p) => p.structure.kind === "site");
+  assert.ok(sites.length > 0, "เทสต์นี้ต้องมีไซต์เงินสดถึงจะมีความหมาย");
+
+  const ring = wallRing(layout, 1);
+  const ringMaxGx = Math.max(...ring.map((w) => w.gx));
+  const towerMaxGx = Math.max(...towers.map((p) => p.gx));
+  const siteMinGx = Math.min(...sites.map((p) => p.gx));
+
+  assert.ok(
+    ringMaxGx < siteMinGx,
+    `กำแพงยืดไปถึงไซต์เงินสดแล้ว (ring ${ringMaxGx} · site ${siteMinGx})`,
+  );
+  assert.ok(ringMaxGx > towerMaxGx, "แต่ต้องยังล้อมตึกได้ครบ");
+
+  // ตึกทุกหลังต้องอยู่ในวง
+  const x0 = Math.min(...ring.map((w) => w.gx));
+  const y0 = Math.min(...ring.map((w) => w.gy));
+  const y1 = Math.max(...ring.map((w) => w.gy));
+  for (const t of towers) {
+    assert.ok(
+      t.gx > x0 && t.gx < ringMaxGx && t.gy > y0 && t.gy < y1,
+      `ตึก ${t.structure.label} อยู่นอกกำแพง`,
+    );
+  }
 });
