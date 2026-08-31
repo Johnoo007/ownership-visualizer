@@ -11,7 +11,7 @@ import {
   topConcentration,
   totals,
 } from "../src/lib/portfolio";
-import { THB_PER_PX, TOWER_CAP_PX, TOWER_CAP_THB, floorPlan, groundCells, heightFor, towerHeights, wallRing, layoutCity } from "../src/lib/iso";
+import { THB_PER_PX, TOWER_CAP_PX, TOWER_CAP_THB, floorPlan, groundCells, heightFor, towerHeights, wallRing, wallBounds, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
 import { compare } from "../src/lib/history";
 import { plural, pluralize } from "../src/lib/text";
@@ -1000,4 +1000,41 @@ test("ช่วงกำแพงที่ยังไม่ก่อต้อ�
     );
   }
   assert.ok(blocked.size > 0 && blocked.size < half.length, "ครึ่งวงต้องกั้นแค่บางส่วน");
+});
+
+/** นอกกำแพงคือนอกเมือง — ห้ามมีรถหรือคนอยู่ตรงนั้น เหลือแค่ป่า */
+test("ห้ามมีรถหรือคนอยู่นอกกำแพง", () => {
+  const state: CityState = { ...baseCity(), cash: { usd: 300, thb: 20_000 } };
+  const layout = layoutCity(toStructures(state), ORDER, [CASH_ZONE]);
+  const wall = wallRing(layout, 1);
+  const b = wallBounds(layout)!;
+  const blocked = new Set(
+    wall.filter((w) => w.built && !w.gate).map((w) => `${w.gx},${w.gy}`),
+  );
+  const cells = groundCells(layout, blocked);
+
+  const outside = cells.filter(
+    (c) => c.gx <= b.x0 || c.gx >= b.x1 || c.gy <= b.y0 || c.gy >= b.y1,
+  );
+  assert.ok(outside.length > 0, "ต้องมีพื้นที่นอกกำแพงให้ตรวจ");
+
+  for (const c of outside) {
+    assert.ok(
+      c.decor !== "car" && c.decor !== "person",
+      `มี ${c.decor} อยู่นอกกำแพงที่ ${c.gx},${c.gy}`,
+    );
+  }
+
+  // ข้างนอกยังต้องมีชีวิตแบบป่า ไม่ใช่ที่ว่างเปล่าสนิท
+  assert.ok(
+    outside.some((c) => c.decor === "tree" || c.decor === "bush"),
+    "นอกกำแพงควรยังมีต้นไม้",
+  );
+
+  // ข้างในยังต้องมีรถและคนตามเดิม
+  const inside = cells.filter(
+    (c) => c.gx > b.x0 && c.gx < b.x1 && c.gy > b.y0 && c.gy < b.y1,
+  );
+  assert.ok(inside.some((c) => c.decor === "car"), "ในเมืองต้องยังมีรถ");
+  assert.ok(inside.some((c) => c.decor === "person"), "ในเมืองต้องยังมีคน");
 });

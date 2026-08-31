@@ -357,6 +357,14 @@ export function groundCells(
     roadRows.add(layout.districts[i].startRow - 1);
   }
 
+  /**
+   * นอกกำแพงคือ "นอกเมือง" — ห้ามมีรถหรือคนอยู่ตรงนั้น
+   * เหลือแค่ต้นไม้กับพุ่มไม้ ให้อ่านเป็นป่านอกอาณาเขต ไม่ใช่ชานเมืองที่มีชีวิต
+   */
+  const wb = wallBounds(layout);
+  const insideWall = (gx: number, gy: number) =>
+    !wb || (gx > wb.x0 && gx < wb.x1 && gy > wb.y0 && gy < wb.y1);
+
   const cells: GroundCell[] = [];
   for (let gy = minGy; gy <= maxGy; gy++) {
     for (let gx = minGx; gx <= maxGx; gx++) {
@@ -393,6 +401,8 @@ export function groundCells(
         if (r > 0.62) decor = "car";
         else if (r > 0.3) decor = "lamp";
         else if (r > 0.12) decor = "person"; // คนเดินริมถนน
+        // ถนนนอกกำแพงเหลือแค่ไฟส่องทาง ไม่มีรถไม่มีคน
+        if (!insideWall(gx, gy) && decor !== "lamp") decor = "none";
       } else if (kind === "vacant") {
         // แปลงจัดสรรปล่อยโล่งเป็นหลัก มีคนเดินผ่านบ้าง
         if (r > 0.88) decor = "person";
@@ -400,7 +410,7 @@ export function groundCells(
         // ชานเมืองรอบผัง — ป่า/ทุ่ง
         if (r > 0.72) decor = "tree";
         else if (r > 0.58) decor = "bush";
-        else if (r > 0.5 && nearCity) decor = "person";
+        else if (r > 0.5 && nearCity && insideWall(gx, gy)) decor = "person";
       }
 
       cells.push({
@@ -560,14 +570,28 @@ export function boundsWithWall(layout: CityLayout, segments: WallSegment[]) {
   return { minX, minY, width: maxX - minX, height: maxY - minY };
 }
 
-export function wallRing(layout: CityLayout, coverage: number): WallSegment[] {
-  // ล้อมทุกอย่างที่อยู่บนแผนที่ ทั้งตึกและไซต์เงินสด
+/**
+ * กรอบสี่เหลี่ยมที่กำแพงวางอยู่ — ล้อมทุกอย่างบนแผนที่ ทั้งตึกและไซต์เงินสด
+ *
+ * แยกออกมาเพราะพื้นดินก็ต้องรู้ว่า "ตรงไหนคือในกำแพง" ด้วย
+ * ไม่งั้นจะมีรถวิ่งอยู่นอกเมืองทั้งที่ข้างนอกควรเป็นป่า
+ */
+export function wallBounds(layout: CityLayout) {
+  if (layout.all.length === 0) return null;
   const gxs = layout.all.map((p) => p.gx);
   const gys = layout.all.map((p) => p.gy);
-  const x0 = Math.min(...gxs) - WALL_MARGIN;
-  const x1 = Math.max(...gxs) + WALL_MARGIN;
-  const y0 = Math.min(...gys) - WALL_MARGIN;
-  const y1 = Math.max(...gys) + WALL_MARGIN;
+  return {
+    x0: Math.min(...gxs) - WALL_MARGIN,
+    x1: Math.max(...gxs) + WALL_MARGIN,
+    y0: Math.min(...gys) - WALL_MARGIN,
+    y1: Math.max(...gys) + WALL_MARGIN,
+  };
+}
+
+export function wallRing(layout: CityLayout, coverage: number): WallSegment[] {
+  const b = wallBounds(layout);
+  if (!b) return [];
+  const { x0, x1, y0, y1 } = b;
 
   const ring: Array<{ gx: number; gy: number; side: WallSegment["side"]; corner: boolean }> = [];
   const push = (gx: number, gy: number, side: WallSegment["side"]) =>
