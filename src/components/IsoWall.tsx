@@ -14,16 +14,26 @@ const WALL_H = 40;
 const TOWER_H = 62;
 const MERLON_H = 8;
 
+/**
+ * โทนหินต้อง "จมไปกับคืน" ไม่ใช่เด่นกว่าเมือง
+ *
+ * ⚠️ เวอร์ชันก่อนใช้เทากลาง (#666e78) ซึ่ง **สว่างกว่าพื้นและถนนรอบๆ**
+ * กลายเป็นริบบิ้นซีดพาดกลางฉากกลางคืน ดึงสายตาไปจากเมืองที่เป็นพระเอก
+ * และไม่มีไฟสักดวงทั้งที่ทุกอย่างในเมืองนี้มีไฟอุ่น (หน้าต่าง/ไฟถนน/นีออน/ไฟรถ)
+ * ⇒ กดโทนให้ใกล้พื้น แล้วให้ **คบไฟ** เป็นตัวสร้างความน่ามอง ไม่ใช่ตัวหิน
+ */
 const STONE = {
-  top: "#666e78",
-  front: "#4d545e",
-  side: "#363c45",
-  merlon: "#767e8a",
-  course: "#2f343c",
-  towerTop: "#6f7885",
-  towerFront: "#555d68",
-  towerSide: "#3b414b",
+  top: "#3b4453",
+  front: "#2c3341",
+  side: "#1e2530",
+  merlon: "#47515f",
+  course: "#171d26",
+  towerTop: "#434d5d",
+  towerFront: "#333b4a",
+  towerSide: "#232a35",
 };
+
+const FIRE = "#ffb35c";
 
 const RUBBLE = {
   top: "#4a4331",
@@ -94,6 +104,10 @@ function Segment({ seg }: { seg: WallSegment }) {
     );
   }
 
+  if (seg.gate && seg.built) {
+    return <Gate p={p} c={c} alongX={alongX} />;
+  }
+
   const palette = seg.corner
     ? { top: STONE.towerTop, front: STONE.towerFront, side: STONE.towerSide }
     : { top: STONE.top, front: STONE.front, side: STONE.side };
@@ -132,14 +146,15 @@ function Segment({ seg }: { seg: WallSegment }) {
         />
       ))}
 
-      {/* ป้อมมุมมีคบไฟ — บอกว่ามีคนเฝ้าอยู่ ไม่ใช่ซากปรักหักพัง */}
-      {seg.corner && (
-        <circle
-          cx={c.x}
-          cy={c.y - h - MERLON_H - 6}
-          r={2.4}
-          fill="#ffd88a"
-          className="anim-beacon"
+      {/*
+        ไฟบนกำแพง — ตัวที่ทำให้กำแพงกลางคืนน่ามอง ไม่ใช่เนื้อหิน
+        ป้อมมุมได้ไฟใหญ่กะพริบ ช่วงกำแพงได้คบไฟเล็กเว้นระยะ
+      */}
+      {(seg.corner || seg.torch) && (
+        <Flame
+          x={c.x}
+          y={c.y - h - MERLON_H - (seg.corner ? 6 : 2)}
+          big={seg.corner}
         />
       )}
     </g>
@@ -214,6 +229,87 @@ function Box({
             />
           </g>
         ))}
+    </g>
+  );
+}
+
+/** เปลวไฟ + แสงฟุ้ง — ใช้ภาษาเดียวกับไฟถนนในเมือง */
+function Flame({ x, y, big }: { x: number; y: number; big: boolean }) {
+  const r = big ? 3 : 2;
+  return (
+    <g className={big ? "anim-beacon" : undefined}>
+      <ellipse cx={x} cy={y} rx={r * 5} ry={r * 3.4} fill={FIRE} opacity={0.12} />
+      <ellipse cx={x} cy={y} rx={r * 2.4} ry={r * 1.8} fill={FIRE} opacity={0.2} />
+      <circle cx={x} cy={y} r={r} fill="#ffe3ad" />
+      <circle cx={x} cy={y - r * 0.6} r={r * 0.6} fill="#fff6e0" />
+    </g>
+  );
+}
+
+/**
+ * ประตูเมือง — ป้อมสองข้างขนาบช่องเปิด มีแสงอุ่นลอดออกมา
+ *
+ * เหตุผลที่ต้องมี: วงกำแพงที่ปิดตายรอบด้านอ่านเป็น "กำแพงกั้น" ไม่ใช่ "เมืองมีกำแพง"
+ * ประตูเป็นจุดเดียวที่บอกว่าข้างในมีคนอยู่ และเป็นจุดนำสายตาของภาพทั้งภาพ
+ */
+function Gate({
+  p,
+  c,
+  alongX,
+}: {
+  p: (dx: number, dy: number, lift?: number) => Point;
+  c: Point;
+  alongX: boolean;
+}) {
+  const pierH = 54;
+  const archH = 30;
+  const half = 0.5;
+  const thick = THICK;
+  // เสาสองต้นขนาบ ช่องเปิดอยู่ตรงกลาง
+  const piers = [-1, 1].map((sign) =>
+    alongX
+      ? { ox: sign * 0.34, oy: 0, ex: 0.16, ey: thick }
+      : { ox: 0, oy: sign * 0.34, ex: thick, ey: 0.16 },
+  );
+  const lintel = alongX
+    ? { ox: 0, oy: 0, ex: half, ey: thick }
+    : { ox: 0, oy: 0, ex: thick, ey: half };
+
+  return (
+    <g>
+      <ellipse
+        cx={c.x}
+        cy={c.y + 2}
+        rx={PITCH_W / 2}
+        ry={PITCH_H / 2.6}
+        fill="rgba(0,0,0,0.45)"
+      />
+
+      {/* แสงอุ่นลอดจากช่องประตู */}
+      <ellipse cx={c.x} cy={c.y + 6} rx={26} ry={12} fill={FIRE} opacity={0.16} />
+
+      {piers.map((pier, i) => (
+        <Box
+          key={i}
+          p={(dx, dy, lift = 0) => p(pier.ox + dx, pier.oy + dy, lift)}
+          ex={pier.ex}
+          ey={pier.ey}
+          h={pierH}
+          palette={{ top: STONE.towerTop, front: STONE.towerFront, side: STONE.towerSide }}
+          courses
+        />
+      ))}
+
+      {/* คานเหนือช่องประตู */}
+      <Box
+        p={(dx, dy, lift = 0) => p(lintel.ox + dx, lintel.oy + dy, pierH - archH + lift)}
+        ex={lintel.ex}
+        ey={lintel.ey}
+        h={archH}
+        palette={{ top: STONE.towerTop, front: STONE.towerFront, side: STONE.towerSide }}
+      />
+
+      <Flame x={c.x} y={c.y - pierH - 6} big />
     </g>
   );
 }

@@ -513,6 +513,10 @@ export type WallSegment = {
   side: "nw" | "ne" | "se" | "sw";
   /** มุมของวง วาดเป็นป้อม */
   corner: boolean;
+  /** ประตูเมือง — จุดเดียวที่เข้าออกได้ อยู่ด้านหน้าสุดเพื่อให้เป็นจุดนำสายตา */
+  gate: boolean;
+  /** มีคบไฟบนสันกำแพง — เว้นระยะ ไม่ใช่ทุกช่วง */
+  torch: boolean;
 };
 
 /**
@@ -592,12 +596,25 @@ export function wallRing(layout: CityLayout, coverage: number): WallSegment[] {
    *   กำแพงเลยดูเป็นก้อนซ้อนผิดรูป (John: "โอเคแค่สองด้าน อีกสองด้านยังผิด")
    * ⇒ ต้องเรียงตามความลึกก่อนคืนออกไปเสมอ แบบเดียวกับตึก
    */
+  /**
+   * ประตูเมืองอยู่กลางด้านหน้าสุด (sw) — กำแพงที่ปิดตายรอบด้านอ่านเป็นคุก
+   * ไม่ใช่เมือง · ประตูทำให้วงมีจุดนำสายตาและบอกว่าข้างในมีคนอยู่
+   */
+  const frontIdx = ring
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => r.side === "sw" && !r.corner)
+    .map(({ i }) => i);
+  const gateIdx = frontIdx.length > 0 ? frontIdx[Math.floor(frontIdx.length / 2)] : -1;
+
   return ring
     .map((r, i) => ({
       ...r,
       center: tileCenter(r.gx, r.gy),
       depth: r.gx + r.gy,
       built: i < builtCount,
+      gate: i === gateIdx,
+      // คบไฟทุก 3 ช่วง — ถี่กว่านี้จะกลายเป็นไฟวิ่ง ห่างกว่านี้จะดูร้าง
+      torch: !r.corner && i % 3 === 1,
     }))
     .sort((a, b) => a.depth - b.depth || a.gx - b.gx);
 }
