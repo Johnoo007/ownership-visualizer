@@ -15,22 +15,26 @@ const TOWER_H = 62;
 const MERLON_H = 8;
 
 /**
- * โทนหินต้อง "จมไปกับคืน" ไม่ใช่เด่นกว่าเมือง
+ * หินต้องมี "สีของวัสดุ" ไม่ใช่เทาเปล่า
  *
- * ⚠️ เวอร์ชันก่อนใช้เทากลาง (#666e78) ซึ่ง **สว่างกว่าพื้นและถนนรอบๆ**
- * กลายเป็นริบบิ้นซีดพาดกลางฉากกลางคืน ดึงสายตาไปจากเมืองที่เป็นพระเอก
- * และไม่มีไฟสักดวงทั้งที่ทุกอย่างในเมืองนี้มีไฟอุ่น (หน้าต่าง/ไฟถนน/นีออน/ไฟรถ)
- * ⇒ กดโทนให้ใกล้พื้น แล้วให้ **คบไฟ** เป็นตัวสร้างความน่ามอง ไม่ใช่ตัวหิน
+ * ⚠️ เวอร์ชันก่อนใช้เทาล้วนไร้สี (#3b4453) แล้ว John บอกว่า
+ * *"เหมือนสร้างไม่เสร็จ ไม่ก็ลืมระบายสี"* — ซึ่งตรงเป๊ะ มันคือ greybox
+ * ทุกอย่างในเมืองนี้มีสีของวัสดุ: ตึกน้ำเงิน · หญ้าเขียว · กองทองทอง ·
+ * กองอิฐ/ทรายในไซต์ก่อสร้างเป็นน้ำตาลอุ่น — มีแต่กำแพงที่ไม่มีวัสดุ
+ *
+ * ⇒ ใช้หินทรายอุ่นคล้ำ เข้าตระกูลเดียวกับกองอิฐ/ทรายที่มีอยู่แล้ว
+ *   และตัดกับตึกน้ำเงินชัดเจน = อ่านออกทันทีว่าคนละชนิดของ
  */
 const STONE = {
-  top: "#3b4453",
-  front: "#2c3341",
-  side: "#1e2530",
-  merlon: "#47515f",
-  course: "#171d26",
-  towerTop: "#434d5d",
-  towerFront: "#333b4a",
-  towerSide: "#232a35",
+  top: "#6a5f4a",
+  front: "#544a39",
+  side: "#373026",
+  merlon: "#7a6d55",
+  course: "#2a2419",
+  joint: "#3d3626",
+  towerTop: "#75684f",
+  towerFront: "#5c513d",
+  towerSide: "#3d3628",
 };
 
 const FIRE = "#ffb35c";
@@ -205,30 +209,16 @@ function Box({
         fill={palette.top}
       />
 
-      {/* แนวหินเรียงชั้น — ตัวที่ทำให้อ่านเป็นหินก่อ ไม่ใช่แท่งคอนกรีตหล่อ */}
-      {courses &&
-        [0.28, 0.55, 0.82].map((t) => (
-          <g key={t}>
-            <line
-              x1={p(-ex, ey, h * t).x}
-              y1={p(-ex, ey, h * t).y}
-              x2={p(ex, ey, h * t).x}
-              y2={p(ex, ey, h * t).y}
-              stroke={STONE.course}
-              strokeWidth={1}
-              opacity={0.75}
-            />
-            <line
-              x1={p(ex, -ey, h * t).x}
-              y1={p(ex, -ey, h * t).y}
-              x2={p(ex, ey, h * t).x}
-              y2={p(ex, ey, h * t).y}
-              stroke={STONE.course}
-              strokeWidth={1}
-              opacity={0.6}
-            />
-          </g>
-        ))}
+      {/*
+        ลายก่อหิน — เส้นแนวนอนอย่างเดียวยังอ่านเป็นแท่งคอนกรีตหล่อ
+        ต้องมีรอยต่อแนวตั้งสลับแถวแบบก่ออิฐ (running bond) ถึงจะอ่านเป็นหินก่อทีละก้อน
+      */}
+      {courses && (
+        <>
+          <Masonry a={p(-ex, ey)} b={p(ex, ey)} h={h} long={ex >= ey} />
+          <Masonry a={p(ex, ey)} b={p(ex, -ey)} h={h} long={ey > ex} />
+        </>
+      )}
     </g>
   );
 }
@@ -312,4 +302,71 @@ function Gate({
       <Flame x={c.x} y={c.y - pierH - 6} big />
     </g>
   );
+}
+
+/**
+ * ลายหินก่อบนหน้ากำแพงหนึ่งหน้า
+ *
+ * a→b คือขอบล่างของหน้านั้น · แถวสลับกันครึ่งก้อนแบบ running bond
+ * หน้าที่สั้น (ด้านสกัด) ใช้ก้อนน้อยลง ไม่งั้นลายจะถี่จนเละ
+ */
+function Masonry({
+  a,
+  b,
+  h,
+  long,
+}: {
+  a: Point;
+  b: Point;
+  h: number;
+  long: boolean;
+}) {
+  const rows = 4;
+  const cols = long ? 4 : 1;
+  const ch = h / rows;
+  const at = (t: number, lift: number): Point => ({
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t - lift,
+  });
+
+  const lines: React.ReactElement[] = [];
+  for (let r = 1; r < rows; r++) {
+    const y = r * ch;
+    const p0 = at(0, y);
+    const p1 = at(1, y);
+    lines.push(
+      <line
+        key={`h${r}`}
+        x1={p0.x}
+        y1={p0.y}
+        x2={p1.x}
+        y2={p1.y}
+        stroke={STONE.course}
+        strokeWidth={1}
+        opacity={0.55}
+      />,
+    );
+  }
+  for (let r = 0; r < rows; r++) {
+    for (let cIdx = 1; cIdx <= cols; cIdx++) {
+      // แถวคู่/คี่เยื้องกันครึ่งก้อน
+      const t = (cIdx - (r % 2 === 0 ? 0.5 : 0)) / cols;
+      if (t <= 0.02 || t >= 0.98) continue;
+      const p0 = at(t, r * ch);
+      const p1 = at(t, (r + 1) * ch);
+      lines.push(
+        <line
+          key={`v${r}-${cIdx}`}
+          x1={p0.x}
+          y1={p0.y}
+          x2={p1.x}
+          y2={p1.y}
+          stroke={STONE.joint}
+          strokeWidth={1}
+          opacity={0.5}
+        />,
+      );
+    }
+  }
+  return <g>{lines}</g>;
 }
