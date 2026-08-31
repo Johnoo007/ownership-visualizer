@@ -898,41 +898,28 @@ test("วงกำแพงล้อมเมืองจริง ไม่ท�
   );
 });
 
-test("วงกำแพงล้อมเฉพาะตัวเมือง ไม่ยืดไปคร่อมไซต์เงินสดที่อยู่นอกเมือง", () => {
+test("วงกำแพงต้องล้อมทุกอย่างบนแผนที่ รวมไซต์เงินสด ไม่ใช่แค่กระจุกตึก", () => {
   const state: CityState = { ...baseCity(), cash: { usd: 500, thb: 30_000 } };
   const layout = layoutCity(toStructures(state), ORDER, [CASH_ZONE]);
 
-  const towers = layout.all.filter((p) => p.structure.kind === "tower");
   const sites = layout.all.filter((p) => p.structure.kind === "site");
   assert.ok(sites.length > 0, "เทสต์นี้ต้องมีไซต์เงินสดถึงจะมีความหมาย");
 
   const ring = wallRing(layout, 1);
-  const ringMaxGx = Math.max(...ring.map((w) => w.gx));
-  const towerMaxGx = Math.max(...towers.map((p) => p.gx));
-  const siteMinGx = Math.min(...sites.map((p) => p.gx));
-
-  assert.ok(
-    ringMaxGx < siteMinGx,
-    `กำแพงยืดไปถึงไซต์เงินสดแล้ว (ring ${ringMaxGx} · site ${siteMinGx})`,
-  );
-  assert.ok(ringMaxGx > towerMaxGx, "แต่ต้องยังล้อมตึกได้ครบ");
-
-  // ตึกทุกหลังต้องอยู่ในวง
   const x0 = Math.min(...ring.map((w) => w.gx));
+  const x1 = Math.max(...ring.map((w) => w.gx));
   const y0 = Math.min(...ring.map((w) => w.gy));
   const y1 = Math.max(...ring.map((w) => w.gy));
-  for (const t of towers) {
+
+  // ทุกสิ่งปลูกสร้างต้องอยู่ในวง ไม่มีอะไรตกค้างนอกกำแพง
+  for (const p of layout.all) {
     assert.ok(
-      t.gx > x0 && t.gx < ringMaxGx && t.gy > y0 && t.gy < y1,
-      `ตึก ${t.structure.label} อยู่นอกกำแพง`,
+      p.gx > x0 && p.gx < x1 && p.gy > y0 && p.gy < y1,
+      `${p.structure.label} (${p.structure.kind}) อยู่นอกกำแพง`,
     );
   }
 });
 
-/**
- * ลำดับการวาดกำแพงต้องเรียงตามความลึก ไม่ใช่ลำดับรอบวง
- * ลำดับรอบวงทำให้สองในสี่ด้านไล่ย้อนกลับ แล้วช่วงที่ไกลกว่าไปวาดทับช่วงที่ใกล้กว่า
- */
 test("ช่วงกำแพงต้องออกมาเรียงตามความลึก ทุกด้าน ไม่ใช่ตามลำดับรอบวง", () => {
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
   const ring = wallRing(layout, 1);

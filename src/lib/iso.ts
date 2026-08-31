@@ -296,18 +296,9 @@ const ROAD_SPACING = 3;
  * คำนวณแยกจากตึกเพราะพื้นต้องวาดก่อนเสมอ (ไม่เข้าคิว depth sort เดียวกับตึก)
  */
 export function groundCells(layout: CityLayout): GroundCell[] {
-  /**
-   * ⚠️ ล้อมเฉพาะ "ตัวเมือง" (ตึก) ไม่รวมไซต์เงินสด
-   *
-   * ไซต์เงินสดถูกวางไว้ไกลออกไปอีกทิศโดยตั้งใจ (นอกเมือง) ถ้าเอามาคิดขอบเขตด้วย
-   * วงกำแพงจะยืดไปคร่อมที่ว่างระหว่างกลาง กลายเป็นแนวยาวพาดผ่านทุ่ง ไม่ล้อมอะไรเลย
-   * และตรงกับความหมายด้วย: กำแพงปกป้องสิ่งที่เป็นเจ้าของแล้ว ไม่ใช่เงินที่ยังรอลงทุน
-   */
-  const towers = layout.all.filter((p) => p.structure.kind === "tower");
-  if (towers.length === 0) return [];
-
-  const gxs = towers.map((p) => p.gx);
-  const gys = towers.map((p) => p.gy);
+  // ล้อมทุกอย่างที่อยู่บนแผนที่ ทั้งตึกและไซต์เงินสด
+  const gxs = layout.all.map((p) => p.gx);
+  const gys = layout.all.map((p) => p.gy);
   const minGx = Math.min(...gxs) - GROUND_PAD;
   const maxGx = Math.max(...gxs) + GROUND_PAD;
   const minGy = Math.min(...gys) - GROUND_PAD;
@@ -495,12 +486,16 @@ export function seededRandom(seed: string, index: number): number {
 }
 
 /**
- * กำแพงอยู่ห่างจากขอบเมืองกี่ช่อง
+ * กำแพงอยู่ห่างจากของชิ้นนอกสุดกี่ช่อง
  *
- * เคยตั้งไว้ 5 แล้ววงใหญ่จนเมืองเหลือเป็นกระจุกเล็กๆ กลางที่ว่าง — กล้องต้องถอย
- * ออกไปคลุมทั้งวง ตึกเลยหดหมด · กำแพงเมืองจริงกอดตัวเมืองไว้ ไม่ได้ล้อมทุ่ง
+ * ล้อม "ทั้งแผนที่" ไม่ใช่แค่กระจุกตึก (John เคาะ) — เหตุผลเชิงความหมายด้วย:
+ * เงินสำรองปกป้องทุกอย่างที่เรามี ไม่ใช่เฉพาะส่วนที่กลายเป็นหุ้นแล้ว
+ * ไซต์เงินสดจึงต้องอยู่ในกำแพงด้วย
+ *
+ * ตั้งไว้ต่ำกว่า GROUND_PAD อยู่ 2 ช่อง เพื่อให้ยังเห็นผืนดินนอกกำแพง
+ * ถ้าเท่ากันพอดี กำแพงจะไปแปะขอบภาพ อ่านเป็นกรอบรูปแทนที่จะเป็นกำแพง
  */
-const WALL_MARGIN = 2;
+const WALL_MARGIN = 4;
 
 export type WallSegment = {
   gx: number;
@@ -553,18 +548,9 @@ export function boundsWithWall(layout: CityLayout, segments: WallSegment[]) {
 }
 
 export function wallRing(layout: CityLayout, coverage: number): WallSegment[] {
-  /**
-   * ⚠️ ล้อมเฉพาะ "ตัวเมือง" (ตึก) ไม่รวมไซต์เงินสด
-   *
-   * ไซต์เงินสดถูกวางไว้ไกลออกไปอีกทิศโดยตั้งใจ (นอกเมือง) ถ้าเอามาคิดขอบเขตด้วย
-   * วงกำแพงจะยืดไปคร่อมที่ว่างระหว่างกลาง กลายเป็นแนวยาวพาดผ่านทุ่ง ไม่ล้อมอะไรเลย
-   * และตรงกับความหมายด้วย: กำแพงปกป้องสิ่งที่เป็นเจ้าของแล้ว ไม่ใช่เงินที่ยังรอลงทุน
-   */
-  const towers = layout.all.filter((p) => p.structure.kind === "tower");
-  if (towers.length === 0) return [];
-
-  const gxs = towers.map((p) => p.gx);
-  const gys = towers.map((p) => p.gy);
+  // ล้อมทุกอย่างที่อยู่บนแผนที่ ทั้งตึกและไซต์เงินสด
+  const gxs = layout.all.map((p) => p.gx);
+  const gys = layout.all.map((p) => p.gy);
   const x0 = Math.min(...gxs) - WALL_MARGIN;
   const x1 = Math.max(...gxs) + WALL_MARGIN;
   const y0 = Math.min(...gys) - WALL_MARGIN;
