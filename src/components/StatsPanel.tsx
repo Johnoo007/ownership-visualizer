@@ -43,10 +43,10 @@ export function StatsPanel({
         value={formatTHB(all ? all.returnBase : t.invested)}
         note={
           all?.usingDeposits
-            ? "Every baht in · incl. cash"
+            ? "incl. cash"
             : all
-              ? "Stock cost + cash"
-              : "Stock cost in this district"
+              ? "stock cost + cash"
+              : "stock cost here"
         }
         tone="accent"
       />
@@ -54,14 +54,13 @@ export function StatsPanel({
         icon="📈"
         label="Portfolio value"
         value={formatTHB(shownMarket)}
-        note={all ? "Stocks + cash" : "This district only"}
       />
       <Card
         icon={shownPnl >= 0 ? "☀️" : "🌙"}
         label="Gain / loss (฿)"
         value={formatPercent(shownReturn)}
         note={`${shownPnl >= 0 ? "+" : "−"}${formatTHB(Math.abs(shownPnl)).slice(1)} · ${
-          all?.usingDeposits ? "vs total deposits" : "vs stock cost"
+          all?.usingDeposits ? "vs deposits" : "vs cost"
         }`}
         tone={shownPnl >= 0 ? "gain" : "loss"}
       />
@@ -71,8 +70,8 @@ export function StatsPanel({
         value={String(t.towerCount)}
         note={
           t.landCount > 0
-            ? `+ ${plural(t.landCount, "free plot")} · ${plural(t.towerCount + t.landCount, "holding")}`
-            : `${plural(t.towerCount, "holding")} you own`
+            ? `+ ${plural(t.landCount, "free plot")}`
+            : "companies you own"
         }
       />
       <Card
@@ -85,7 +84,6 @@ export function StatsPanel({
         icon="🗼"
         label="Biggest tower"
         value={top ? `${top.label} ${(top.share * 100).toFixed(0)}%` : "—"}
-        note="Share of the whole city"
         tone="free"
       />
     </section>

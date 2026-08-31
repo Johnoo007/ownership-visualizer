@@ -18,6 +18,45 @@ import { exportCity, importCity } from "@/lib/storage";
 import type { Holding } from "@/lib/types";
 import { plural } from "@/lib/text";
 
+/** คู่มืออ่านเมือง — กดดูเมื่ออยากดู ไม่เกะกะตอนไม่ได้ใช้ */
+function MapLegend() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={`rounded-md border px-2 py-1 text-[10px] tracking-[0.14em] uppercase transition ${
+          open
+            ? "border-[var(--accent)] bg-[var(--panel)] text-[var(--accent)]"
+            : "border-[var(--border-bright)] bg-[var(--panel)]/85 text-[var(--label-dim)] hover:text-[var(--label)]"
+        }`}
+      >
+        {open ? "Close" : "Legend"}
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-1 rounded-lg border border-[var(--border-bright)] bg-[var(--panel)]/95 px-2.5 py-2">
+          <Legend color="#7b9fd4" label="Mission — growth" />
+          <Legend color="#6fc49a" label="Golden Goose — dividends" />
+          <Legend color="#f0cf7a" label="Free — bare land" />
+          <Legend color="#6ee7a5" label="Green sign = gain" dot />
+          <Legend color="#ff8f7d" label="Red sign = loss" dot />
+          <div className="mt-1 border-t border-[var(--border)] pt-1.5 text-[10px] leading-relaxed text-[var(--label-dim)]">
+            Height = money in · Floors = shares
+            <br />
+            Lit windows = gain · Crane = added this week
+            <br />
+            Market down dims the lights, never shrinks a tower.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Legend({
   color,
   label,
@@ -84,14 +123,9 @@ export default function Home() {
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <header className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] tracking-[0.18em] text-[var(--label-dim)] uppercase">
-              City Overview
-            </p>
-            <h1 className="text-xl leading-tight font-semibold text-[var(--label)]">
-              City of Ownership
-            </h1>
-          </div>
+          <h1 className="min-w-0 text-xl leading-tight font-semibold text-[var(--label)]">
+            City of Ownership
+          </h1>
 
           {state.isDemo ? (
             <div className="ml-auto flex items-center gap-2 rounded-lg border border-[var(--warn-border)] bg-[var(--warn)] px-3 py-1.5 text-xs">
@@ -160,13 +194,12 @@ export default function Home() {
             </span>
           </div>
 
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-1 rounded-lg border border-[var(--border-bright)] bg-[var(--panel)]/85 px-2.5 py-2">
-            <Legend color="#7b9fd4" label="Mission — growth" />
-            <Legend color="#6fc49a" label="Golden Goose — dividends" />
-            <Legend color="#f0cf7a" label="Free — bare land" />
-            <Legend color="#6ee7a5" label="Green sign = gain" dot />
-            <Legend color="#ff8f7d" label="Red sign = loss" dot />
-          </div>
+          {/*
+            legend เดียวของทั้งแอป และปิดไว้เป็นค่าเริ่มต้น
+            เดิมมีสองที่ (กล่องบนแผนที่ + รายการยาวใน sidebar) เนื้อหาซ้ำกัน
+            และเป็นข้อความที่อ่านครั้งเดียวก็จำได้ ไม่ต้องกินพื้นที่ถาวร
+          */}
+          <MapLegend />
           <IsoCity
             structures={structures}
             selectedId={selectedId}
@@ -258,8 +291,7 @@ export default function Home() {
               Cash on hand
             </h2>
             <p className="mt-1 text-[10px] leading-relaxed text-[var(--label-dim)]">
-              Shows up as build sites · counted in portfolio value but never as
-              height, because it does not own anything yet
+              Build sites in the city · counted in value, never in height
             </p>
             <label className="mt-2 block">
               <span className="text-[10.5px] tracking-wide text-[var(--label-dim)] uppercase">
@@ -277,7 +309,7 @@ export default function Home() {
                 className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-right font-mono text-sm text-[var(--label)] placeholder:text-left placeholder:font-sans placeholder:text-[10px] placeholder:text-[var(--label-dim)]/60"
               />
               <span className="text-[10px] text-[var(--label-dim)]">
-                ใส่แล้ว % กำไรจะคิดแบบเดียวกับชีต
+                Used as the base for return %
               </span>
             </label>
 

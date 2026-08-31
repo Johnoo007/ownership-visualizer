@@ -110,7 +110,6 @@ export function HoldingForm({
           onChange={(v) => setForm({ ...form, avgCost: v })}
           placeholder="172"
           inputMode="decimal"
-          hint="use 0 if it was free"
         />
         <Field
           label="Price now / share"
@@ -122,12 +121,11 @@ export function HoldingForm({
       </div>
 
       <Field
-        label="Actual baht paid (whole position)"
+        label="Actual baht paid"
         value={form.costTHB}
         onChange={(v) => setForm({ ...form, costTHB: v })}
-        placeholder="optional"
+        placeholder="optional · overrides FX"
         inputMode="decimal"
-        hint="if set, this drives tower height instead of today&rsquo;s FX rate"
       />
 
       <div className="grid grid-cols-2 gap-2">

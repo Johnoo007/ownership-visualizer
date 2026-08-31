@@ -101,44 +101,6 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* คู่มืออ่านเมือง — ซ่อนบนจอแคบ ให้เหลือแต่ตัวสลับมุมมอง */}
-      <div className="hidden lg:mt-auto lg:block lg:space-y-2">
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-raised)] p-2.5">
-          <p className="text-[10px] tracking-wide text-[var(--label-dim)] uppercase">
-            How to read the city
-          </p>
-          <ul className="mt-1.5 space-y-1 text-[10.5px] leading-relaxed text-[var(--label-dim)]">
-            <li>
-              <span className="text-[var(--label)]">Height</span> = money already invested
-            </li>
-            <li>
-              <span className="text-[var(--label)]">Build sites</span> = cash waiting to invest
-            </li>
-            <li>
-              <span className="text-[var(--label)]">Floors</span> = shares held
-            </li>
-            <li>
-              <span className="text-[var(--gain)]">Green</span> /{" "}
-              <span className="text-[var(--loss)]">red sign</span> = gain / loss
-            </li>
-            <li>
-              <span className="text-[var(--label)]">Lit windows</span> = brighter when up
-            </li>
-            <li>
-              <span style={{ color: "var(--free)" }}>Gold band + crane</span> = added this week
-            </li>
-            <li>
-              <span className="text-[var(--accent)]">Click a tower</span> = see its DCA rounds
-            </li>
-          </ul>
-          <p className="mt-2 border-t border-[var(--border)] pt-2 text-[10px] leading-relaxed text-[var(--label-dim)]">
-            Market down = lights dim
-            <br />
-            but buildings never shrink
-          </p>
-        </div>
-
-      </div>
     </aside>
   );
 }

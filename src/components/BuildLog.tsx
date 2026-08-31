@@ -19,8 +19,7 @@ export function BuildLog({ state }: { state: CityState }) {
     return (
       <section className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--panel)] px-3 py-2.5 text-xs text-[var(--label-dim)]">
         🏗️ <span className="font-semibold text-[var(--label)]">No rounds recorded yet</span>{" "}
-        — next time you update the portfolio after buying, it counts as 1 round
-        and raises a crane on that tower
+        — your next buy will be counted automatically
       </section>
     );
   }
