@@ -52,13 +52,26 @@ export function parseCity(raw: unknown): CityState | null {
     : undefined;
 
   const rawReserve = obj.reserve as
-    | { amountTHB?: unknown; monthlyBurnTHB?: unknown }
+    | { amountTHB?: unknown; monthlyBurnTHB?: unknown; history?: unknown }
     | undefined;
   const reserve =
     rawReserve && typeof rawReserve === "object"
       ? {
           amountTHB: num(rawReserve.amountTHB),
           monthlyBurnTHB: num(rawReserve.monthlyBurnTHB),
+          /**
+           * ⚠️ ยอดที่ขยับเป็นลบได้ (ถอนออก) จึงใช้ `num` ที่บังคับ ≥ 0 ไม่ได้
+           * ถ้าพลาดตรงนี้ รอยร้าวทุกรอยจะกลายเป็น 0 แล้วหายไปเงียบๆ ตอนรีเฟรช
+           */
+          history: Array.isArray(rawReserve.history)
+            ? (rawReserve.history as unknown[]).filter(
+                (e): e is { at: string; amountTHB: number } =>
+                  typeof e === "object" &&
+                  e !== null &&
+                  typeof (e as Record<string, unknown>).at === "string" &&
+                  typeof (e as Record<string, unknown>).amountTHB === "number",
+              )
+            : undefined,
         }
       : undefined;
 

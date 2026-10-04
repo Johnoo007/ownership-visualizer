@@ -11,11 +11,12 @@ import {
   topConcentration,
   totals,
 } from "../src/lib/portfolio";
-import { THB_PER_PX, TOWER_CAP_PX, TOWER_CAP_THB, floorPlan, groundCells, heightFor, towerHeights, wallRing, wallBounds, layoutCity } from "../src/lib/iso";
+import { THB_PER_PX, TOWER_CAP_PX, TOWER_CAP_THB, boundsWithWall, floorPlan, groundCells, heightFor, towerHeights, unionBounds, wallRing, wallBounds, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
+import { parseCity } from "../src/lib/storage";
 import { compare } from "../src/lib/history";
 import { plural, pluralize } from "../src/lib/text";
-import { reserveStatus } from "../src/lib/reserve";
+import { applyReserveEvent, appendReserveEvent, reserveStatus } from "../src/lib/reserve";
 import {
   appendContributions,
   detectContributions,
@@ -1037,4 +1038,340 @@ test("ห้ามมีรถหรือคนอยู่นอกกำแ�
   );
   assert.ok(inside.some((c) => c.decor === "car"), "ในเมืองต้องยังมีรถ");
   assert.ok(inside.some((c) => c.decor === "person"), "ในเมืองต้องยังมีคน");
+});
+
+/* ── กำแพง: ก่ออิฐ / ถอนออก ───────────────────────────────────────────────
+ *
+ * เหตุผลที่ต้องมีทั้งชุดนี้: กำแพงคือของชิ้นเดียวในแอปที่ตั้งใจแก้
+ * "ช่องว่าง feedback" แต่ตัวมันเองเคยไม่มี feedback เลย — เติมเงินแล้ว
+ * ตัวเลขเดือนขยับนิดเดียวจบ · เทสต์พวกนี้ล็อกไว้ว่าการลงมือต้องเห็นได้
+ */
+
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+const daysAgo = (now: Date, n: number) => iso(new Date(now.getTime() - n * DAY));
+
+test("ก่ออิฐ: เติมเงินสำรองต้องบันทึกเป็นเหตุการณ์ และเห็นเป็นอิฐใหม่บนกำแพง", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  const r0 = { amountTHB: 100_000, monthlyBurnTHB: 20_000 };
+
+  const r1 = applyReserveEvent(r0, 4_000, now);
+  assert.equal(r1.amountTHB, 104_000, "ยอดต้องบวกส่วนต่าง");
+  assert.deepEqual(r1.history, [{ at: "2026-09-01", amountTHB: 4_000 }]);
+
+  const s = reserveStatus(r1, now);
+  assert.equal(s.recentAddTHB, 4_000);
+  assert.equal(s.recentRounds, 1);
+  assert.equal(s.rounds, 1);
+  // ยอดก่อนหน้าต้องถอยกลับไปเป็นก่อนก่อ ไม่ใช่ยอดวันนี้
+  assert.ok(s.priorCoverage < s.coverage, "coverage ก่อนหน้าต้องน้อยกว่าตอนนี้");
+
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+  const ring = wallRing(layout, s.coverage, s.priorCoverage);
+  const fresh = ring.filter((w) => w.fresh);
+  assert.ok(fresh.length > 0, "เติมเงินแล้วต้องมีอิฐใหม่ให้เห็นอย่างน้อย 1 ก้อน");
+  assert.ok(fresh.every((w) => w.built), "อิฐใหม่ต้องเป็นช่วงที่ก่อแล้ว");
+  assert.equal(ring.filter((w) => w.broken).length, 0, "ก่ออย่างเดียวห้ามมีรอยร้าว");
+});
+
+test("ถอนเงิน: กำแพงต้องร้าว — ช่วงที่หายไปต้องต่างจาก 'ยังไม่ได้ก่อ'", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  const r0 = { amountTHB: 120_000, monthlyBurnTHB: 20_000 };
+
+  const r1 = applyReserveEvent(r0, -40_000, now);
+  assert.equal(r1.amountTHB, 80_000);
+  assert.deepEqual(r1.history, [{ at: "2026-09-01", amountTHB: -40_000 }]);
+
+  const s = reserveStatus(r1, now);
+  assert.equal(s.recentWithdrawTHB, 40_000);
+  assert.equal(s.recentAddTHB, 0);
+  assert.equal(s.rounds, 0, "ถอนไม่นับเป็นครั้งที่ลงมือก่อ");
+  assert.ok(s.priorCoverage > s.coverage, "กำแพงต้องหดลงเทียบกับก่อนถอน");
+
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+  const ring = wallRing(layout, s.coverage, s.priorCoverage);
+  const broken = ring.filter((w) => w.broken);
+  assert.ok(broken.length > 0, "ถอนเงินแล้วต้องเห็นรอยร้าว ไม่ใช่เงียบหาย");
+  assert.ok(broken.every((w) => !w.built), "ซากต้องไม่ถูกนับว่าก่อแล้ว");
+  assert.equal(ring.filter((w) => w.fresh).length, 0, "ถอนอย่างเดียวห้ามมีอิฐใหม่");
+
+  // กำแพงเคยปิดครบวง ⇒ ทุกช่องที่หายไปคือ "เคยปลอดภัยแล้วเสียไป" ทั้งหมด
+  // ห้ามมีช่องไหนกลายเป็นตอม่อเปล่า (= ยังไม่เคยก่อ) เพราะมันไม่จริง
+  assert.equal(
+    ring.filter((w) => !w.built && !w.broken).length,
+    0,
+    "เคยก่อครบแล้ว จะมีช่อง 'ยังไม่เคยก่อ' ไม่ได้",
+  );
+});
+
+test("ซากกับตอม่อเปล่าต้องแยกกัน เมื่อกำแพงยังก่อไม่ครบตอนถอน", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+
+  // ก่อไปได้ 75% แล้วถอนจนเหลือ 50% ⇒ ต้องเห็นครบทั้งสามสภาพในวงเดียว
+  const r = applyReserveEvent({ amountTHB: 90_000, monthlyBurnTHB: 20_000 }, -30_000, now);
+  const s = reserveStatus(r, now);
+  const ring = wallRing(layout, s.coverage, s.priorCoverage);
+
+  const built = ring.filter((w) => w.built);
+  const broken = ring.filter((w) => w.broken);
+  const never = ring.filter((w) => !w.built && !w.broken);
+  assert.ok(built.length > 0 && broken.length > 0 && never.length > 0,
+    `ต้องมีครบสามสภาพ ได้ ${built.length}/${broken.length}/${never.length}`);
+  assert.equal(built.length + broken.length + never.length, ring.length,
+    "ทุกช่วงต้องอยู่ในสภาพใดสภาพหนึ่งเท่านั้น ห้ามซ้อนกัน");
+
+  /**
+   * ซากต้องอยู่ตรงที่ "เคยมีกำแพง" เป๊ะ — วัดโดยเทียบกับวงที่ coverage เดิม
+   * (ห้ามวัดด้วย depth: วงคลุมทั้งสี่ด้าน depth จึงไม่ได้เรียงตามลำดับรอบวง)
+   */
+  const key = (w: { gx: number; gy: number }) => `${w.gx},${w.gy}`;
+  const wasBuilt = new Set(
+    wallRing(layout, s.priorCoverage).filter((w) => w.built).map(key),
+  );
+  assert.deepEqual(
+    new Set([...built.map(key), ...broken.map(key)]),
+    wasBuilt,
+    "ช่วงที่ยืนอยู่ + ซาก ต้องเท่ากับช่วงที่เคยก่อไว้ก่อนถอนพอดี",
+  );
+  for (const w of never) {
+    assert.ok(!wasBuilt.has(key(w)), `${key(w)} เคยก่อแล้ว ห้ามอ่านเป็น 'ยังไม่เคยก่อ'`);
+  }
+});
+
+test("แก้ยอดที่กรอกผิดต้องไม่งอกเป็นอิฐหรือรอยร้าว", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  // พิมพ์ ฿150,000 แล้วมาแก้เป็น ฿120,000 — ไม่มีใครถอนเงินจริงสักบาท
+  const corrected = { amountTHB: 120_000, monthlyBurnTHB: 20_000 };
+
+  const s = reserveStatus(corrected, now);
+  assert.equal(s.recentWithdrawTHB, 0, "การแก้ตัวเลขห้ามอ่านเป็นการถอน");
+  assert.equal(s.recentAddTHB, 0);
+  assert.equal(s.coverage, s.priorCoverage, "ไม่มีเหตุการณ์ = กำแพงนิ่งสนิท");
+
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+  const ring = wallRing(layout, s.coverage, s.priorCoverage);
+  assert.equal(ring.filter((w) => w.fresh).length, 0);
+  assert.equal(ring.filter((w) => w.broken).length, 0);
+});
+
+test("อิฐเรืองแสงและรอยร้าวต้องหายไปเองเมื่อพ้นกรอบ 7 วัน", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+
+  const old = {
+    amountTHB: 104_000,
+    monthlyBurnTHB: 20_000,
+    history: [
+      { at: daysAgo(now, 40), amountTHB: 100_000 },
+      { at: daysAgo(now, 30), amountTHB: 4_000 },
+    ],
+  };
+  const s = reserveStatus(old, now);
+  assert.equal(s.recentAddTHB, 0, "ของเก่าต้องไม่นับว่าเพิ่งทำ");
+  assert.equal(s.rounds, 2, "แต่จำนวนครั้งที่เคยลงมือต้องไม่หาย");
+  assert.equal(s.coverage, s.priorCoverage);
+
+  const ring = wallRing(layout, s.coverage, s.priorCoverage);
+  assert.equal(ring.filter((w) => w.fresh || w.broken).length, 0);
+
+  // วันที่ในอนาคต (นาฬิกาเพี้ยน / ไฟล์ที่ import มา) ต้องไม่ทำให้กำแพงทั้งวงเรืองแสง
+  const future = {
+    amountTHB: 120_000,
+    monthlyBurnTHB: 20_000,
+    history: [{ at: iso(new Date(now.getTime() + 10 * DAY)), amountTHB: 120_000 }],
+  };
+  assert.equal(reserveStatus(future, now).recentAddTHB, 0);
+});
+
+test("ก่อแล้วถอนในวันเดียวกันต้องเหลือประวัติสองรายการ ไม่หักกันจนหาย", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  let r = applyReserveEvent({ amountTHB: 100_000, monthlyBurnTHB: 20_000 }, 5_000, now);
+  r = applyReserveEvent(r, -5_000, now);
+
+  assert.equal(r.amountTHB, 100_000, "ยอดกลับมาเท่าเดิม");
+  assert.deepEqual(
+    r.history,
+    [
+      { at: "2026-09-01", amountTHB: 5_000 },
+      { at: "2026-09-01", amountTHB: -5_000 },
+    ],
+    "ทั้งสองเหตุการณ์เกิดขึ้นจริง ห้ามหักกลบจนหายไปจากประวัติ",
+  );
+
+  // แต่ก่อสองครั้งในวันเดียวกัน = ไม้เดียว รวมยอด (เหมือนไม้ DCA ของตึก)
+  const twice = appendReserveEvent(
+    [{ at: "2026-09-01", amountTHB: 4_000 }],
+    { at: "2026-09-01", amountTHB: 1_000 },
+  );
+  assert.deepEqual(twice, [{ at: "2026-09-01", amountTHB: 5_000 }]);
+});
+
+test("ถอนเกินที่มีต้องเหลือศูนย์ ไม่ติดลบ และกำแพงหายทั้งวง", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  const r = applyReserveEvent({ amountTHB: 30_000, monthlyBurnTHB: 20_000 }, -80_000, now);
+
+  assert.equal(r.amountTHB, 0, "เงินสำรองติดลบไม่ได้");
+  assert.deepEqual(r.history, [{ at: "2026-09-01", amountTHB: -30_000 }],
+    "บันทึกเท่าที่ถอนได้จริง ไม่ใช่ตัวเลขที่ขอ");
+
+  const s = reserveStatus(r, now);
+  assert.equal(s.coverage, 0);
+  assert.equal(s.months, 0);
+
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+  const ring = wallRing(layout, s.coverage, s.priorCoverage);
+  assert.equal(ring.filter((w) => w.built).length, 0, "ไม่มีกำแพงเหลือสักช่วง");
+  assert.ok(ring.filter((w) => w.broken).length > 0, "แต่ต้องเห็นซากว่าเคยมี");
+});
+
+test("ก่ออิฐและถอนเงินห้ามแตะยอดพอร์ตใดๆ แม้แต่บาทเดียว", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  const before = baseCity();
+  const t0 = totals(before);
+  const h0 = layoutCity(toStructures(before), ORDER).all.map((p) => p.height);
+
+  // เดินเรื่องเต็มรอบ: ก่อ → ก่อ → ถอน
+  let reserve = applyReserveEvent(
+    { amountTHB: 0, monthlyBurnTHB: 20_000 },
+    100_000,
+    now,
+  );
+  reserve = applyReserveEvent(reserve, 20_000, now);
+  reserve = applyReserveEvent(reserve, -40_000, now);
+  assert.equal(reserve.amountTHB, 80_000);
+
+  const after: CityState = { ...before, reserve };
+  const t1 = totals(after);
+  assert.equal(t1.invested, t0.invested);
+  assert.equal(t1.marketValue, t0.marketValue);
+  assert.equal(t1.towerCount, t0.towerCount);
+  assert.equal(portfolioSummary(after).cash, portfolioSummary(before).cash);
+  assert.deepEqual(
+    layoutCity(toStructures(after), ORDER).all.map((p) => p.height),
+    h0,
+    "ความสูงตึกทุกหลังต้องนิ่งสนิทตลอดทั้งรอบ",
+  );
+  // และประวัติกำแพงต้องไม่ไปโผล่ในไม้ DCA ของตึก
+  assert.equal(after.contributions, before.contributions);
+});
+
+test("อิฐใหม่ต้องอยู่ปลายกำแพง ต่อจากของเดิม ไม่ใช่แทรกกลางวง", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+
+  const r = applyReserveEvent({ amountTHB: 60_000, monthlyBurnTHB: 20_000 }, 30_000, now);
+  const s = reserveStatus(r, now);
+  const ring = wallRing(layout, s.coverage, s.priorCoverage);
+
+  const fresh = ring.filter((w) => w.fresh);
+  const oldBuilt = ring.filter((w) => w.built && !w.fresh);
+  assert.ok(fresh.length > 0 && oldBuilt.length > 0);
+
+  // กำแพงก่อจากหลังมาหน้า ⇒ อิฐใหม่ต้องอยู่ "หน้ากว่า" ของเดิมเสมอ
+  assert.ok(
+    Math.max(...fresh.map((w) => w.depth)) > Math.max(...oldBuilt.map((w) => w.depth)),
+    "อิฐใหม่ต้องต่อที่ปลายกำแพงด้านหน้า ไม่ใช่โผล่กลางวงที่ก่อไปแล้ว",
+  );
+});
+
+test("ซากกำแพงต้องไม่กั้นถนน — รูที่เกิดจากการถอนคือรูจริง", () => {
+  const now = new Date("2026-09-01T09:00:00Z");
+  const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
+
+  const r = applyReserveEvent({ amountTHB: 120_000, monthlyBurnTHB: 20_000 }, -60_000, now);
+  const s = reserveStatus(r, now);
+  const ring = wallRing(layout, s.coverage, s.priorCoverage);
+
+  // ตัวกั้นถนนใช้เงื่อนไขเดียวกับใน IsoCity: ก่อแล้วและไม่ใช่ประตู
+  const blocked = new Set(
+    ring.filter((w) => w.built && !w.gate).map((w) => `${w.gx},${w.gy}`),
+  );
+  for (const w of ring.filter((x) => x.broken)) {
+    assert.ok(
+      !blocked.has(`${w.gx},${w.gy}`),
+      `ซากที่ ${w.gx},${w.gy} ยังกั้นถนนอยู่ — กำแพงพังแล้วต้องผ่านได้`,
+    );
+  }
+});
+
+test("ประวัติกำแพงต้องรอดจากการเซฟ/โหลด รวมยอดติดลบ", () => {
+  const city: CityState = {
+    ...baseCity(),
+    reserve: {
+      amountTHB: 80_000,
+      monthlyBurnTHB: 20_000,
+      history: [
+        { at: "2026-08-01", amountTHB: 120_000 },
+        { at: "2026-08-28", amountTHB: -40_000 },
+      ],
+    },
+  };
+
+  const round = parseCity(JSON.parse(JSON.stringify(city)));
+  assert.ok(round);
+  assert.deepEqual(
+    round.reserve?.history,
+    city.reserve?.history,
+    "รอยร้าว (ยอดติดลบ) ต้องไม่ถูกปัดเป็น 0 ตอนอ่านกลับ",
+  );
+  assert.equal(round.reserve?.amountTHB, 80_000);
+});
+
+/* ── กล้องต้องนิ่งตอนย้อนดูอดีต ────────────────────────────────────────── */
+
+test("ย้อนดูอดีตแล้วกล้องต้องไม่ขยับ — เมืองเล็กกว่าต้องนั่งในกรอบเดิม", () => {
+  const today = baseCity();
+  // อดีต: มีแค่ตึกเดียว ลงเงินน้อยกว่ามาก ⇒ เมืองเล็กกว่าทุกทาง
+  const past: CityState = {
+    ...today,
+    holdings: [today.holdings[0]],
+    cash: undefined,
+  };
+
+  const frame = (c: CityState) => {
+    const layout = layoutCity(toStructures(c), ORDER, [CASH_ZONE]);
+    return boundsWithWall(layout, wallRing(layout, 1));
+  };
+
+  const todayFrame = frame(today);
+  const pastFrame = frame(past);
+
+  // ก่อนแก้: กล้องเล็งเมืองอดีตตรงๆ ⇒ กรอบคนละอันกับวันนี้ = ภาพกระโดด
+  assert.notDeepEqual(pastFrame, todayFrame, "เมืองอดีตกรอบต่างจริง (ไม่งั้นเทสต์นี้ไม่พิสูจน์อะไร)");
+
+  // หลังแก้: กล้องเล็ง union(อดีต, วันนี้) ซึ่งต้องเท่ากรอบวันนี้เป๊ะ
+  const locked = unionBounds(pastFrame, todayFrame);
+  assert.deepEqual(locked, todayFrame, "กรอบตอนย้อนอดีตต้องเท่ากับกรอบวันนี้ ไม่ขยับสักพิกเซล");
+
+  // และกลับมา "วันนี้" ต้องได้กรอบเดิมอีก ⇒ ไป-กลับไม่มีการกระตุก
+  assert.deepEqual(frame(today), locked, "กดกลับวันนี้แล้วกรอบต้องไม่ขยับอีกรอบ");
+});
+
+test("เมืองอดีตที่ใหญ่กว่าวันนี้ต้องไม่ถูกกล้องตัดขอบทิ้ง", () => {
+  // เคสที่เกิดได้จริง: ขายตึกทิ้งไปแล้ว เมืองวันนี้จึงเล็กกว่าอดีต
+  const past = baseCity();
+  const today: CityState = { ...past, holdings: [past.holdings[0]], cash: undefined };
+
+  const frame = (c: CityState) => {
+    const layout = layoutCity(toStructures(c), ORDER, [CASH_ZONE]);
+    return boundsWithWall(layout, wallRing(layout, 1));
+  };
+
+  const locked = unionBounds(frame(past), frame(today));
+  const p = frame(past);
+  assert.ok(locked.minX <= p.minX && locked.minY <= p.minY, "กรอบต้องคลุมมุมบนซ้ายของอดีต");
+  assert.ok(
+    locked.minX + locked.width >= p.minX + p.width &&
+      locked.minY + locked.height >= p.minY + p.height,
+    "กรอบต้องคลุมมุมล่างขวาของอดีต — ห้ามตัดเมืองที่เคยใหญ่กว่าทิ้ง",
+  );
+});
+
+test("รวมกรอบ: ผลลัพธ์ต้องคลุมทั้งสองอันเสมอ และรวมกับตัวเองแล้วเท่าเดิม", () => {
+  const a = { minX: 0, minY: 0, width: 100, height: 50 };
+  const b = { minX: -20, minY: 10, width: 60, height: 100 };
+
+  assert.deepEqual(unionBounds(a, a), a, "รวมกับตัวเองต้องไม่ขยับ");
+  assert.deepEqual(unionBounds(a, b), unionBounds(b, a), "สลับลำดับต้องได้เท่ากัน");
+  assert.deepEqual(unionBounds(a, b), { minX: -20, minY: 0, width: 120, height: 110 });
 });

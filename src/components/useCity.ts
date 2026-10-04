@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { emptyCity } from "@/lib/demo";
 import { clearBackup, loadBackup, loadCity, saveCity } from "@/lib/storage";
 import { appendContributions, detectContributions } from "@/lib/contributions";
+import { applyReserveEvent } from "@/lib/reserve";
 import type { CityState, Holding } from "@/lib/types";
 
 /**
@@ -81,7 +82,12 @@ export function useCity() {
     );
   }, []);
 
-  /** กำแพงเมือง — แยกจาก cash ที่รอลงทุน และไม่แตะยอดพอร์ตใดๆ */
+  /**
+   * แก้ตัวเลขกำแพงตรงๆ — **ไม่บันทึกประวัติ**
+   *
+   * ใช้กับรายจ่ายต่อเดือน และกับการแก้ยอดที่กรอกผิด · การพิมพ์แก้ตัวเลข
+   * ไม่ใช่เหตุการณ์ในชีวิตจริง ⇒ ห้ามงอกเป็นอิฐหรือรอยร้าว
+   */
   const setReserve = useCallback(
     (field: "amountTHB" | "monthlyBurnTHB", value: number) => {
       setState((prev) =>
@@ -101,6 +107,15 @@ export function useCity() {
     },
     [],
   );
+
+  /** ก่ออิฐ (บวก) / ถอนออก (ลบ) — ทางเดียวที่ทำให้เกิดประวัติกำแพง */
+  const adjustReserve = useCallback((deltaTHB: number) => {
+    setState((prev) =>
+      prev
+        ? { ...prev, isDemo: false, reserve: applyReserveEvent(prev.reserve, deltaTHB) }
+        : prev,
+    );
+  }, []);
 
   const replaceCity = useCallback((next: CityState) => {
     setState(next);
@@ -139,6 +154,7 @@ export function useCity() {
     setFxRate,
     setCash,
     setReserve,
+    adjustReserve,
     setDeposits,
     replaceCity,
     importHoldings,

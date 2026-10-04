@@ -6,6 +6,7 @@ import {
   boundsWithWall,
   layoutCity,
   wallRing,
+  unionBounds,
   PITCH_H,
   PITCH_W,
   seededRandom,
@@ -25,12 +26,25 @@ const ASIDE_DISTRICTS = [CASH_ZONE];
 export function IsoCity({
   structures,
   wallCoverage,
+  wallPriorCoverage,
+  cameraStructures,
+  cameraWallCoverage = 0,
   selectedId,
   onSelect,
 }: {
   structures: Structure[];
   /** สัดส่วนกำแพงที่ก่อแล้ว 0..1 — เงินสำรองฉุกเฉิน (Kingdom v1) */
   wallCoverage: number;
+  /** สัดส่วนเมื่อไม่กี่วันก่อน — ส่วนต่างคืออิฐใหม่ที่เรืองแสง หรือรอยร้าวจากการถอน */
+  wallPriorCoverage: number;
+  /**
+   * เมืองที่ใช้ "เล็งกล้อง" แทนเมืองที่วาด — ส่งมาเฉพาะตอนย้อนดูอดีต
+   *
+   * ไม่ส่ง = เล็งเมืองที่วาดตามปกติ · ส่งมา = กรอบภาพถูกตรึงไว้ที่เมืองวันนี้
+   * เมืองในอดีตจึงนั่งอยู่ในกรอบเดิม เห็นเป็น "เมืองเล็กกว่าในที่เดิม" ไม่ใช่ภาพกระโดด
+   */
+  cameraStructures?: Structure[];
+  cameraWallCoverage?: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }) {
@@ -38,7 +52,10 @@ export function IsoCity({
     () => layoutCity(structures, DISTRICT_ORDER, ASIDE_DISTRICTS),
     [structures],
   );
-  const wall = useMemo(() => wallRing(layout, wallCoverage), [layout, wallCoverage]);
+  const wall = useMemo(
+    () => wallRing(layout, wallCoverage, wallPriorCoverage),
+    [layout, wallCoverage, wallPriorCoverage],
+  );
   /**
    * ช่องที่กำแพงกั้นจริง — ก่อแล้วและไม่ใช่ประตู
    * ถนนที่ลอดใต้กำแพงต้องถูกตัด ไม่งั้นรถจะวิ่งทะลุกำแพงออกไปนอกเมือง
@@ -49,8 +66,26 @@ export function IsoCity({
   );
   const cells = useMemo(() => groundCells(layout, blocked), [layout, blocked]);
 
-  // กรอบต้องคลุมกำแพงด้วย ไม่ใช่แค่ตึก
-  const bounds = useMemo(() => boundsWithWall(layout, wall), [layout, wall]);
+  /**
+   * กรอบภาพ — ต้องคลุมกำแพงด้วย ไม่ใช่แค่ตึก
+   * และตอนย้อนดูอดีต ต้องคลุม "เมืองวันนี้" ด้วย เพื่อให้กล้องอยู่นิ่งขณะสลับวัน
+   */
+  const cameraLayout = useMemo(
+    () =>
+      cameraStructures
+        ? layoutCity(cameraStructures, DISTRICT_ORDER, ASIDE_DISTRICTS)
+        : null,
+    [cameraStructures],
+  );
+  const bounds = useMemo(() => {
+    const own = boundsWithWall(layout, wall);
+    if (!cameraLayout) return own;
+    const frame = boundsWithWall(
+      cameraLayout,
+      wallRing(cameraLayout, cameraWallCoverage),
+    );
+    return unionBounds(own, frame);
+  }, [layout, wall, cameraLayout, cameraWallCoverage]);
   const stars = useMemo(() => {
     if (structures.length === 0) return [];
     // กระจายเกินกรอบ เพราะ letterbox ทำให้เห็นพื้นที่นอก viewBox

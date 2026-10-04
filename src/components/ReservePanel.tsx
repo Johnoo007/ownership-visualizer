@@ -1,6 +1,7 @@
 "use client";
 
-import { TARGET_MONTHS, reserveStatus } from "@/lib/reserve";
+import { useState } from "react";
+import { RECENT_DAYS, TARGET_MONTHS, reserveStatus } from "@/lib/reserve";
 import { formatTHB } from "@/lib/portfolio";
 import { plural } from "@/lib/text";
 import type { CityState } from "@/lib/types";
@@ -11,16 +12,33 @@ import type { CityState } from "@/lib/types";
  * ⚠️ แผงนี้จงใจแยกออกจากทุกยอดของพอร์ต และไม่โชว์เป็น "อีกก้อนหนึ่งของความมั่งคั่ง"
  * หน่วยหลักคือ **เดือน** ไม่ใช่บาท เพราะคำถามจริงคือ "ถ้าพรุ่งนี้ไม่มีรายได้ อยู่ได้นานแค่ไหน"
  * ไม่ใช่ "มีเงินเก็บเท่าไหร่"
+ *
+ * 🧱 การขยับเงินเข้า/ออก ทำผ่าน **ปุ่ม** ไม่ใช่การพิมพ์ทับยอดรวม
+ * เพราะยอดรวมแยกไม่ออกว่า "ถอนเงินจริง" หรือ "พิมพ์ผิดแล้วแก้" — และอย่างหลัง
+ * ต้องไม่ทำให้กำแพงร้าว · ช่องแก้ยอดยังมีอยู่ แต่ซ่อนไว้และไม่บันทึกประวัติ
  */
 export function ReservePanel({
   state,
   onChange,
+  onAdjust,
 }: {
   state: CityState;
   onChange: (field: "amountTHB" | "monthlyBurnTHB", value: number) => void;
+  onAdjust: (deltaTHB: number) => void;
 }) {
   const s = reserveStatus(state.reserve);
   const pct = Math.round(s.coverage * 100);
+  const [amount, setAmount] = useState("");
+  const [fixing, setFixing] = useState(false);
+
+  const delta = Number(amount);
+  const canMove = Number.isFinite(delta) && delta >= 1;
+
+  const move = (sign: 1 | -1) => {
+    if (!canMove) return;
+    onAdjust(sign * delta);
+    setAmount("");
+  };
 
   const tone = s.complete
     ? "var(--gain)"
@@ -34,9 +52,7 @@ export function ReservePanel({
         <h2 className="text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase">
           City wall
         </h2>
-        <span className="text-[10px] text-[var(--label-dim)]">
-          emergency fund
-        </span>
+        <span className="text-[10px] text-[var(--label-dim)]">emergency fund</span>
       </div>
 
       {s.months === null ? (
@@ -78,19 +94,97 @@ export function ReservePanel({
         </>
       )}
 
-      <div className="mt-2.5 grid grid-cols-2 gap-2">
-        <Field
-          label="Reserve (฿)"
-          value={state.reserve?.amountTHB}
-          placeholder="120000"
-          onChange={(v) => onChange("amountTHB", v)}
+      {/*
+        ก่ออิฐ / ถอน — ช่องนี้รับ *ส่วนต่าง* ไม่ใช่ยอดรวม
+        นี่คือช่องทาง feedback ของกำแพง: ฿4,000 ขยับตัวเลขเดือนแค่นิดเดียวเสมอ
+        แต่ "ก่ออิฐอีกครั้ง" เป็น 1 เต็มเสมอ และเห็นเป็นอิฐใหม่บนกำแพงจริง
+      */}
+      <div className="mt-2.5 flex gap-1.5">
+        <input
+          type="number"
+          min={0}
+          value={amount}
+          placeholder="amount ฿"
+          onChange={(e) => setAmount(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") move(1);
+          }}
+          className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-right font-mono text-xs text-[var(--label)] outline-none placeholder:text-left placeholder:font-sans placeholder:text-[10px] placeholder:text-[var(--label-dim)]/60 focus:border-[var(--accent)]"
         />
+        <button
+          type="button"
+          disabled={!canMove}
+          onClick={() => move(1)}
+          className="rounded-lg border border-[var(--gain)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--gain)] transition hover:bg-[var(--gain)]/10 disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:text-[var(--label-dim)]"
+        >
+          🧱 Lay
+        </button>
+        <button
+          type="button"
+          disabled={!canMove || s.amountTHB <= 0}
+          onClick={() => move(-1)}
+          className="rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--label-dim)] transition hover:border-[var(--loss)] hover:text-[var(--loss)] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Take out
+        </button>
+      </div>
+
+      {/* เรื่องที่เพิ่งเกิดกับกำแพง — คู่กับ BuildLog ของตึก */}
+      {(s.recentAddTHB > 0 || s.recentWithdrawTHB > 0) && (
+        <p className="mt-1.5 text-[10px] leading-relaxed">
+          {s.recentWithdrawTHB > 0 && (
+            <span style={{ color: "var(--loss)" }}>
+              ⚡ The wall is breached — {formatTHB(s.recentWithdrawTHB)} taken out in
+              the last {RECENT_DAYS} days
+              <br />
+            </span>
+          )}
+          {s.recentAddTHB > 0 && (
+            <span style={{ color: "var(--gain)" }}>
+              🧱 Fresh brick — {formatTHB(s.recentAddTHB)} laid in{" "}
+              {plural(s.recentRounds, "round")} this week
+            </span>
+          )}
+        </p>
+      )}
+
+      {s.rounds > 0 && (
+        <p className="mt-1 text-[10px] text-[var(--label-dim)]">
+          You have laid brick {plural(s.rounds, "time")} · total{" "}
+          <span className="text-[var(--label)]">{formatTHB(s.amountTHB)}</span> standing
+        </p>
+      )}
+
+      <div className="mt-2.5">
         <Field
           label="Spending / month (฿)"
           value={state.reserve?.monthlyBurnTHB}
           placeholder="5000"
           onChange={(v) => onChange("monthlyBurnTHB", v)}
         />
+      </div>
+
+      {/*
+        ช่องแก้ยอดให้ถูก — ซ่อนไว้เพราะมันไม่ใช่ทางปกติ
+        เปิดไว้ตลอดเมื่อไหร่ คนจะใช้มันแทนปุ่ม แล้วประวัติกำแพงจะว่างเปล่าตลอดกาล
+      */}
+      <div className="mt-2 border-t border-[var(--border)] pt-2">
+        {fixing ? (
+          <Field
+            label="Correct the balance (no record)"
+            value={state.reserve?.amountTHB}
+            placeholder="120000"
+            onChange={(v) => onChange("amountTHB", v)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setFixing(true)}
+            className="text-[10px] text-[var(--label-dim)] underline decoration-dotted underline-offset-2 transition hover:text-[var(--label)]"
+          >
+            Balance wrong? Correct it without recording a move
+          </button>
+        )}
       </div>
 
       {/* กฎที่ต้องเห็นบนหน้าจอ ไม่ใช่ซ่อนไว้ในโค้ด */}

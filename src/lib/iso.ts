@@ -527,6 +527,21 @@ export type WallSegment = {
   depth: number;
   /** สร้างแล้วหรือยัง — ยังไม่สร้าง = ตอม่อเปล่า เห็นเป็นช่องโหว่ */
   built: boolean;
+  /**
+   * เพิ่งก่อในกรอบไม่กี่วันนี้ — อิฐใหม่ยังเรืองแสง มีนั่งร้าน
+   *
+   * นี่คือช่องทาง feedback ของกำแพง เทียบเท่า "เครน + ขีด DCA" ของตึก:
+   * เติมเงินสำรอง ฿4,000 ทำให้ตัวเลขเดือนขยับนิดเดียวเสมอ แต่ "อิฐใหม่ 2 ก้อน"
+   * เป็นของที่เห็นได้เต็มๆ และไม่ถูกเจือจางเมื่อกำแพงยาวขึ้น
+   */
+  fresh: boolean;
+  /**
+   * เคยก่อไว้แล้วเพิ่งพังเพราะถอนเงินออก — คนละความหมายกับ "ยังไม่ได้ก่อ"
+   *
+   * ต้องแยกให้เห็น: ตอม่อเปล่า = ยังไม่เคยถึงตรงนี้ · ซากร้าว = เคยปลอดภัยแล้วเสียไป
+   * ถ้าวาดเหมือนกันหมด การถอนเงินจะเงียบสนิท ซึ่งเป็นสิ่งที่ไม่ควรเงียบที่สุด
+   */
+  broken: boolean;
   /** ด้านไหนของวง ใช้เลือกทิศวางตัวกำแพง */
   side: "nw" | "ne" | "se" | "sw";
   /** มุมของวง วาดเป็นป้อม */
@@ -551,6 +566,29 @@ export type WallSegment = {
  * กรอบภาพที่เผื่อที่ให้วงกำแพงแล้ว — ต้องใช้แทน layout.bounds ตอนตั้ง viewBox
  * ไม่งั้นกล้องจะเล็งเฉพาะตึก แล้วกำแพงโดนตัดขอบหายไปครึ่งวง
  */
+export type Bounds = { minX: number; minY: number; width: number; height: number };
+
+/**
+ * รวมสองกรอบให้เป็นกรอบเดียวที่คลุมทั้งคู่
+ *
+ * ใช้ตอนย้อนดูอดีต: กล้องต้องเล็ง **กรอบเดียวกับวันนี้** ไม่ใช่เล็งเมืองในอดีตใหม่
+ *
+ * ⚠️ ถ้าปล่อยให้กล้องเล็งใหม่ตามเมืองที่วาด จะเกิดสองปัญหาพร้อมกัน:
+ * (1) ภาพกระโดดทุกครั้งที่กดสลับวัน — John: *"พอขยับแล้วมันรู้สึกแปลกๆ"*
+ * (2) หนักกว่านั้น **การเติบโตหายไปจากภาพ** เพราะเมืองอดีตที่เล็กกว่าจะถูก
+ *     ซูมเข้าจนเต็มจอเท่าเมืองวันนี้ ⇒ เทียบแล้วดูเท่ากัน ทั้งที่มันโตขึ้นจริง
+ *
+ * เป็นกฎเดียวกับที่ตกลงกันไว้ตอนตรึงไม้บรรทัดความสูง: **กล้องขยับได้ แต่ห้าม
+ * ขยับจนกลบความจริงที่ต้องการให้เห็น** (เมืองสูงเกินจอ → กล้องถอย ไม่ใช่ตึกเตี้ยลง)
+ */
+export function unionBounds(a: Bounds, b: Bounds): Bounds {
+  const minX = Math.min(a.minX, b.minX);
+  const minY = Math.min(a.minY, b.minY);
+  const maxX = Math.max(a.minX + a.width, b.minX + b.width);
+  const maxY = Math.max(a.minY + a.height, b.minY + b.height);
+  return { minX, minY, width: maxX - minX, height: maxY - minY };
+}
+
 export function boundsWithWall(layout: CityLayout, segments: WallSegment[]) {
   const b = layout.bounds;
   if (segments.length === 0) return b;
@@ -588,7 +626,16 @@ export function wallBounds(layout: CityLayout) {
   };
 }
 
-export function wallRing(layout: CityLayout, coverage: number): WallSegment[] {
+/**
+ * @param coverage      สัดส่วนที่ก่อแล้ววันนี้ 0..1
+ * @param priorCoverage สัดส่วนเมื่อไม่กี่วันก่อน — ส่วนต่างคือ "อิฐใหม่" หรือ "รอยร้าว"
+ *                      ไม่ส่งมา = ไม่มีอะไรเพิ่งเกิดขึ้น (กำแพงนิ่ง)
+ */
+export function wallRing(
+  layout: CityLayout,
+  coverage: number,
+  priorCoverage?: number,
+): WallSegment[] {
   const b = wallBounds(layout);
   if (!b) return [];
   const { x0, x1, y0, y1 } = b;
@@ -608,7 +655,12 @@ export function wallRing(layout: CityLayout, coverage: number): WallSegment[] {
   for (let gx = x1 - 1; gx >= x0; gx--) push(gx, y1, "sw");
   for (let gy = y1 - 1; gy > y0; gy--) push(x0, gy, "nw");
 
-  const builtCount = Math.round(Math.max(0, Math.min(1, coverage)) * ring.length);
+  const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+  const builtCount = Math.round(clamp01(coverage) * ring.length);
+  const priorCount =
+    priorCoverage === undefined
+      ? builtCount
+      : Math.round(clamp01(priorCoverage) * ring.length);
 
   /**
    * ⚠️ ลำดับใน ring ใช้ตัดสินว่า "ก่อถึงไหนแล้ว" เท่านั้น ห้ามใช้เป็นลำดับการวาด
@@ -635,6 +687,9 @@ export function wallRing(layout: CityLayout, coverage: number): WallSegment[] {
       center: tileCenter(r.gx, r.gy),
       depth: r.gx + r.gy,
       built: i < builtCount,
+      // อิฐใหม่ = ช่วงที่วันก่อนยังไม่มี · ซากร้าว = ช่วงที่วันก่อนมีแล้วตอนนี้ไม่มี
+      fresh: i < builtCount && i >= priorCount,
+      broken: i >= builtCount && i < priorCount,
       gate: i === gateIdx,
       // คบไฟทุก 3 ช่วง — ถี่กว่านี้จะกลายเป็นไฟวิ่ง ห่างกว่านี้จะดูร้าง
       torch: !r.corner && i % 3 === 1,

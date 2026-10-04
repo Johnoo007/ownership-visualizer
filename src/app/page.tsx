@@ -88,6 +88,7 @@ export default function Home() {
     setFxRate,
     setCash,
     setReserve,
+    adjustReserve,
     setDeposits,
     replaceCity,
     importHoldings,
@@ -96,9 +97,19 @@ export default function Home() {
   } = useCity();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Holding | null>(null);
+  const [formOpen, setFormOpen] = useState(true);
   const [view, setView] = useState<CityView>("all");
   const [viewingPast, setViewingPast] = useState<Snapshot | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  /**
+   * กด Edit ที่ตึกไหนก็ตาม ต้องกางฟอร์มให้เสมอ
+   * ไม่งั้นตอนย่อไว้อยู่ จะกดแล้วเหมือนแอปไม่ตอบสนอง (ฟอร์มถูกใส่ค่าแล้วแต่มองไม่เห็น)
+   */
+  const openEditor = (h: Holding) => {
+    setEditing(h);
+    setFormOpen(true);
+  };
 
   // เมืองที่วาดบนจอ = ภาพอดีตถ้ากำลังย้อนดู ไม่งั้นคือของวันนี้
   const displayState = viewingPast?.state ?? state;
@@ -109,8 +120,24 @@ export default function Home() {
     return view === "all" ? all : all.filter((s) => s.district === view);
   }, [displayState, view]);
 
+  /**
+   * เมืองวันนี้ ใช้ตรึงกล้องตอนย้อนดูอดีต — ต้องกรองเขตแบบเดียวกับที่วาด
+   * ไม่งั้นสลับเขตแล้วกล้องจะเล็งกรอบของทั้งเมือง (ซูมออกเกินจริง)
+   */
+  const cameraStructures = useMemo(() => {
+    if (!viewingPast || !state) return undefined;
+    const all = toStructures(state);
+    return view === "all" ? all : all.filter((s) => s.district === view);
+  }, [viewingPast, state, view]);
+
   const selectedHolding =
     displayState?.holdings.find((h) => h.id === selectedId) ?? null;
+
+  /**
+   * สถานะกำแพงของภาพที่กำลังดู — เมืองต้องรู้ทั้ง "ก่อถึงไหนแล้ว" และ
+   * "เมื่อไม่กี่วันก่อนก่อถึงไหน" ถึงจะวาดอิฐใหม่กับรอยร้าวได้
+   */
+  const wall = reserveStatus(displayState?.reserve);
 
   if (!state || !displayState) {
     return (
@@ -155,21 +182,6 @@ export default function Home() {
           )}
         </header>
 
-        {viewingPast && (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--accent)] bg-[var(--accent)]/10 px-3 py-2 text-xs">
-            <span className="font-medium text-[var(--accent)]">
-              Viewing the city as of {formatSnapshotDate(viewingPast.at)} — read only
-            </span>
-            <button
-              type="button"
-              onClick={() => setViewingPast(null)}
-              className="ml-auto rounded-md border border-[var(--accent)] px-2 py-1 font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/15"
-            >
-              Back to today
-            </button>
-          </div>
-        )}
-
         <StatsPanel state={displayState} view={view} />
 
         <BuildLog state={displayState} />
@@ -191,10 +203,30 @@ export default function Home() {
 
         <div className="glow-panel relative h-[54vh] min-h-[340px] overflow-hidden rounded-xl bg-[var(--city-bg)] lg:h-auto lg:min-h-0 lg:flex-1">
           <div className="scanline pointer-events-none absolute inset-0 z-10" />
+          {/*
+            ป้ายบอกว่ากำลังดูอะไรอยู่ — ต้องเป็น *ป้ายลอยบนแผนที่* ไม่ใช่แถบในสายผัง
+            ⚠️ เดิมแถบ "Viewing the city as of…" แทรกอยู่เหนือ StatsPanel ⇒ กดย้อนอดีต
+            ทีไรแผนที่ถูกดันลง ~55px ทั้งแผง · กล้องนิ่งแล้วแต่ภาพยัง "ขยับ" อยู่ดี
+            (John: *"อยากให้ภาพเมืองอยู่กับที่"*) ⇒ เอามาแทนที่ป้าย Live City Map
+            ตรงมุมเดิม พื้นที่เท่ากันเป๊ะ แผนที่จึงไม่ขยับสักพิกเซล
+          */}
           <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
-            <span className="rounded-md border border-[var(--border-bright)] bg-[var(--panel)]/85 px-2 py-1 text-[10px] tracking-[0.14em] text-[var(--label-dim)] uppercase">
-              Live City Map
-            </span>
+            {viewingPast ? (
+              <span className="flex items-center gap-2 rounded-md border border-[var(--accent)] bg-[var(--panel)]/95 px-2 py-1 text-[10px] tracking-[0.14em] text-[var(--accent)] uppercase">
+                As of {formatSnapshotDate(viewingPast.at)} · read only
+                <button
+                  type="button"
+                  onClick={() => setViewingPast(null)}
+                  className="rounded border border-[var(--accent)] px-1.5 py-0.5 tracking-normal normal-case transition hover:bg-[var(--accent)]/15"
+                >
+                  Back to today
+                </button>
+              </span>
+            ) : (
+              <span className="rounded-md border border-[var(--border-bright)] bg-[var(--panel)]/85 px-2 py-1 text-[10px] tracking-[0.14em] text-[var(--label-dim)] uppercase">
+                Live City Map
+              </span>
+            )}
           </div>
 
           {/*
@@ -205,7 +237,10 @@ export default function Home() {
           <MapLegend />
           <IsoCity
             structures={structures}
-            wallCoverage={reserveStatus(displayState.reserve).coverage}
+            wallCoverage={wall.coverage}
+            wallPriorCoverage={wall.priorCoverage}
+            cameraStructures={cameraStructures}
+            cameraWallCoverage={reserveStatus(state?.reserve).coverage}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
@@ -229,7 +264,7 @@ export default function Home() {
           <SelectedTower
             state={state}
             holding={selectedHolding}
-            onEdit={setEditing}
+            onEdit={openEditor}
             onRemove={(id) => {
               removeHolding(id);
               setSelectedId(null);
@@ -243,18 +278,62 @@ export default function Home() {
             viewingPast ? "pointer-events-none opacity-40" : ""
           }`}
         >
-          <h2 className="mb-2 text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase">
-            {editing ? `Edit ${editing.ticker}` : "Build a new tower"}
-          </h2>
-          <HoldingForm
-            editing={editing}
-            onSubmit={(h) => {
-              upsertHolding(h);
-              setEditing(null);
-              setSelectedId(h.id);
-            }}
-            onCancel={() => setEditing(null)}
-          />
+          {/*
+            หัวข้อเป็นปุ่มย่อ/ขยาย — ฟอร์มนี้กินที่สุดใน sidebar แต่ใช้จริงแค่ตอน
+            เพิ่ม/แก้ตึก · ย่อไว้แล้วรายการตึกกับกำแพงเลื่อนขึ้นมาอยู่ในสายตาแทน
+          */}
+          <button
+            type="button"
+            onClick={() => setFormOpen((v) => !v)}
+            aria-expanded={formOpen}
+            className="group flex w-full items-center gap-2 text-left"
+          >
+            <h2 className="text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase transition group-hover:text-[var(--label)]">
+              {editing ? `Edit ${editing.ticker}` : "Build a new tower"}
+            </h2>
+            {/*
+              ⚠️ เวอร์ชันแรกใช้ลูกศร ▾ หมุน 90° ขนาด 10px แล้ว**มองไม่เห็นเลย**
+              (เหลือเป็นจุดจางๆ มุมขวา ไม่มีใครรู้ว่ากดได้) — ใช้กล่อง +/− แบบเดียวกับ
+              ปุ่มซูมของแผนที่แทน เพราะเป็นภาษาที่แอปนี้มีอยู่แล้วและอ่านออกทุกขนาด
+            */}
+            <span
+              className="ml-auto flex h-4 w-4 shrink-0 items-center justify-center rounded border border-[var(--border)] text-[11px] leading-none text-[var(--label-dim)] transition group-hover:border-[var(--accent)] group-hover:text-[var(--accent)]"
+              aria-hidden
+            >
+              {formOpen ? "−" : "+"}
+            </span>
+          </button>
+
+          {/*
+            ย่อ/กางแบบไหลลื่น ด้วยกริด 0fr → 1fr
+            เหตุผลที่ไม่ใช้ max-height: ต้องเดาความสูงเผื่อไว้เสมอ พอเดาเกิน
+            จังหวะปิดจะ "ค้างแล้ววูบ" เพราะช่วงแรกของ transition ไม่มีอะไรขยับ
+            ส่วน 0fr→1fr เบราว์เซอร์คำนวณความสูงจริงให้ ⇒ ฟอร์มยาวแค่ไหนก็ลื่นเท่ากัน
+
+            ⚠️ ฟอร์มยังอยู่ใน DOM ตอนย่อ (ต้องอยู่ ไม่งั้น animate ขาออกไม่ได้)
+            จึงต้องมี `inert` กันไม่ให้ Tab หลุดเข้าไปในช่องที่มองไม่เห็น
+            ผลพลอยได้: พิมพ์ค้างไว้แล้วเผลอย่อ ค่าที่กรอกไม่หาย
+          */}
+          <div
+            className={`grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${
+              formOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+            }`}
+            inert={!formOpen}
+          >
+            <div className="overflow-hidden">
+              <div className="mt-2">
+                <HoldingForm
+                  editing={editing}
+                  onSubmit={(h) => {
+                    upsertHolding(h);
+                    setEditing(null);
+                    setSelectedId(h.id);
+                  }}
+                  onCancel={() => setEditing(null)}
+                />
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)]">
@@ -280,7 +359,7 @@ export default function Home() {
             state={displayState}
             selectedId={selectedId}
             onSelect={setSelectedId}
-            onEdit={setEditing}
+            onEdit={openEditor}
             onRemove={(id) => {
               removeHolding(id);
               if (selectedId === id) setSelectedId(null);
@@ -290,7 +369,11 @@ export default function Home() {
         </section>
 
         {!viewingPast && (
-          <ReservePanel state={displayState} onChange={setReserve} />
+          <ReservePanel
+            state={displayState}
+            onChange={setReserve}
+            onAdjust={adjustReserve}
+          />
         )}
 
         {!viewingPast && (
