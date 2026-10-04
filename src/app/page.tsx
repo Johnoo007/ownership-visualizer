@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HoldingForm } from "@/components/HoldingForm";
 import { HoldingList } from "@/components/HoldingList";
 import { IsoCity } from "@/components/IsoCity";
@@ -97,10 +97,28 @@ export default function Home() {
   } = useCity();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Holding | null>(null);
-  const [formOpen, setFormOpen] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
   const [view, setView] = useState<CityView>("all");
   const [viewingPast, setViewingPast] = useState<Snapshot | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const autoOpenedRef = useRef(false);
+
+  /**
+   * First-time/sample visitors (recruiters landing from the portfolio link)
+   * get the build form collapsed by default — the map + stats already tell
+   * the story, and the form is only useful once you're actually editing a
+   * real portfolio. John's own real portfolio still opens it automatically,
+   * same as before, so his daily workflow doesn't change.
+   *
+   * Runs once per load (not on every state change) so a manual close while
+   * using the real portfolio doesn't get fought back open.
+   */
+  useEffect(() => {
+    if (state && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      if (!state.isDemo) setFormOpen(true);
+    }
+  }, [state]);
 
   /**
    * กด Edit ที่ตึกไหนก็ตาม ต้องกางฟอร์มให้เสมอ
