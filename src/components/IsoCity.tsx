@@ -31,6 +31,9 @@ export function IsoCity({
   cameraWallCoverage = 0,
   selectedId,
   onSelect,
+  controls = true,
+  districtLabels = true,
+  initialScale = 1,
 }: {
   structures: Structure[];
   /** สัดส่วนกำแพงที่ก่อแล้ว 0..1 — เงินสำรองฉุกเฉิน (Kingdom v1) */
@@ -47,6 +50,12 @@ export function IsoCity({
   cameraWallCoverage?: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** แถบปุ่ม motion/zoom มุมขวาล่าง — หน้า showcase ปิดไว้ให้ภาพโล่ง */
+  controls?: boolean;
+  /** ป้ายชื่อเขตบนพื้น — คนที่ไม่รู้จักแอปอ่านไม่ออกว่าคืออะไร หน้า showcase จึงปิด */
+  districtLabels?: boolean;
+  /** ซูมตั้งต้น — หน้า showcase ถอยกล้องให้เมืองไม่ชนข้อความที่ลอยทับขอบบน/ล่าง */
+  initialScale?: number;
 }) {
   const layout = useMemo(
     () => layoutCity(structures, DISTRICT_ORDER, ASIDE_DISTRICTS),
@@ -158,14 +167,27 @@ export function IsoCity({
 
   const { enabled: animate, toggle: toggleAnimate } = useAnimation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(initialScale);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    px: number;
+    py: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClick = useRef(false);
 
+  /**
+   * ⚠️ ห้าม setPointerCapture ตั้งแต่ pointerdown — พอจับ pointer ไว้ที่ svg แล้ว
+   * Chrome ยิง click ไปที่ svg แทนตึกที่กดจริง ⇒ ไปเข้าเงื่อนไข "กดที่ว่าง = ยกเลิกเลือก"
+   * กดตึกเท่าไหร่ก็ไม่มีอะไรขึ้น · จับ pointer เฉพาะตอนลากจริง (ขยับเกิน 4px)
+   */
   const onPointerDown = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
-      drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
-      e.currentTarget.setPointerCapture(e.pointerId);
+      // เผื่อการลากรอบก่อนไม่มี click ตามมา จะได้ไม่ค้างไปกินการกดครั้งถัดไป
+      suppressClick.current = false;
+      drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y, moved: false };
     },
     [pan],
   );
@@ -173,10 +195,19 @@ export function IsoCity({
   const onPointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     const d = drag.current;
     if (!d) return;
-    setPan({ x: d.px + (e.clientX - d.x), y: d.py + (e.clientY - d.y) });
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.moved) {
+      if (Math.hypot(dx, dy) < 4) return;
+      d.moved = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    setPan({ x: d.px + dx, y: d.py + dy });
   }, []);
 
   const endDrag = useCallback(() => {
+    // ลากเสร็จแล้วปล่อยเมาส์บนตึก ต้องไม่นับเป็นการกดเลือกตึก
+    if (drag.current?.moved) suppressClick.current = true;
     drag.current = null;
   }, []);
 
@@ -203,6 +234,12 @@ export function IsoCity({
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onClickCapture={(e) => {
+          if (suppressClick.current) {
+            suppressClick.current = false;
+            e.stopPropagation();
+          }
+        }}
         onClick={(e) => {
           if (e.target === e.currentTarget) onSelect(null);
         }}
@@ -318,7 +355,7 @@ export function IsoCity({
             ))}
 
           {/* เลเยอร์ป้าย — บนสุดเสมอ ไม่โดนตึกบัง */}
-          {layout.districts.map((d) => {
+          {districtLabels && layout.districts.map((d) => {
             const meta = DISTRICTS[d.id as keyof typeof DISTRICTS];
             const labelX = Math.min(...d.placed.map((p) => p.center.x)) - PITCH_W / 2;
             const labelY =
@@ -376,6 +413,7 @@ export function IsoCity({
         </g>
       </svg>
 
+      {controls && (
       <div className="absolute right-3 bottom-3 flex gap-1.5">
         <button
           type="button"
@@ -394,11 +432,12 @@ export function IsoCity({
         <ZoomButton
           label="⟳"
           onClick={() => {
-            setScale(1);
+            setScale(initialScale);
             setPan({ x: 0, y: 0 });
           }}
         />
       </div>
+      )}
     </div>
   );
 }
