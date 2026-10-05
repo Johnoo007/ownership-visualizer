@@ -13,6 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Absolute base for the link-preview image; fixed so it never follows a preview/old domain
+  metadataBase: new URL("https://city-of-ownership.vercel.app"),
   title: "City of Ownership",
   description: "Your portfolio as a city — height is money in, floors are shares held",
 };

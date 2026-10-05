@@ -4,7 +4,7 @@
 
 A stock portfolio, drawn as a city. Every holding is a tower; the city grows as you invest.
 
-**[Live demo →](https://ownership-visualizer-liart.vercel.app/)** (sample data)
+**[Live demo →](https://city-of-ownership.vercel.app/)** (sample data)
 
 ![City of Ownership](docs/showcase.png)
 
