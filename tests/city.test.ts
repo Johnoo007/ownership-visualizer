@@ -11,7 +11,7 @@ import {
   topConcentration,
   totals,
 } from "../src/lib/portfolio";
-import { THB_PER_PX, TOWER_CAP_PX, TOWER_CAP_THB, boundsWithWall, floorPlan, groundCells, heightFor, towerHeights, unionBounds, wallRing, wallBounds, layoutCity } from "../src/lib/iso";
+import { THB_PER_PX, TOWER_CAP_PX, boundsWithWall, floorPlan, groundCells, heightFor, towerHeights, unionBounds, wallRing, wallBounds, layoutCity } from "../src/lib/iso";
 import { parseHoldingsTable } from "../src/lib/importCsv";
 import { parseCity } from "../src/lib/storage";
 import { compare } from "../src/lib/history";

@@ -203,7 +203,6 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
 
     const frontL = p(1, -1);
     const frontR = p(1, 1);
-    const backL = p(-1, -1);
     const backR = p(-1, 1);
 
     /**

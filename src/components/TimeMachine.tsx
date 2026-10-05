@@ -29,6 +29,7 @@ export function TimeMachine({
   const [history, setHistory] = useState<Snapshot[]>([]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage only exists in the browser, so read it after mount
     setHistory(loadHistory());
   }, []);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { IsoCity } from "@/components/IsoCity";
 import { demoCity } from "@/lib/demo";
 import {
@@ -33,12 +33,27 @@ function showcaseCity(): CityState {
   };
 }
 
+// Only clearly tall screens (phones) count; near-square windows keep the default zoom
+const isTallScreen = () => window.innerWidth / window.innerHeight < 0.7;
+const subscribeResize = (onChange: () => void) => {
+  window.addEventListener("resize", onChange);
+  return () => window.removeEventListener("resize", onChange);
+};
+
 export function Showcase() {
-  const state = useMemo(showcaseCity, []);
+  const state = useMemo(() => showcaseCity(), []);
   const structures = useMemo(() => toStructures(state), [state]);
   const summary = useMemo(() => portfolioSummary(state), [state]);
   const wall = reserveStatus(state.reserve);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  /**
+   * The camera fits the city to the screen's width on a portrait phone, which leaves
+   * the city small with empty sky above and below — zoom in so it fills the height.
+   * On landscape screens, pull back so the city clears the overlaid header/footer.
+   */
+  const tall = useSyncExternalStore(subscribeResize, isTallScreen, () => false);
+  const scale = tall ? 1.4 : 0.8;
 
   const selected = state.holdings.find((h) => h.id === selectedId) ?? null;
 
@@ -51,6 +66,7 @@ export function Showcase() {
     <main className="relative h-[100svh] min-h-[560px] overflow-hidden bg-[var(--sky-top)] text-[var(--label)]">
       <div className="absolute inset-0">
         <IsoCity
+          key={scale}
           structures={structures}
           wallCoverage={wall.coverage}
           wallPriorCoverage={wall.priorCoverage}
@@ -58,7 +74,7 @@ export function Showcase() {
           onSelect={setSelectedId}
           controls={false}
           districtLabels={false}
-          initialScale={0.8}
+          initialScale={scale}
         />
       </div>
 
@@ -94,7 +110,7 @@ export function Showcase() {
             "linear-gradient(to top, var(--background) 0%, rgba(7,13,22,0.8) 45%, rgba(7,13,22,0) 100%)",
         }}
       >
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <Key />
           <div className="pointer-events-auto">
             {selected ? (
@@ -153,7 +169,7 @@ function Stat({
 /** Three-line key — just enough to read the picture; click a tower for the rest */
 function Key() {
   return (
-    <ul className="hidden flex-col gap-1.5 text-xs text-[var(--label-dim)] sm:flex">
+    <ul className="flex flex-col gap-1.5 text-xs text-[var(--label-dim)]">
       <KeyRow swatch="#7b9fd4" tall>
         Height — money invested
       </KeyRow>

@@ -25,13 +25,16 @@ export function useCity() {
 
   // Read only after mount — there's no localStorage on the server
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setState(loadCity());
     setBackup(loadBackup());
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => {
     if (!state) return;
     saveCity(state);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-read the backup the save above may have just written
     if (state.holdings.length === 0) setBackup(loadBackup());
   }, [state]);
 

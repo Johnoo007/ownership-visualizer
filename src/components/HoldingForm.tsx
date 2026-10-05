@@ -26,6 +26,7 @@ export function HoldingForm({
   const [form, setForm] = useState(BLANK);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the form whenever a different holding is opened for editing
     setForm(
       editing
         ? {

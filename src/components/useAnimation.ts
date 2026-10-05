@@ -23,8 +23,11 @@ export function useAnimation() {
     } catch {
       initial = true;
     }
+    // localStorage/matchMedia only exist in the browser, so read them after mount
+    /* eslint-disable react-hooks/set-state-in-effect */
     setEnabled(initial);
     setReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   const toggle = useCallback(() => {

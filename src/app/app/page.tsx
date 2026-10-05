@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { HoldingForm } from "@/components/HoldingForm";
 import { HoldingList } from "@/components/HoldingList";
 import { IsoCity } from "@/components/IsoCity";
@@ -97,28 +97,18 @@ export default function Home() {
   } = useCity();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Holding | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpenChoice, setFormOpenChoice] = useState<boolean | null>(null);
   const [view, setView] = useState<CityView>("all");
   const [viewingPast, setViewingPast] = useState<Snapshot | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const autoOpenedRef = useRef(false);
-
   /**
-   * First-time/sample visitors (recruiters landing from the portfolio link)
-   * get the build form collapsed by default — the map + stats already tell
-   * the story, and the form is only useful once you're actually editing a
-   * real portfolio. John's own real portfolio still opens it automatically,
-   * same as before, so his daily workflow doesn't change.
-   *
-   * Runs once per load (not on every state change) so a manual close while
-   * using the real portfolio doesn't get fought back open.
+   * Until the build form is opened or closed by hand, it defaults to open for a real
+   * portfolio and closed for the sample city — sample visitors see the map and stats
+   * first, and the form only matters once you're editing your own holdings.
    */
-  useEffect(() => {
-    if (state && !autoOpenedRef.current) {
-      autoOpenedRef.current = true;
-      if (!state.isDemo) setFormOpen(true);
-    }
-  }, [state]);
+  const formOpen = formOpenChoice ?? (state ? !state.isDemo : false);
+  const setFormOpen = (next: boolean | ((open: boolean) => boolean)) =>
+    setFormOpenChoice(typeof next === "function" ? next(formOpen) : next);
 
   /**
    * Clicking Edit on any tower must always expand the form,
