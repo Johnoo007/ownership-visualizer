@@ -75,27 +75,27 @@ export function IsoTower({
 }) {
   const { structure: s, center, height, partIndex, partCount } = placed;
   /**
-   * งานที่เพิ่งสร้างต้องขึ้นบนหลังที่กำลังก่อสร้าง (หลังสุดท้าย) เพราะเงินใหม่เข้าที่นั่น
+   * New work goes on the tower currently under construction (the last one), because that's where new money goes.
    *
-   * เคยมี "ไม้บรรทัดนับไม้ DCA" แปะข้างตึกด้วย แต่ถอดออกแล้ว — John: "ไม่ค่อย work"
-   * เหตุผลที่มันพัง: (1) มันเป็นกราฟที่เอาไปแปะในเมือง ไม่ใช่สิ่งของในโลกนี้
-   * เหมือนเครน/บิลบอร์ด/กองทอง (2) ขีดแนวนอนไล่ขึ้นไปหน้าตาซ้ำกับเส้นแบ่งชั้น
-   * ที่แปลว่าจำนวนหุ้น — ความหมายคนละเรื่องแต่หน้าตาเหมือนกัน (3) พอ 120 ไม้
-   * ขีดชิดกันจนกลายเป็นแท่งทึบ อ่านไม่ออก
-   * ⇒ ย้ายประวัติไม้ไปอยู่ในการ์ด "ตึกที่เลือก" แทน (SelectedTower)
+   * There used to be a DCA tally stuck to the side of each tower too, removed after it didn't work.
+   * Why it failed: (1) it was a chart pasted into the city, not an object from this world
+   * like the cranes/billboards/gold pile; (2) its horizontal ticks looked identical to the floor lines
+   * that mean share count — different meaning, same look; (3) at 120 rounds
+   * the ticks merged into a solid bar and became unreadable.
+   * ⇒ round history moved into the "selected tower" card instead (SelectedTower).
    */
   const isNewestPart = partIndex === partCount - 1;
 
   /**
-   * ป้ายของตึกหน้าสุดในกลุ่มบอกจำนวนหลังไปเลย เช่น "SPYM ×4"
+   * The front tower of a group labels the count directly, e.g. "SPYM ×4".
    *
-   * ทำไมไม่ให้นับเอาเอง: ตึกที่ชนเพดานสูงเท่ากันหมด ป้ายของตึกแถวหลังก็โดน
-   * ตึกแถวหน้าบัง (เห็นเป็น "PYM" "OGL") ⇒ นับด้วยตาไม่ได้จริงตอนเมืองหนาแน่น
-   * ตึกหน้าสุดของกลุ่มเป็นหลังเดียวที่ไม่มีอะไรบังแน่นอน (depth มากสุด) จึงเอาเลข
-   * ไปแปะไว้ตรงนั้น — ได้ขนาดกลุ่มโดยไม่ต้องเห็นครบทุกหลัง
+   * Why not let people count: towers at the height cap are all the same height, and back-row
+   * labels are hidden by the front row (showing as "PYM", "OGL") ⇒ counting by eye fails in a dense city.
+   * The front tower of a group is the only one guaranteed to be unobstructed (greatest depth), so the
+   * number goes there — you get the group size without needing to see every tower.
    *
-   * (เคยลองตีเส้นอาณาเขตบนพื้นแทน แต่ในมุม isometric ตึกทับพื้นของตัวเองมิด
-   *  มองไม่เห็นอะไรเลย จึงถอดออก)
+   * (Outlining each group's area on the ground was tried, but in isometric view towers completely
+   *  cover their own ground, so nothing was visible — removed.)
    */
   const signLabel =
     partCount > 1 && isNewestPart ? `${s.label} ×${partCount}` : s.label;
@@ -115,8 +115,8 @@ export function IsoTower({
   const lit = litRatio(s.health);
 
   const partialStart = plan.fullFloors * plan.floorHeight;
-  // ตึกทึบเต็มความสูงเสมอ — เงินลงไปแล้วเท่าไหร่ ตึกสร้างไปแล้วเท่านั้น
-  // เศษหุ้นไม่ได้แปลว่า "ยังไม่จ่าย" แค่แปลว่าชั้นบนสุดยังสะสมไม่ครบใบ
+  // Towers are always solid to full height — as much as has been invested, that much is built.
+  // A fractional share doesn't mean "unpaid", just that the top floor isn't a whole share yet.
   const solidTop = height;
   const hasPartial = plan.partial > 0.001 && height - partialStart > 2.5;
 
@@ -141,7 +141,7 @@ export function IsoTower({
           (partCount > 1 ? `\nComplex of ${plural(partCount, "tower")} (no. ${partIndex + 1})` : "")}
       </title>
 
-      {/* เงาทอดไปทางขวา — ยาวตามความสูงจริง (แสงมาจากซ้ายบน) */}
+      {/* Shadow cast to the right — length follows the real height (light from the top left) */}
       {(() => {
         const dx = height * 0.2;
         const dy = height * 0.07;
@@ -154,11 +154,11 @@ export function IsoTower({
         );
       })()}
 
-      {/* ตัวตึก — ความสูงมาจากเงินที่ลงไป ไม่ใช่ราคาตลาด */}
+      {/* Tower body — height comes from money invested, not market price */}
       <polygon points={polygonPoints([W, S, shift(S, solidTop), shift(W, solidTop)])} fill={palette.left} />
       <polygon points={polygonPoints([S, E, shift(E, solidTop), shift(S, solidTop)])} fill={palette.right} />
 
-      {/* แถบฐาน = ชั้นล่าง/ทางเข้า */}
+      {/* Base band = ground floor / entrance */}
       {solidTop > 12 && (
         <>
           <polygon
@@ -184,7 +184,7 @@ export function IsoTower({
 
       <Windows seed={s.id} W={W} S={S} E={E} height={solidTop} lit={lit} />
 
-      {/* แถบคั่นชั้น — 1 เส้น = 1 หุ้นที่สะสมได้ */}
+      {/* Floor lines — 1 line = 1 share held */}
       {floorLines.map((y, i) => (
         <g key={i}>
           <polygon
@@ -208,7 +208,7 @@ export function IsoTower({
         </g>
       ))}
 
-      {/* หลังคา — ถ้าสูง 0 (ของฟรี) อันนี้จะกลายเป็นที่ดินเปล่าราบกับพื้น */}
+      {/* Roof — at height 0 (a free holding) this becomes bare land flush with the ground */}
       <polygon
         points={polygonPoints([
           shift(N, solidTop),
@@ -223,14 +223,14 @@ export function IsoTower({
         strokeDasharray={height === 0 ? "5 4" : undefined}
       />
 
-      {/* ของบนดาดฟ้ามีได้เฉพาะตึกสูง — ตึกเตี้ยเอาพื้นที่ดาดฟ้าไปติดป้ายแทน */}
+      {/* Rooftop clutter only on tall towers — short towers use the roof for their sign instead */}
       {solidTop > NEON_MIN_HEIGHT && (
         <RoofKit seed={s.id} center={center} top={solidTop} palette={palette} />
       )}
 
       {/*
-        ส่วนที่เพิ่งสร้างเดือนนี้ — แถบสีต่างพาดที่ยอดตึก สูงตามเงินที่เพิ่งเติมจริง
-        เล็กแค่ไหนก็ตามความจริง แต่ "หาเจอทันที" เพราะสีกับนั่งร้านต่างจากที่เหลือ
+        What was built this month — a differently coloured band at the top, as tall as the money actually added.
+        However small, it stays true to scale, but is "found instantly" because its colour and scaffolding stand out.
       */}
       {s.recentAdd !== null && height > 0 && isNewestPart && (
         <FreshWork
@@ -245,14 +245,14 @@ export function IsoTower({
         />
       )}
 
-      {/* ที่ดินที่ไม่ได้ลงเงินสร้างแต่มีมูลค่า (ของที่ได้มาฟรี) — วางเป็นกองทอง ไม่ใช่ตึก
-          เพราะมันไม่ได้ถูกสร้างด้วยเงินตัวเอง แต่ก็ไม่ควรหายไปจากเมืองทั้งที่มีมูลค่าจริง */}
+      {/* Land with value but no money put in (a free holding) — shown as a gold pile, not a tower,
+          because it wasn't built with your own money, yet it shouldn't vanish from the city when it has real value */}
       {height === 0 && s.marketValue > 0 && (
         <GoldPile center={center} value={s.marketValue} seed={s.id} />
       )}
 
-      {/* ตึกสูง = ป้ายไฟบนผนัง · ที่เหลือ = บิลบอร์ดปักบนดาดฟ้า/บนที่ดิน
-          ที่ดินที่มีแต่กองทองก็ต้องมีป้ายแบบเดียวกัน ไม่งั้นจะเป็นชิ้นเดียวในเมืองที่ใช้ป้ายลอย */}
+      {/* Tall towers = neon sign on the wall · the rest = billboard on the roof/land.
+          Gold-pile land needs the same kind of sign, or it would be the only thing in the city with a floating label */}
       {solidTop > NEON_MIN_HEIGHT ? (
         <NeonSign
           label={signLabel}
@@ -272,7 +272,7 @@ export function IsoTower({
         )
       )}
 
-      {/* ชั้นบนสุดที่ยังสะสมไม่ครบใบ — ขอบเส้นประรอบส่วนที่เป็นเศษ */}
+      {/* Top floor not yet a whole share — dashed outline around the fractional part */}
       {hasPartial && (
         <g opacity={0.9}>
           <polyline
@@ -314,24 +314,24 @@ export function IsoTower({
   );
 }
 
-/** ต่ำกว่านี้ผนังสั้นกว่าตัวป้าย ติดไปก็ลอยอยู่นอกตึก */
+/** Below this the wall is shorter than the sign, which would float outside the tower */
 const NEON_MIN_HEIGHT = 56;
 
 /**
- * สีป้าย = สถานะกำไร/ขาดทุน อ่านออกทันทีโดยไม่ต้องนับหน้าต่าง
+ * Sign colour = gain/loss, readable instantly without counting windows.
  *
- * จงใจใส่สีที่ "ป้าย" ไม่ใช่ที่ "ไฟทั้งเมือง" — ป้ายเป็นจุดเล็กที่ตั้งใจไปอ่าน
- * ส่วนไฟคือบรรยากาศ ถ้าย้อมแดงทั้งเมืองตอนตลาดตก มันคือหน้าจอพอร์ตแดงทั้งจอ
- * ซึ่งเป็นภาพที่ทำให้คนขายตอนไม่ควรขาย
+ * The colour deliberately goes on the *sign*, not the *whole city's lights* — a sign is a small
+ * spot you go to read; the lights are atmosphere, and tinting the whole city red in a downturn
+ * is a fully red portfolio screen — the picture that makes people sell when they shouldn't.
  */
 function signColor(health: number | null): string {
-  if (health === null) return "#ffd88a"; // ของฟรี คิด % ไม่ได้
+  if (health === null) return "#ffd88a"; // free holding, no % possible
   if (health > 0.005) return "#6ee7a5";
   if (health < -0.005) return "#ff8f7d";
-  return "#8fe6ff"; // เสมอทุน
+  return "#8fe6ff"; // break-even
 }
 
-/** ความสูงที่ป้ายต้องอยู่เหนือกองทอง ไม่งั้นป้ายจะจมเข้าไปในกอง */
+/** Height the sign must clear above the gold pile, or it sinks into the pile */
 const GOLD_PILE_CLEARANCE = 20;
 
 const GOLD = {
@@ -343,8 +343,8 @@ const GOLD = {
 };
 
 /**
- * ตำแหน่งแท่งทองในกอง — วางซ้อนเป็นพีระมิด
- * [dx, dy, layer] · layer 1 = แท่งที่วางทับอยู่ด้านบน
+ * Positions of gold bars in the pile — stacked as a pyramid.
+ * [dx, dy, layer] · layer 1 = bars lying on top
  */
 const BAR_SLOTS: Array<[number, number, number]> = [
   [0, 2, 0],
@@ -354,7 +354,7 @@ const BAR_SLOTS: Array<[number, number, number]> = [
   [4.5, -1, 1],
 ];
 
-/** แท่งทองหนึ่งแท่ง — ทรงสอบเข้าด้านบนแบบแท่งจริง ไม่ใช่กล่องสี่เหลี่ยม */
+/** One gold bar — tapered toward the top like a real bar, not a rectangular box */
 function GoldBar({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
   const topW = w * 0.66;
   const b = (dx: number, dy: number) => ({ x: x + dx, y: y + dy });
@@ -381,7 +381,7 @@ function GoldBar({ x, y, w, h }: { x: number; y: number; w: number; h: number })
         stroke={GOLD.rim}
         strokeWidth={0.5}
       />
-      {/* ขอบมันวาวด้านบน */}
+      {/* Shiny top edge */}
       <polyline
         points={polygonPoints([topW_, topN, topE])}
         fill="none"
@@ -401,8 +401,8 @@ function GoldBar({ x, y, w, h }: { x: number; y: number; w: number; h: number })
 }
 
 /**
- * กองทองบนที่ดินที่ได้มาฟรี — จำนวนแท่งบอกมูลค่าแบบหยาบๆ
- * จงใจไม่ทำเป็นตึก เพราะตึก = สิ่งที่สร้างด้วยเงินตัวเอง ส่วนอันนี้ไม่ได้จ่ายไปสักบาท
+ * Gold pile on land obtained for free — the number of bars roughly shows value.
+ * Deliberately not a tower: towers are built with your own money, and this cost nothing.
  */
 function GoldPile({
   center,
@@ -420,7 +420,7 @@ function GoldPile({
   const barH = 5.5;
   const layerLift = 5;
 
-  // วาดจากหลังไปหน้า ไม่งั้นแท่งหลังจะทับแท่งหน้า
+  // Draw back to front, or the back bars would cover the front ones
   const slots = BAR_SLOTS.slice(0, count)
     .map(([dx, dy, layer]) => ({ dx, dy, layer }))
     .sort((a, b) => a.layer - b.layer || a.dy - b.dy);
@@ -445,7 +445,7 @@ function GoldPile({
         />
       ))}
 
-      {/* ประกายเล็กๆ บนแท่งบนสุด */}
+      {/* Small sparkle on the top bar */}
       {[0, 1].map((i) => {
         const sx = center.x + (seededRandom(seed + "sp", i) - 0.5) * 16;
         const sy =
@@ -462,8 +462,8 @@ function GoldPile({
 }
 
 /**
- * ป้ายไฟบนผนังด้านซ้าย — ต้อง skew ตัวอักษรให้ระนาบเดียวกับผนัง
- * matrix แรกคือเวกเตอร์ทิศ W→S ของ isometric 2:1 (cos/sin ของ 26.57°)
+ * Neon sign on the left wall — the text has to be skewed onto the wall's plane.
+ * The first matrix row is the W→S direction vector of 2:1 isometric (cos/sin of 26.57°).
  */
 function NeonSign({
   label,
@@ -478,11 +478,11 @@ function NeonSign({
   top: number;
   color: string;
 }) {
-  // ผนังยาวเท่านี้ในระบบพิกัดของ matrix — ป้ายต้องไม่เกินนี้ ไม่งั้นล้นออกนอกตึก
+  // The wall's length in this matrix's coordinates — the sign must not exceed it or it overflows the tower
   const wallLength = Math.hypot(S.x - W.x, S.y - W.y) / 0.894;
   const maxTextWidth = wallLength * 0.78;
 
-  // ชื่อยาวก็ย่อฟอนต์ลงให้พอดีผนัง แทนที่จะปล่อยล้น
+  // Long names get a smaller font to fit the wall instead of overflowing
   const fontSize = Math.min(11, Math.max(6.5, maxTextWidth / (label.length * 0.72)));
   const textWidth = label.length * fontSize * 0.72;
 
@@ -490,7 +490,7 @@ function NeonSign({
 
   return (
     <g transform={`matrix(0.894 0.447 0 1 ${anchor.x} ${anchor.y})`}>
-      {/* แผ่นป้ายรองตัวอักษร ไม่งั้นนีออนจะจมไปกับแถวหน้าต่าง */}
+      {/* Backing plate behind the letters, or the neon would blend into the rows of windows */}
       <rect
         x={-3}
         y={-fontSize - 1.5}
@@ -523,13 +523,13 @@ function NeonSign({
 }
 
 /**
- * ป้ายบิลบอร์ดตั้งบนดาดฟ้า สำหรับตึกที่เตี้ยเกินกว่าจะมีผนังให้แปะ
+ * Billboard standing on the roof, for towers too short to have a wall to mount on.
  *
- * matrix เอียงเฉพาะแกนนอน (a,b = ทิศ W→S) ส่วนแกนตั้งปล่อยไว้ (c,d = 0,1)
- * ⇒ ป้ายหันหน้าถูกทิศตามเมือง แต่ยัง "ตั้งฉากกับพื้นโลก" จริงๆ
- * ถ้าเอียงทั้งสองแกนป้ายจะนอนราบไปกับหลังคาแทน
+ * The matrix skews only the horizontal axis (a,b = the W→S direction) and leaves vertical alone (c,d = 0,1)
+ * ⇒ the sign faces the right way for the city but stays truly perpendicular to the ground.
+ * Skewing both axes would lay the sign flat on the roof instead.
  *
- * ดาดฟ้ากว้างเท่ากันทุกตึกไม่ว่าจะเตี้ยแค่ไหน จึงติดป้ายได้โดยไม่ต้องดันความสูงให้ผิดสเกล
+ * Every roof is the same width however short the tower, so signs fit without faking the height scale.
  */
 function RoofSign({
   label,
@@ -542,7 +542,7 @@ function RoofSign({
   top: number;
   color: string;
 }) {
-  // ความกว้างดาดฟ้าในระบบพิกัดของ matrix นี้ ≈ 38 หน่วย
+  // Roof width in this matrix's coordinates ≈ 38 units
   const fontSize = Math.min(10, 30 / (label.length * 0.72));
   const w = label.length * fontSize * 0.72 + 6;
   const h = fontSize + 4;
@@ -550,11 +550,11 @@ function RoofSign({
 
   return (
     <g transform={`matrix(0.894 0.447 0 1 ${center.x} ${center.y - top})`}>
-      {/* ขาตั้งสองข้าง ยึดป้ายกับดาดฟ้า */}
+      {/* Two legs anchoring the sign to the roof */}
       <rect x={-w / 3 - 0.6} y={-legH} width={1.2} height={legH} fill="#2c4767" />
       <rect x={w / 3 - 0.6} y={-legH} width={1.2} height={legH} fill="#2c4767" />
 
-      {/* แสงจากป้ายสาดลงดาดฟ้า */}
+      {/* Light from the sign spilling onto the roof */}
       <rect
         x={-w / 2}
         y={-legH - h - 1}
@@ -600,7 +600,7 @@ function RoofSign({
   );
 }
 
-/** ของบนดาดฟ้า — แท็งก์น้ำ/ช่องแอร์/เสาอากาศ ทำให้ยอดตึกไม่โล้น */
+/** Rooftop clutter — water tank / AC units / antenna, so tower tops aren't bare */
 function RoofKit({
   seed,
   center,
@@ -617,7 +617,7 @@ function RoofKit({
   const cy = center.y - top;
 
   if (pick < 0.4) {
-    // แท็งก์น้ำทรงกล่อง
+    // Box-shaped water tank
     const w = 7;
     const h = 9;
     return (
@@ -654,7 +654,7 @@ function RoofKit({
   }
 
   if (pick < 0.72) {
-    // เสาอากาศ + ไฟกระพริบบนยอด
+    // Antenna + blinking light on top
     return (
       <g>
         <rect x={cx - 0.8} y={cy - 20} width={1.6} height={20} fill={palette.edge} />
@@ -664,7 +664,7 @@ function RoofKit({
     );
   }
 
-  // ช่องแอร์เตี้ยๆ 2 ก้อน
+  // Two low AC units
   return (
     <g>
       <rect x={cx - 10} y={cy - 5} width={8} height={4} fill={palette.right} />
@@ -675,7 +675,7 @@ function RoofKit({
   );
 }
 
-/** หน้าต่างบนสองหน้าที่มองเห็น — สัดส่วนที่ติดไฟบอกกำไร/ขาดทุน */
+/** Windows on the two visible faces — the share that are lit shows gain/loss */
 function Windows({
   seed,
   W,
@@ -710,7 +710,7 @@ function Windows({
         const u1 = u0 + 0.16;
         const on = seededRandom(seed + side, n++) < lit;
 
-        // แสงรั่วออกรอบบานที่เปิดไฟ — ทำให้เมืองกลางคืนดูเรืองแสงจริง
+        // Light bleeding around lit windows — makes the night city actually glow
         if (on) {
           cells.push(
             <polygon
@@ -727,8 +727,8 @@ function Windows({
           );
         }
 
-        // ให้บางบานเปิด-ปิดไฟเป็นระยะ เหมือนคนในตึกยังใช้ชีวิตอยู่
-        // เลือกแบบคงที่ต่อบาน ไม่งั้นตอนปิดสวิตช์ภาพจะเปลี่ยนไปจากเดิม
+        // Some windows switch on and off now and then, as if people inside are living their lives
+        // Chosen deterministically per window, or the picture would change when motion is switched off
         const flickers = on && seededRandom(seed + side + "f", n) > 0.86;
 
         cells.push(
@@ -762,8 +762,8 @@ function Windows({
 }
 
 /**
- * ป้ายชื่อวาดแยกเป็นเลเยอร์บนสุด — ถ้าวาดไปพร้อมตึก ป้ายของตึกแถวหลัง
- * จะถูกตึกแถวหน้าทับ (เป็นธรรมชาติของ depth sort แบบ isometric)
+ * Labels are drawn as a separate top layer — drawn with the towers, back-row labels
+ * would be covered by front-row towers (the nature of isometric depth sorting).
  */
 export function TowerLabel({
   placed,
@@ -774,7 +774,7 @@ export function TowerLabel({
   onHover,
 }: {
   placed: PlacedStructure;
-  /** ตำแหน่งที่ผ่านการหลบชนกับป้ายอื่นแล้ว */
+  /** Position after collision avoidance with other labels */
   labelY: number;
   selected: boolean;
   hovered: boolean;
@@ -794,7 +794,7 @@ export function TowerLabel({
       onMouseEnter={() => onHover(s.id)}
       onMouseLeave={() => onHover(null)}
     >
-      {/* ป้ายถูกดันหนีป้ายอื่น — ลากเส้นกลับไปหายอดตึกของตัวเอง */}
+      {/* A label pushed away from others — draw a line back to its own tower top */}
       {roofY - y > 8 && (
         <line
           x1={center.x}
@@ -855,11 +855,11 @@ export function TowerLabel({
 }
 
 /**
- * งานที่เพิ่งสร้างในรอบไม่กี่วันนี้ — แถบสีที่ยอดตึก + นั่งร้าน + เครน
+ * Work done in the last few days — coloured band at the top + scaffolding + crane.
  *
- * ความสูงของแถบ = สัดส่วนเงินที่เพิ่งเติมต่อเงินทั้งก้อนของตึกนี้ (ตามจริงเป๊ะ)
- * มันจะบางมากเสมอ นั่นแหละคือความจริง — สิ่งที่ทำให้เห็นคือ *สี* กับ *เครน*
- * ไม่ใช่การโม้ขนาด
+ * The band's height = money just added as a share of the tower's total (exactly true to scale).
+ * It will always be very thin, and that's the truth — what makes it visible is the *colour* and the *crane*,
+ * not exaggerating its size.
  */
 function FreshWork({
   W,
@@ -881,13 +881,13 @@ function FreshWork({
   height: number;
 }) {
   const ratio = invested > 0 ? Math.min(1, amount / invested) : 1;
-  // ขั้นต่ำ 3px เพื่อให้ยังเห็นเป็นแถบ ไม่ใช่เส้นเดียว — ไม่ใช่การขยายค่าให้ดูเยอะ
+  // At least 3px so it still reads as a band, not a single line — not inflating the value
   const band = Math.max(3, Math.min(height, ratio * height));
   const base = top - band;
 
   return (
     <g>
-      {/* แถบงานใหม่บนสองหน้าที่มองเห็น */}
+      {/* New-work band on the two visible faces */}
       <polygon
         points={polygonPoints([
           shift(W, base),
@@ -909,7 +909,7 @@ function FreshWork({
         opacity={0.55}
       />
 
-      {/* เส้นนั่งร้านแนวตั้งพาดแถบ — อ่านออกว่า "ยังไม่เก็บงาน" */}
+      {/* Vertical scaffolding lines across the band — reads as "work not finished yet" */}
       {[0.25, 0.5, 0.75].map((t) => (
         <line
           key={t}
@@ -928,7 +928,7 @@ function FreshWork({
   );
 }
 
-/** เครนเล็กบนดาดฟ้า — แค่พอบอกว่าตึกนี้กำลังมีงาน ไม่ให้บังตัวตึก */
+/** Small crane on the roof — just enough to say this tower has work going on, without hiding it */
 function MiniCrane({ x, y, h }: { x: number; y: number; h: number }) {
   const jib = Math.max(10, h * 0.55);
   return (

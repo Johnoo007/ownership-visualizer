@@ -1,9 +1,9 @@
 /**
- * เช็คว่ากำแพง "วาดออกมาจริง" ไม่ใช่แค่คำนวณถูก
+ * Checks that the wall is actually *drawn*, not just computed correctly.
  *
- * ⚠️ มีเทสต์ชุดนี้เพราะเคยพลาดมาแล้ว: แก้ไฟล์ไม่ match แล้วเงียบ ตอม่อกำแพง
- * ไม่ถูกแก้ กว่าจะจับได้คือตอนไปนับ DOM จริงแล้วได้ 0 ชิ้น
- * ⇒ ของที่ "ต้องเห็นบนจอ" ต้องมีเทสต์ที่นับมันจากผลลัพธ์ที่ render ออกมาจริง
+ * ⚠️ This suite exists because of a real miss: a file edit silently failed to match, the
+ * wall footings were never updated, and it was only caught by counting real DOM nodes (0).
+ * ⇒ anything that must be visible on screen needs a test that counts it in the rendered output.
  */
 import { test } from "vitest";
 import assert from "node:assert/strict";
@@ -41,51 +41,51 @@ function draw(amountTHB: number, deltaTHB: number) {
   return { ring, svg: renderToStaticMarkup(<IsoWall segments={ring} />) };
 }
 
-/** นับ element ชนิดหนึ่งใน markup */
+/** Count one kind of element in the markup */
 const count = (svg: string, tag: string) =>
   (svg.match(new RegExp(`<${tag}\\b`, "g")) ?? []).length;
 
-test("อิฐที่เพิ่งก่อต้องมีนั่งร้านโผล่บนจอจริง ไม่ใช่แค่ค่าใน state", () => {
+test("freshly laid bricks show scaffolding on screen, not just a value in state", () => {
   const still = draw(60_000, 0);
   const fresh = draw(60_000, 30_000);
 
   assert.equal(still.ring.filter((w) => w.fresh).length, 0);
   const freshCount = fresh.ring.filter((w) => w.fresh).length;
-  assert.ok(freshCount > 0, "ต้องมีช่วงที่เพิ่งก่อ");
+  assert.ok(freshCount > 0, "expected a freshly built section");
 
-  // นั่งร้าน = เส้น 3 เส้นต่อช่วง (เสา 2 + คาน 1) ที่ไม่มีในภาพนิ่ง
+  // Scaffolding = 3 lines per section (2 poles + 1 beam) that the still wall doesn't have
   const added = count(fresh.svg, "line") - count(still.svg, "line");
   assert.ok(
     added >= freshCount * 3,
-    `นั่งร้านหายไปจากภาพ: เส้นเพิ่มแค่ ${added} เส้น สำหรับอิฐใหม่ ${freshCount} ช่วง`,
+    `scaffolding missing from the drawing: only ${added} extra lines for ${freshCount} new sections`,
   );
-  assert.ok(fresh.svg.includes("#c9a227"), "นั่งร้านต้องใช้สีทองชุดเดียวกับเครนของตึก");
+  assert.ok(fresh.svg.includes("#c9a227"), "scaffolding must use the same gold as tower cranes");
 });
 
-test("รอยร้าวต้องวาดออกมาเป็นซาก ไม่ใช่ตอม่อเปล่าหน้าตาเหมือนช่วงที่ยังไม่ก่อ", () => {
+test("cracks are drawn as rubble, not bare footings that look like an unbuilt section", () => {
   const cracked = draw(120_000, -40_000);
   const brokenCount = cracked.ring.filter((w) => w.broken).length;
-  assert.ok(brokenCount > 0, "ต้องมีซาก");
+  assert.ok(brokenCount > 0, "expected rubble");
 
-  // polyline = รอยแตก · มีเฉพาะซาก ไม่มีที่อื่นในกำแพงเลย
+  // polyline = crack · only rubble has them, nowhere else on the wall
   assert.equal(
     count(cracked.svg, "polyline"),
     brokenCount,
-    "จำนวนรอยแตกบนจอต้องเท่ากับจำนวนช่วงที่พัง",
+    "number of cracks on screen must equal the number of broken sections",
   );
-  assert.ok(cracked.svg.includes("#ff8f7d"), "รอยแตกต้องใช้สีเดียวกับตัวเลขขาดทุน");
+  assert.ok(cracked.svg.includes("#ff8f7d"), "cracks must use the same colour as loss figures");
 
-  // และต้องไม่มีเส้นประแบบ "แบบก่อสร้างรอคิว" ปนอยู่ในซาก
+  // and rubble must not contain the "planned, waiting to build" dashed outline
   const stillNothing = draw(0, 0);
   assert.ok(
     stillNothing.svg.includes("stroke-dasharray"),
-    "ช่วงที่ยังไม่เคยก่อต้องเป็นเส้นประ (ของเดิม)",
+    "never-built sections must stay dashed (as before)",
   );
 });
 
-test("กำแพงนิ่ง (ไม่มีเหตุการณ์) ต้องไม่มีทั้งนั่งร้านและรอยแตก", () => {
+test("a still wall (no events) has neither scaffolding nor cracks", () => {
   const { svg } = draw(120_000, 0);
-  assert.equal(count(svg, "polyline"), 0, "ไม่มีอะไรเกิดขึ้น ห้ามมีรอยแตก");
-  assert.ok(!svg.includes("#c9a227"), "ไม่มีอะไรเกิดขึ้น ห้ามมีนั่งร้าน");
-  assert.ok(svg.includes("<polygon"), "แต่ตัวกำแพงต้องยังอยู่");
+  assert.equal(count(svg, "polyline"), 0, "nothing happened, so no cracks");
+  assert.ok(!svg.includes("#c9a227"), "nothing happened, so no scaffolding");
+  assert.ok(svg.includes("<polygon"), "but the wall itself must still be there");
 });

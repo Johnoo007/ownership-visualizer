@@ -1,6 +1,6 @@
 import type { CityState, Holding } from "./types";
 
-/** สัญลักษณ์ฝั่ง Yahoo — หุ้นไทยต้องเติม .BK, FX ใช้ THB=X */
+/** Yahoo symbols — Thai stocks need a .BK suffix, FX uses THB=X */
 export function yahooSymbol(h: Holding): string {
   return h.currency === "THB" ? `${h.ticker}.BK` : h.ticker;
 }
@@ -15,8 +15,8 @@ export type SyncResult = {
 };
 
 /**
- * ดึงราคาล่าสุดมาทับ currentPrice — คืน state ใหม่โดยไม่แตะ shares/avgCost
- * (ราคาตลาดเปลี่ยนได้ แต่ "เงินที่ลงไปแล้ว" ห้ามถูกแก้โดยอัตโนมัติเด็ดขาด)
+ * Write the latest prices into currentPrice — returns new state without touching shares/avgCost
+ * (market price may change, but "money invested" must never be edited automatically)
  */
 export async function syncPrices(
   state: CityState,
@@ -37,7 +37,7 @@ export async function syncPrices(
 
   const holdings = state.holdings.map((h) => {
     const q = data.quotes[yahooSymbol(h)];
-    // ราคาที่ได้มาต้องเป็นสกุลเดียวกับที่บันทึกไว้ ไม่งั้นตัวเลขจะเพี้ยนเงียบๆ
+    // The quote must be in the same currency as the holding, or the numbers drift silently
     if (!q || q.currency !== h.currency) {
       failed.push(h.ticker);
       return h;
@@ -60,7 +60,7 @@ export async function syncPrices(
   };
 }
 
-/** อายุของราคาเป็นชั่วโมง — null ถ้าไม่เคยอัปเดตเลย */
+/** Price age in hours — null if prices were never updated */
 export function priceAgeHours(state: CityState): number | null {
   if (!state.pricesUpdatedAt) return null;
   const t = Date.parse(state.pricesUpdatedAt);
@@ -82,5 +82,5 @@ export function formatAge(hours: number | null): string {
   return `${days} ${days === 1 ? "day" : "days"} ago`;
 }
 
-/** เกินนี้ถือว่าเก่าจนตัวเลขกำไร/ขาดทุนเชื่อไม่ได้แล้ว */
+/** Older than this, gain/loss figures can no longer be trusted */
 export const STALE_HOURS = 48;

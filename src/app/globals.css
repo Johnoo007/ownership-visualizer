@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 /*
- * ธีมมืดแบบ command center — จงใจ dark-only
- * เมืองกลางคืนต้องมีไฟตึกเรืองแสงถึงจะอ่านกำไร/ขาดทุนออก
- * ถ้าทำโหมดสว่างด้วย ไฟหน้าต่างจะหายไปกับพื้นหลัง
+ * Command-center dark theme — deliberately dark-only.
+ * A night city needs glowing windows to read gain/loss at all;
+ * in a light theme the windows would disappear into the background.
  */
 :root {
   --background: #070d16;
@@ -20,7 +20,7 @@
   --sky-top: #060b14;
   --sky-bottom: #12233c;
   --star: #cfe3f7;
-  /* พื้นหลังกล่องเมือง — ต้องเข้ากับ sky เพราะ SVG letterbox โผล่ขอบได้ */
+  /* City panel background — must match the sky, since SVG letterboxing can show at the edges */
   --city-bg: #0a1424;
 
   --grass: #16342c;
@@ -29,7 +29,7 @@
   --road-line: #7d90ad;
   --plot: #1a2c44;
   --plot-line: #24405f;
-  /* แปลงจัดสรรที่ยังไม่มีตึก — ต้องอ่านออกว่า "ที่ของเรา รอสร้าง" ไม่ใช่ที่รกร้าง */
+  /* Vacant plots — must read as "our land, waiting to be built", not wasteland */
   --vacant: #14243a;
   --vacant-line: #2c4767;
   --ground-shadow: rgba(0, 0, 0, 0.55);
@@ -51,14 +51,14 @@ body {
   color: var(--label);
 }
 
-/* ขอบคมแบบ pixel art — ห้ามให้เบราว์เซอร์ไล่เฉดขอบจนเบลอ */
+/* Crisp pixel-art edges — never let the browser anti-alias them into blur */
 .pixel-art {
   shape-rendering: crispEdges;
 }
 
 /*
- * ความเคลื่อนไหวของเมือง — ทำงานเฉพาะเมื่อ .city-animate อยู่บน svg เท่านั้น
- * ปิดสวิตช์แล้วต้องนิ่งสนิท ไม่ใช่แค่ช้าลง
+ * City motion — only active while .city-animate is on the svg.
+ * Switching it off must freeze completely, not just slow down.
  */
 @keyframes city-twinkle {
   0%,
@@ -116,8 +116,8 @@ body {
 }
 
 /*
- * รถวิ่งไปตามเลนแล้วจางหายตอนใกล้สุดถนน ก่อนโผล่กลับมาที่ต้นเลนอีกรอบ
- * ถ้าไม่มีช่วงจาง จังหวะวนจะเห็นเป็นรถกระโดดหายแล้วโผล่
+ * Cars drive along their lane and fade out near the end of the road before reappearing
+ * at the start. Without the fade, the loop looks like cars vanishing and popping back.
  */
 @keyframes city-drive {
   0% {
@@ -147,14 +147,14 @@ body {
   animation-delay: var(--delay, 0s);
 }
 /*
- * ของที่ "เคลื่อนที่" (รถ/คน/เครน) ต้องหยุดค้างตรงที่มันอยู่ แล้วเดินต่อจากจุดเดิม
+ * Things that *move* (cars/people/cranes) must freeze where they are and resume from there.
  *
- * ⚠️ ต่างจากของที่ "กะพริบ" (ดาว/ไฟ/หน้าต่าง) โดยตั้งใจ:
- * ถอด animation ออกทั้งก้อน = ตำแหน่งรีเซ็ตกลับจุดเริ่ม → กดหยุดแล้วรถกระโดด
- * ⇒ ผูก animation ไว้ตลอด แล้วสลับแค่ play-state จะได้ต่อเนื่องทั้งตอนหยุดและเล่นต่อ
+ * ⚠️ Deliberately different from things that *blink* (stars/lights/windows):
+ * removing the animation entirely resets position to the start → pausing makes cars jump.
+ * ⇒ keep the animation attached and only toggle play-state, so pause/resume is continuous.
  *
- * ส่วนของที่กะพริบยังใช้วิธีถอด class เหมือนเดิม เพราะการค้างกลางจังหวะกะพริบ
- * จะทำให้ไฟบางดวงดับค้าง ซึ่งอ่านผิดความหมาย (ไฟหน้าต่าง = กำไร/ขาดทุน)
+ * Blinking things still toggle the class, because freezing mid-blink would leave some
+ * lights stuck off, which reads wrong (window light = gain/loss).
  */
 .anim-crane {
   animation: city-crane var(--dur, 14s) ease-in-out infinite;
@@ -170,9 +170,9 @@ body {
 }
 
 /*
- * ⚠️ ต้องอยู่ "หลัง" ประกาศ animation แบบย่อเสมอ
- * shorthand `animation:` รีเซ็ต animation-play-state กลับเป็น running ทุกครั้ง
- * ถ้าวางกฎนี้ไว้ก่อน มันจะโดนล้างทิ้งและหยุดไม่ได้เลย
+ * ⚠️ Must always come *after* the animation shorthand —
+ * the `animation:` shorthand resets animation-play-state to running every time,
+ * so if this rule came first it would be wiped out and pausing would never work.
  */
 .anim-crane,
 .anim-walk,

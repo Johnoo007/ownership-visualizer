@@ -2,31 +2,31 @@ export type Currency = "USD" | "THB";
 
 export type DistrictId = "mission" | "goldengoose";
 
-/** หุ้น 1 ตัวที่ถืออยู่ — เก็บราคาต่อหุ้นเพราะเป็นเลขที่แอปโบรกโชว์ตรงๆ */
+/** One holding — stores price per share because that's the number brokerage apps show */
 export type Holding = {
   id: string;
   ticker: string;
   name: string;
   shares: number;
-  /** ต้นทุนเฉลี่ยต่อหุ้น ในสกุลของมันเอง — 0 ได้ (ของที่ได้มาฟรี) */
+  /** Average cost per share, in its own currency — may be 0 (a free holding) */
   avgCost: number;
-  /** ราคาปัจจุบันต่อหุ้น ในสกุลของมันเอง */
+  /** Current price per share, in its own currency */
   currentPrice: number;
   currency: Currency;
   district: DistrictId;
   /**
-   * บาทที่จ่ายจริงตอนซื้อ (ทั้ง position) — ถ้ามี จะถูกใช้เป็น "เงินที่ลงไป" แทน
+   * Baht actually paid at purchase (whole position) — if present, used as "money invested" instead.
    *
-   * ทำไมต้องมี: การเอาต้นทุน USD มาคูณค่าเงินวันนี้ ให้คำตอบคนละตัวกับ
-   * บาทที่จ่ายไปจริง เพราะค่าเงินตอนแลกไม่เท่าวันนี้ (ต่างกันได้หลักหมื่นบาท)
-   * และบาทคือสกุลที่ใช้วัดเป้าหมายจริง จึงต้องยอมให้บันทึกตัวเลขที่จ่ายจริงได้
+   * Why: converting the USD cost at today's FX gives a different answer from the baht
+   * actually paid, because the rate at exchange time differs (it can be tens of thousands of baht),
+   * and baht is the currency the goals are measured in, so the real figure must be recordable.
    */
   costTHB?: number;
 };
 
 /**
- * เงินสดที่ยังไม่ได้ลงทุน — จงใจแยกจาก holdings เพราะมันยังไม่ใช่ความเป็นเจ้าของ
- * ห้ามนับรวมใน "เงินที่ลงไปแล้ว" ที่เป็นความสูงของเมือง
+ * Cash not yet invested — deliberately separate from holdings, because it doesn't own anything yet.
+ * Never counted in "money invested", which is the city's height.
  */
 export type Cash = {
   usd: number;
@@ -34,118 +34,118 @@ export type Cash = {
 };
 
 /**
- * การเติมเงินเข้าตัวใดตัวหนึ่งหนึ่งครั้ง — "ไม้ DCA" หนึ่งไม้
+ * One top-up into a single holding — one "DCA round".
  *
- * เก็บแยกจาก avgCost เพราะต้นทุนเฉลี่ยบอกแค่ "ตอนนี้ลงไปเท่าไหร่รวม"
- * แต่ลบร่องรอยว่า *เติมมากี่ครั้ง* ทิ้งไปหมด ซึ่งเป็นสิ่งที่นับแล้วภูมิใจได้
- * ฿4,000 บนพอร์ต ฿300,000 = 1.3% เสมอ ไม่ว่าจะวาดยังไง — แต่ "อีกหนึ่งไม้"
- * เป็น 1 เต็มเสมอเหมือนกัน จึงต้องมีหน่วยนับที่ไม่ถูกเจือจางด้วยขนาดพอร์ต
+ * Kept separately from avgCost, because average cost only says "how much is in, in total"
+ * and erases *how many times* money was added — which is the thing worth being proud of.
+ * ฿4,000 on a ฿300,000 portfolio is always 1.3%, however it's drawn — but "one more round"
+ * is always a full 1, so it needs a unit that isn't diluted by portfolio size.
  */
 export type Contribution = {
-  /** วันที่เติม (YYYY-MM-DD) */
+  /** Date of the top-up (YYYY-MM-DD) */
   at: string;
   ticker: string;
-  /** บาทที่เติมเข้าตัวนั้นรอบนี้ */
+  /** Baht added to that holding this round */
   amountTHB: number;
 };
 
 /**
- * เงินสำรองฉุกเฉิน — Kingdom v1: "กำแพงเมือง"
+ * Emergency fund — drawn as the city wall.
  *
- * ⚠️ กฎเหล็กที่ John เคาะเอง (2026-08-10): **ห้ามบวกเข้ายอดมูลค่าพอร์ต**
- * เหตุผลของเขาคือ *"ไม่งั้นจะเหมือนเราเลยเป้าไปแล้ว"* — เงินสำรองไม่ใช่ความมั่งคั่ง
- * ที่กำลังงอกเงย มันคือของที่ต้องอยู่เฉยๆ ให้พร้อมใช้ ⇒ วัดเป็น "กันได้กี่เดือน"
- * ไม่ใช่ "กี่บาท" และไม่โผล่ในสกอร์บอร์ดเดียวกับตึก
+ * ⚠️ Hard rule set by the owner: **never add it to portfolio value**.
+ * The reasoning: otherwise it would look like the goal was already reached. An emergency fund isn't wealth
+ * that grows — it's money that sits ready to use ⇒ measured as "months covered",
+ * not "baht", and it never appears on the same scoreboard as the towers.
  *
- * ในเมือง: ไม่ใช่ตึก (ตึก = เงินที่กลายเป็นความเป็นเจ้าของแล้ว)
- * แต่เป็น **กำแพงล้อมเมือง** — ของที่ไม่ได้ทำให้เมืองใหญ่ขึ้น แต่ทำให้เมืองไม่พัง
+ * In the city: not a tower (towers = money that has become ownership)
+ * but a **wall around the city** — it doesn't make the city bigger, it keeps the city from falling.
  */
 export type Reserve = {
-  /** ยอดเงินสำรอง (บาท) */
+  /** Reserve amount (baht) */
   amountTHB: number;
-  /** รายจ่ายต่อเดือนที่ใช้เป็นตัวหาร — กำแพงวัดเป็นเดือน ไม่ใช่บาท */
+  /** Monthly expenses used as the divisor — the wall is measured in months, not baht */
   monthlyBurnTHB: number;
-  /** ประวัติก่ออิฐ/ถอน เรียงเก่า→ใหม่ — ต่อท้ายอย่างเดียว */
+  /** Laid/withdrawn history, oldest → newest — append only */
   history?: ReserveEvent[];
 };
 
 /**
- * การขยับเงินสำรองหนึ่งครั้ง — บวก = ก่ออิฐ · ลบ = ถอนออก (กำแพงร้าว)
+ * One change to the reserve — positive = bricks laid · negative = withdrawn (the wall cracks).
  *
- * ทำไมต้องมี: ก่อนหน้านี้ `reserve` เก็บแค่ยอดคงเหลือ ⇒ เติม ฿4,000 เข้าไป
- * แล้วหน้าจอขยับแค่ "24.0 → 24.8 เดือน" จบ · นั่นคือ**ช่องว่าง feedback ตัวเดียวกัน**
- * ที่แอปนี้ตั้งใจแก้ให้ตึก (ไม้ DCA) แต่ดันเหลือไว้ในของที่ควรให้ feedback ที่สุด
+ * Why it exists: `reserve` used to store only the balance ⇒ adding ฿4,000 just moved
+ * the screen from "24.0 → 24.8 months" and that was it · **the same feedback gap**
+ * the app solves for towers (DCA rounds), left in the place that needed feedback most.
  *
- * ⚠️ นับเป็น "ครั้ง" เหมือนไม้ DCA ไม่ใช่บาท — ฿4,000 เป็นเศษเสี้ยวของเป้าเสมอ
- * แต่ "อีกหนึ่งครั้งที่ลงมือ" เป็น 1 เต็มไม่ว่ากำแพงจะยาวแค่ไหน
+ * ⚠️ Counted in "times", like DCA rounds, not baht — ฿4,000 is always a sliver of the target,
+ * but "one more time you acted" is a full 1 however long the wall is.
  *
- * ⚠️ และห้ามให้การ *แก้ตัวเลขให้ถูก* งอกเป็นเหตุการณ์ — ไม่งั้นพิมพ์ผิดครั้งเดียว
- * กำแพงจะร้าวทั้งที่ไม่มีใครถอนเงินจริง (ประวัติที่โกหกแย่กว่าไม่มีประวัติ)
+ * ⚠️ And *correcting a number* must never become an event — otherwise one typo
+ * cracks the wall when nobody withdrew anything (a history that lies is worse than none).
  */
 export type ReserveEvent = {
-  /** วันที่ (YYYY-MM-DD) */
+  /** Date (YYYY-MM-DD) */
   at: string;
-  /** บาทที่ขยับ — บวก = ก่อ · ลบ = ถอน */
+  /** Baht moved — positive = laid · negative = withdrawn */
   amountTHB: number;
 };
 
 export type CityState = {
   holdings: Holding[];
-  /** กำแพงเมือง — ห้ามนับรวมในมูลค่าพอร์ต (มีเทสต์ล็อกไว้) */
+  /** City wall — never counted in portfolio value (locked by a test) */
   reserve?: Reserve;
   cash?: Cash;
-  /** ประวัติการเติมเงินรายตัว เรียงเก่า→ใหม่ — ต่อท้ายอย่างเดียว ไม่แก้ย้อนหลัง */
+  /** Per-holding top-up history, oldest → newest — append only, never rewritten */
   contributions?: Contribution[];
   /**
-   * เงินเติมสะสม (บาท) — ทุกบาทที่โอนเข้าพอร์ตตั้งแต่ต้น รวมส่วนที่ยังไม่ได้ลงทุน
+   * Total deposits (baht) — every baht moved into the portfolio since the start, including uninvested cash.
    *
-   * ต่างจากต้นทุนหุ้น: ตัวนี้ไม่ขยับตอนซื้อ/ขาย ขยับเฉพาะตอนเติมเงินใหม่
-   * ใช้เป็นตัวส่วนของผลตอบแทนรวมแบบเดียวกับในชีต
-   * ⚠️ ห้ามเอาไปใช้เป็นความสูงของเมือง — ความสูงคือเงินที่กลายเป็นหุ้นแล้วเท่านั้น
+   * Unlike stock cost, this doesn't change on buy/sell — only when new money is added.
+   * Used as the denominator of total return, the same way the spreadsheet does it.
+   * ⚠️ Never use it for city height — height is only money that has become shares.
    */
   deposits?: number;
   /** USD → THB */
   fxRate: number;
-  /** true = เมืองตัวอย่าง ยังไม่ใช่พอร์ตจริง */
+  /** true = sample city, not a real portfolio yet */
   isDemo: boolean;
   /**
-   * เวลาที่ดึงราคาตลาดครั้งล่าสุด (ISO) — ไม่มี = ราคาเป็นค่าที่กรอกเอง
-   * ต้องแสดงให้เห็นเสมอ ไม่งั้นราคาเก่าจะทำให้กำไร/ขาดทุนผิดแบบเงียบๆ
+   * When market prices were last fetched (ISO) — missing = prices were entered by hand.
+   * Must always be shown, or stale prices make gain/loss silently wrong.
    */
   pricesUpdatedAt?: string;
 };
 
 /**
- * สิ่งปลูกสร้างแบบ generic ที่ renderer รู้จัก — จงใจไม่มีคำว่า "หุ้น" อยู่ในนี้
- * เพื่อให้ Kingdom เพิ่มกำแพง/ถนนได้โดยไม่ต้องรื้อ renderer
+ * Generic structure the renderer understands — deliberately has no notion of "stock",
+ * so new kinds (walls, roads) can be added without rewriting the renderer.
  */
 export type Structure = {
   id: string;
   kind: StructureKind;
   label: string;
   sublabel: string;
-  /** เงินที่ใส่เข้าไปจริง (THB) → ความสูง · โตทางเดียว ไม่ผูกกับราคาตลาด */
+  /** Money actually put in (THB) → height · only grows, not tied to market price */
   invested: number;
-  /** จำนวนชิ้นที่สะสม → เส้นแบ่งชั้น */
+  /** Units accumulated → floor lines */
   units: number;
-  /** สภาพ (กำไร/ขาดทุนเป็นสัดส่วน) → ความสว่างของไฟ · null = วัดไม่ได้ */
+  /** Condition (gain/loss ratio) → window brightness · null = can't be measured */
   health: number | null;
-  /** ได้มาฟรี (ต้นทุน 0) — คิด % ไม่ได้ ไม่ใช่บั๊ก */
+  /** Obtained free (zero cost) — no % possible, not a bug */
   isFree: boolean;
   district: string;
-  /** มูลค่าตลาดตอนนี้ (THB) — ใช้โชว์ตัวเลข ไม่ใช้กำหนดขนาด */
+  /** Current market value (THB) — shown as a number, never used for size */
   marketValue: number;
-  /** เติมเงินเข้าสิ่งนี้มาแล้วกี่ครั้ง → ขีดบนไม้บรรทัดข้างอาคาร */
+  /** How many times money was added → tally on the building */
   contributionCount: number;
-  /** บาทที่เพิ่งเติมเข้ามาในช่วงไม่กี่วันนี้ — null = ไม่มีของใหม่ */
+  /** Baht added in the last few days — null = nothing new */
   recentAdd: number | null;
 };
 
 export type StructureKind = "tower" | "site";
-// "site" = ไซต์ก่อสร้าง แทนเงินสดที่รอกลายเป็นตึก
-// อนาคต (Kingdom): "wall" = เงินสำรอง · "road" = บิลจ่ายตรงเวลา · "district"
+// "site" = construction site, representing cash waiting to become a tower
+// Future: "wall" = emergency fund · "road" = bills paid on time · "district"
 
-/** โซนของเงินสด — ไม่ใช่เขตของ holding จึงไม่อยู่ใน DistrictId */
+/** The cash zone — not a holding district, so it isn't in DistrictId */
 export const CASH_ZONE = "cash";
 
 export const DISTRICTS: Record<string, { label: string; note: string }> = {

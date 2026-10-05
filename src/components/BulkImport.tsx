@@ -6,7 +6,7 @@ import { formatTHB, investedTHB } from "@/lib/portfolio";
 import type { CityState, Holding } from "@/lib/types";
 import { plural } from "@/lib/text";
 
-/** Paste table from sheetทีเดียวจบ — ไม่ต้องกรอกทีละตัว 15 รอบ */
+/** Paste a table from the sheet in one go — no typing 15 holdings one by one */
 export function BulkImport({
   state,
   onImport,

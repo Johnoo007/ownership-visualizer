@@ -66,20 +66,20 @@ export function Sidebar({
                   {item.label}
                 </span>
                 {/*
-                  แยกสองบรรทัด: ยอดเงินเป็นเลขที่ต้องอ่านได้เสมอ ห้ามโดนตัดท้าย
-                  (บรรทัดเดียวยาวเกินความกว้าง sidebar แล้วกลายเป็น "฿34…")
+                  Two lines on purpose: the amount must always be readable and never truncated
+                  (on one line it overflowed the sidebar and became "฿34…")
                 */}
                 <span className="block truncate text-[10px] text-[var(--label-dim)]">
                   {plural(t.towerCount, "tower")}
-                  {/* ของฟรีไม่มีตึก ต้องบอกแยก ไม่งั้นเลขจะไม่ตรงกับที่นับได้ในเมือง */}
+                  {/* Free holdings have no tower — say so, or the count won't match what you see in the city */}
                   {t.landCount > 0 && ` + ${plural(t.landCount, "plot")}`}
                 </span>
                 {/*
-                  ⚠️ ต้องเป็น "มูลค่าตลาด" ไม่ใช่ต้นทุน — เลขลอยๆ ข้างชื่อเขต
-                  คนอ่านว่า "เขตนี้มีค่าเท่าไหร่" เสมอ ไม่มีใครอ่านว่าต้นทุน
-                  (เคยโชว์ต้นทุน ฿300,000 ทั้งที่มูลค่าจริง ฿330,000 — ต่างกัน ฿30,000)
-                  ใส่ % กำกับด้วย จะได้ชัดว่าเป็นมูลค่า ไม่ใช่เงินที่ลงไป
-                  ไม่รวมเงินสด ทั้ง 3 แถวจึงบวกกันได้ลงตัว (เงินสดมีการ์ดของตัวเอง)
+                  ⚠️ Must be market value, not cost — a bare number next to a district name
+                  is always read as "what this district is worth", never as cost
+                  (it used to show cost ฿300,000 while the real value was ฿330,000 — ฿30,000 off)
+                  The % next to it makes clear it's a value, not money invested.
+                  Cash is excluded so the three rows add up (cash has its own card).
                 */}
                 <span className="flex items-baseline gap-1.5 truncate font-mono text-[10.5px]">
                   <span className="text-[var(--label-dim)]">

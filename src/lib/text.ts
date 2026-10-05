@@ -1,18 +1,18 @@
 /**
- * "3 towers" / "1 tower" — ประกอบจำนวนกับคำนามให้ถูกพจน์
+ * "3 towers" / "1 tower" — pairs a count with the right singular/plural noun.
  *
- * ทำไมต้องมีตัวช่วย: ตอนแปล UI เป็นอังกฤษ เขียน `{n} towers` ตรงๆ ไว้ 13 จุด
- * แล้วเขต Golden Goose ที่มีตึกเดียวขึ้นว่า "1 towers" — John เห็นทันที
- * ภาษาไทยไม่มีพจน์ ความผิดแบบนี้จึงไม่มีทางเกิดในเวอร์ชันเดิม พอเปลี่ยนภาษา
- * เลยโผล่พร้อมกันทั้งแอป ⇒ รวมไว้ที่เดียว จะได้ไม่ต้องจำเป็นรายจุด
+ * Why a helper: when the UI was translated to English, `{n} towers` was written in
+ * 13 places, and the Golden Goose district (one tower) showed "1 towers".
+ * Thai has no plural forms, so this bug couldn't exist before the translation —
+ * then it appeared everywhere at once. Keeping it in one place avoids that.
  *
- * เศษหุ้น (0.316) นับเป็นพหูพจน์ถูกต้องอยู่แล้ว เพราะเทียบ !== 1
+ * Fractional shares (0.316) are correctly plural, since the check is !== 1.
  */
 export function plural(count: number, one: string, many = `${one}s`): string {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-/** เหมือน plural แต่ให้ข้อความจำนวนมาเอง (เช่นเลขที่ฟอร์แมตแล้ว) */
+/** Like plural, but the caller supplies the count text (e.g. an already-formatted number) */
 export function pluralize(count: number, one: string, many = `${one}s`): string {
   return count === 1 ? one : many;
 }

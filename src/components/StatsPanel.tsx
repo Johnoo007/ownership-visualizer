@@ -12,7 +12,7 @@ import type { CityState, DistrictId } from "@/lib/types";
 import type { CityView } from "./Sidebar";
 import { plural } from "@/lib/text";
 
-/** แถบสถิติด้านบน — การ์ดเรียงแนวนอนเต็มความกว้าง */
+/** Stat strip at the top — cards laid out horizontally across the full width */
 export function StatsPanel({
   state,
   view,
@@ -24,8 +24,8 @@ export function StatsPanel({
   const t = totals(state, district);
   const top = topConcentration(state, district);
 
-  // ยอดรวมทั้งพอร์ต (รวมเงินสด) ใช้ได้เฉพาะตอนดูทั้งเมือง
-  // ถ้ากรองเฉพาะเขต เงินสดจะไม่ได้เป็นของเขตนั้น
+  // Whole-portfolio totals (including cash) only make sense for the whole city —
+  // when filtered to one district, the cash doesn't belong to that district
   const all = view === "all" ? portfolioSummary(state) : null;
   const shownMarket = all ? all.marketTotal : t.marketValue;
   const shownReturn = all ? all.totalReturn : t.pnlRatio;
@@ -34,8 +34,8 @@ export function StatsPanel({
   return (
     <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
       {/*
-        นับเงินสดด้วย — เงินที่โอนเข้าพอร์ตแล้วแต่ยังไม่ได้ซื้อหุ้น ก็คือเงินที่
-        เก็บมาได้แล้วเหมือนกัน การยังไม่กลายเป็นหุ้นเป็นเรื่องจังหวะ ไม่ใช่ว่ายังไม่มี
+        Includes cash — money already moved into the portfolio but not yet invested has
+        still been saved. Not being shares yet is a matter of timing, not of not having it.
       */}
       <Card
         icon="🧱"

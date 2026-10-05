@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 type Quote = {
   price: number;
   currency: string;
-  /** เวลาที่ตลาดบันทึกราคานี้ (ISO) — ไม่ใช่เวลาที่เราดึง */
+  /** When the market recorded this price (ISO) — not when we fetched it */
   marketTime: string | null;
 };
 
@@ -43,11 +43,11 @@ async function fetchQuote(symbol: string): Promise<Quote | null> {
 }
 
 /**
- * ดึงราคาล่าสุดจาก Yahoo Finance
+ * Latest prices from Yahoo Finance.
  *
- * ⚠️ เป็น endpoint สาธารณะที่ไม่มีสัญญาบริการ — ล่ม/เปลี่ยนรูปแบบได้ทุกเมื่อ
- * ตัวไหนดึงไม่ได้จะอยู่ใน failed แทนที่จะทำให้ทั้งชุดพัง และฝั่งหน้าเว็บ
- * ต้องคงราคาเดิมไว้ ไม่ใช่เขียนทับด้วยค่าว่าง
+ * ⚠️ Public endpoint with no service guarantee — it can break or change shape anytime.
+ * Symbols that fail go into `failed` instead of failing the whole batch, and the
+ * client must keep the previous price rather than overwrite it with nothing.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
   const quotes: Record<string, Quote> = {};
   const failed: string[] = [];
 
-  // ยิงทีละกลุ่ม กันโดนปฏิเสธเพราะยิงรัวเกินไป
+  // Fetch in small batches so we don't get rate-limited
   for (let i = 0; i < symbols.length; i += BATCH) {
     const chunk = symbols.slice(i, i + BATCH);
     const results = await Promise.all(chunk.map(fetchQuote));

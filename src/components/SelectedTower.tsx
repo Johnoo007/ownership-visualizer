@@ -15,7 +15,7 @@ import { contributionsFor } from "@/lib/contributions";
 import { DISTRICTS, type CityState, type Contribution, type Holding } from "@/lib/types";
 import { plural, pluralize } from "@/lib/text";
 
-/** การ์ดสรุปตึกที่เลือกอยู่ — โผล่บนสุดของแผงขวาเมื่อคลิกตึกในเมือง */
+/** Summary card for the selected tower — appears at the top of the right panel */
 export function SelectedTower({
   state,
   holding,
@@ -91,7 +91,7 @@ export function SelectedTower({
         <p className="mt-1 text-[10px] text-[var(--label-dim)]">
           {(share * 100).toFixed(1)}% of the whole city
         </p>
-        {/* บอกให้ชัดว่าเลขนี้คือบาทที่จ่ายจริง หรือแค่ตีค่าด้วยค่าเงินวันนี้ */}
+        {/* Make it clear whether this is the baht actually paid, or an estimate at today's FX */}
         <p className="mt-1 text-[10px]" style={{ color: hasRealTHBCost(holding) ? "var(--gain)" : "var(--free)" }}>
           {hasRealTHBCost(holding)
             ? "✓ actual baht paid"
@@ -150,11 +150,11 @@ export function SelectedTower({
 }
 
 /**
- * ประวัติ "ไม้ DCA" ของตึกนี้ — โผล่ตอนคลิกตึกเท่านั้น
+ * DCA history for this tower — only shown when the tower is clicked.
  *
- * จงใจไม่เอาไปวาดในเมือง: เคยลองทำเป็นไม้บรรทัดแปะข้างตึกแล้วไม่เวิร์ก
- * มันเป็นกราฟที่ไปอยู่ผิดโลก และหน้าตาซ้ำกับเส้นแบ่งชั้น (= จำนวนหุ้น)
- * ที่นี่เป็นแผงข้อมูลอยู่แล้ว กราฟจึงอยู่ถูกที่ และใส่วันที่/จำนวนเงินได้ครบ
+ * Deliberately not drawn in the city: a tally stuck to the side of each tower was
+ * tried and didn't work — a chart in the wrong world, and it looked like the floor
+ * lines (= share count). In a data panel a chart belongs, and dates/amounts fit.
  */
 function BuildHistory({
   list,
@@ -171,7 +171,7 @@ function BuildHistory({
     );
   }
 
-  // ใหม่สุดอยู่บน — อ่านจากบนลงล่างคือย้อนเวลากลับไป
+  // Newest first — reading top to bottom goes back in time
   const rows = [...list].reverse();
   const shown = rows.slice(0, 8);
   const max = Math.max(...list.map((c) => c.amountTHB));
@@ -214,7 +214,7 @@ function BuildHistory({
         </p>
       )}
 
-      {/* ส่วนที่มีอยู่ก่อนเริ่มบันทึก — ไม่ใช่ศูนย์ แค่ไม่มีประวัติ */}
+      {/* The part that existed before tracking started — not zero, just no history */}
       {invested > total + 1 && (
         <p className="mt-1.5 border-t border-[var(--border)] pt-1.5 text-[10px] text-[var(--label-dim)]">
           {formatTHB(invested - total)} more was already there before tracking started

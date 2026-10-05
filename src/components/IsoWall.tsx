@@ -10,11 +10,11 @@ import {
 } from "@/lib/iso";
 
 /**
- * ความหนาของกำแพงเป็นสัดส่วนของช่องกริด
+ * Wall thickness as a fraction of a grid cell.
  *
- * ⚠️ เวอร์ชันแรกวาดกำแพงเต็มช่อง (กว้าง 112px สูง 26px) แล้วมันอ่านเป็น
- * "ทางด่วนคอนกรีต" ไม่ใช่กำแพง — เพราะกำแพงจริงบางและสูง ไม่ใช่แผ่นกว้างเตี้ย
- * ⇒ ยาวเต็มช่องตามแนวของมัน แต่หนาแค่ ~1/3 ช่องในแนวตั้งฉาก
+ * ⚠️ The first version filled the whole cell (112px wide, 26px tall) and read as
+ * a "concrete highway", not a wall — real walls are thin and tall, not wide and low.
+ * ⇒ full cell length along its run, but only ~1/3 of a cell thick across it.
  */
 const THICK = 0.17;
 const WALL_H = 40;
@@ -22,15 +22,15 @@ const TOWER_H = 62;
 const MERLON_H = 8;
 
 /**
- * หินต้องมี "สีของวัสดุ" ไม่ใช่เทาเปล่า
+ * Stone needs a *material colour*, not plain grey.
  *
- * ⚠️ เวอร์ชันก่อนใช้เทาล้วนไร้สี (#3b4453) แล้ว John บอกว่า
- * *"เหมือนสร้างไม่เสร็จ ไม่ก็ลืมระบายสี"* — ซึ่งตรงเป๊ะ มันคือ greybox
- * ทุกอย่างในเมืองนี้มีสีของวัสดุ: ตึกน้ำเงิน · หญ้าเขียว · กองทองทอง ·
- * กองอิฐ/ทรายในไซต์ก่อสร้างเป็นน้ำตาลอุ่น — มีแต่กำแพงที่ไม่มีวัสดุ
+ * ⚠️ The previous version was plain colourless grey (#3b4453), and the feedback was
+ * "looks unfinished, like someone forgot to paint it" — exactly right: it was a greybox.
+ * Everything else in the city has a material colour: blue towers · green grass · gold gold pile ·
+ * warm brown bricks/sand on the construction site — only the wall had none.
  *
- * ⇒ ใช้หินทรายอุ่นคล้ำ เข้าตระกูลเดียวกับกองอิฐ/ทรายที่มีอยู่แล้ว
- *   และตัดกับตึกน้ำเงินชัดเจน = อ่านออกทันทีว่าคนละชนิดของ
+ * ⇒ a dark warm sandstone, in the same family as the existing brick/sand piles,
+ *   and clearly distinct from the blue towers = instantly reads as a different kind of thing.
  */
 const STONE = {
   top: "#6a5f4a",
@@ -53,10 +53,10 @@ const RUBBLE = {
 };
 
 /**
- * อิฐที่เพิ่งก่อ — หินสดยังไม่โดนลมโดนฝน จึงสว่างและอุ่นกว่าหินเก่า
+ * Freshly laid bricks — new stone hasn't weathered yet, so it's brighter and warmer than old stone.
  *
- * ⚠️ ตั้งใจให้ต่างจากหินเก่าแค่ "ค่าน้ำหนัก" ไม่ใช่คนละสี — ถ้าเปลี่ยนเป็นสีอื่น
- * มันจะอ่านเป็นวัสดุคนละชนิด (กำแพงลายทาง) ไม่ใช่กำแพงเดียวกันที่เพิ่งต่อ
+ * ⚠️ Deliberately differs from old stone only in *value*, not hue — a different hue
+ * would read as a different material (a striped wall), not the same wall just extended.
  */
 const FRESH_STONE = {
   top: "#8d7f63",
@@ -65,10 +65,10 @@ const FRESH_STONE = {
 };
 
 /**
- * ซากกำแพงที่พังเพราะถอนเงินออก
+ * Ruins of wall sections that fell because money was withdrawn.
  *
- * ต่างจาก RUBBLE (ยังไม่เคยก่อ) ตรงที่ **มีเศษหินของจริงกองอยู่** และ
- * มีรอยไหม้/คบไฟที่ดับแล้ว ⇒ อ่านออกว่า "เคยมีกำแพงตรงนี้" ไม่ใช่ "ยังไม่ถึงคิว"
+ * Unlike RUBBLE (never built), it has **real fallen stone piled up** and
+ * scorch marks / extinguished torches ⇒ reads as "there used to be a wall here", not "not built yet".
  */
 const BROKEN = {
   top: "#5e4536",
@@ -79,11 +79,11 @@ const BROKEN = {
 const CRACK = "#ff8f7d";
 
 /**
- * กำแพงเมือง = เงินสำรองฉุกเฉิน (Kingdom v1)
+ * City wall = emergency fund.
  *
- * จงใจไม่ใช่ตึก: ตึกคือเงินที่กลายเป็นความเป็นเจ้าของแล้วและโตได้เรื่อยๆ
- * กำแพงคือของที่ **ไม่ทำให้เมืองใหญ่ขึ้นเลย แต่ทำให้เมืองไม่พัง**
- * สองอย่างนี้ต้องอ่านออกว่าคนละชนิดตั้งแต่แรกเห็น
+ * Deliberately not a tower: a tower is money that became ownership and keeps growing.
+ * The wall **doesn't make the city any bigger — it keeps the city from falling**.
+ * The two must read as different kinds of thing at first glance.
  */
 export function IsoWall({ segments }: { segments: WallSegment[] }) {
   if (segments.length === 0) return null;
@@ -99,34 +99,34 @@ export function IsoWall({ segments }: { segments: WallSegment[] }) {
 function Segment({ seg }: { seg: WallSegment }) {
   const c = seg.center;
 
-  /** แปลงพิกัดกริดสัมพัทธ์ (จากกึ่งกลางช่อง) เป็นพิกัดจอ */
+  /** Convert relative grid coordinates (from the cell centre) to screen coordinates */
   const p = (dx: number, dy: number, lift = 0): Point => ({
     x: c.x + ((dx - dy) * PITCH_W) / 2,
     y: c.y + ((dx + dy) * PITCH_H) / 2 - lift,
   });
 
-  // แนวยาวของกำแพงต้องตามทิศของวง ไม่ใช่แกนเดียวทั้งเมือง
+  // The wall's long axis follows the ring's direction, not one axis for the whole city
   const alongX = seg.side === "ne" || seg.side === "sw";
-  // ป้อมมุมเป็นสี่เหลี่ยมจัตุรัส กำแพงเป็นแท่งยาวบาง
+  // Corner towers are square; wall sections are long and thin
   const ex = seg.corner ? 0.3 : alongX ? 0.5 : THICK;
   const ey = seg.corner ? 0.3 : alongX ? THICK : 0.5;
   const h = seg.corner ? TOWER_H : WALL_H;
 
   if (seg.broken) {
     /**
-     * ช่วงที่เพิ่งพังเพราะถอนเงินออก — ต้องอ่านออกว่า "เคยมีกำแพงตรงนี้"
+     * A section that just fell because money was withdrawn — must read as "there was a wall here".
      *
-     * นี่คือฝั่งตรงข้ามของอิฐใหม่ และเป็นเหตุผลที่กำแพงต้องมีประวัติ:
-     * ถอนเงินสำรองออกไปแล้วตัวเลขเดือนลดลงเฉยๆ มันเงียบเกินไปสำหรับสิ่งที่
-     * แปลว่า "เดือนที่เคยปลอดภัยหายไปแล้ว"
+     * This is the opposite of new bricks, and the reason the wall needs history:
+     * withdrawing from the reserve and just seeing the months figure drop is too quiet for
+     * something that means "months of safety are gone".
      */
     return <Breach p={p} c={c} ex={ex} ey={ey} gx={seg.gx} gy={seg.gy} />;
   }
 
   if (!seg.built) {
     /**
-     * ช่วงที่ยังไม่ได้ก่อ — ฐานรากที่ก่อค้างไว้ ต้องอ่านออกว่า "ตรงนี้คือรู"
-     * รูคือเดือนที่ยังไม่มีเงินคุ้ม ซึ่งเป็นสิ่งเดียวในภาพที่ควรทำให้รู้สึกไม่สบายใจ
+     * A section not built yet — a foundation left waiting; must read as "this is a gap".
+     * A gap is a month not yet covered — the one thing in the picture that should feel uncomfortable.
      */
     const stub = 6;
     return (
@@ -162,10 +162,10 @@ function Segment({ seg }: { seg: WallSegment }) {
       ? { top: STONE.towerTop, front: STONE.towerFront, side: STONE.towerSide }
       : { top: STONE.top, front: STONE.front, side: STONE.side };
 
-  // ใบเสมาเรียงตามแนวยาวของกำแพง — ต้องอยู่บนสันขอบนอก ไม่ใช่กลางหลังคา
+  // Merlons follow the wall's long axis — on the outer ridge, not the middle of the top
   const merlonCount = seg.corner ? 2 : 4;
   const merlons = Array.from({ length: merlonCount }, (_, i) => {
-    const t = (i + 0.5) / merlonCount - 0.5; // −0.5 .. 0.5 ตามแนวยาว
+    const t = (i + 0.5) / merlonCount - 0.5; // −0.5 .. 0.5 along the length
     return alongX && !seg.corner
       ? { mx: t, my: 0, hx: 0.5 / merlonCount - 0.04, hy: ey }
       : !alongX && !seg.corner
@@ -197,14 +197,14 @@ function Segment({ seg }: { seg: WallSegment }) {
       ))}
 
       {/*
-        นั่งร้านบนอิฐที่เพิ่งก่อ — ใช้ภาษาเดียวกับนั่งร้าน/เครนของตึก (สีทองอำพัน)
-        เพราะมันคือเรื่องเดียวกัน: "เพิ่งลงมือทำตรงนี้"
+        Scaffolding on freshly laid bricks — same language as the towers' scaffolding/cranes (amber gold),
+        because it means the same thing: "work just happened here".
       */}
       {seg.fresh && <Scaffold p={p} ex={ex} ey={ey} h={h} />}
 
       {/*
-        ไฟบนกำแพง — ตัวที่ทำให้กำแพงกลางคืนน่ามอง ไม่ใช่เนื้อหิน
-        ป้อมมุมได้ไฟใหญ่กะพริบ ช่วงกำแพงได้คบไฟเล็กเว้นระยะ
+        Lights on the wall — what makes it pleasant to look at at night, not the stone itself.
+        Corner towers get a large blinking light; wall sections get small spaced-out torches.
       */}
       {(seg.corner || seg.torch) && (
         <Flame
@@ -218,10 +218,10 @@ function Segment({ seg }: { seg: WallSegment }) {
 }
 
 /**
- * กล่องหิน 3 หน้าในมุม isometric
+ * A three-faced stone block in isometric view.
  *
- * หน้าที่มองเห็นคือด้าน +gy (เอียงลงซ้าย รับแสง) กับ +gx (เอียงลงขวา เป็นเงา)
- * ตรงกับกติกาแสงเดียวกับตึก คือแสงมาจากซ้ายบน
+ * The visible faces are +gy (sloping down-left, lit) and +gx (sloping down-right, in shadow),
+ * following the same lighting rule as the towers: light comes from the top left.
  */
 function Box({
   p,
@@ -240,17 +240,17 @@ function Box({
 }) {
   return (
     <g>
-      {/* หน้ารับแสง (+gy) */}
+      {/* Lit face (+gy) */}
       <polygon
         points={polygonPoints([p(-ex, ey), p(ex, ey), p(ex, ey, h), p(-ex, ey, h)])}
         fill={palette.front}
       />
-      {/* หน้าเงา (+gx) */}
+      {/* Shadow face (+gx) */}
       <polygon
         points={polygonPoints([p(ex, -ey), p(ex, ey), p(ex, ey, h), p(ex, -ey, h)])}
         fill={palette.side}
       />
-      {/* สันบน */}
+      {/* Top ridge */}
       <polygon
         points={polygonPoints([
           p(-ex, -ey, h),
@@ -262,8 +262,8 @@ function Box({
       />
 
       {/*
-        ลายก่อหิน — เส้นแนวนอนอย่างเดียวยังอ่านเป็นแท่งคอนกรีตหล่อ
-        ต้องมีรอยต่อแนวตั้งสลับแถวแบบก่ออิฐ (running bond) ถึงจะอ่านเป็นหินก่อทีละก้อน
+        Masonry pattern — horizontal lines alone still read as a cast concrete slab;
+        it needs vertical joints offset row by row (running bond) to read as stones laid one by one.
       */}
       {courses && (
         <>
@@ -279,11 +279,11 @@ const TIMBER = "#c9a227";
 const TIMBER_LIT = "#e8c46a";
 
 /**
- * นั่งร้านบนช่วงที่เพิ่งก่อ — เสาสองต้นบนหน้ารับแสง + คานพาดกลาง
+ * Scaffolding on a freshly built section — two poles on the lit face + a beam across.
  *
- * ทำไมต้องมีทั้งที่หินสว่างกว่าอยู่แล้ว: ความต่างของเฉดหินอ่านออกยากตอนซูมออก
- * (ทั้งเมืองมองจากไกล กำแพงเป็นแถบบางๆ) แต่เส้นทองพาดขวางเห็นได้ทุกระยะ
- * — เป็นเหตุผลเดียวกับที่ตึกต้องมีเครน ไม่ใช่แค่แถบสี
+ * Why, when the stone is already brighter: shade differences are hard to see zoomed out
+ * (from afar the wall is a thin strip), but a gold line across it is visible at any distance
+ * — the same reason towers get a crane, not just a coloured band.
  */
 function Scaffold({
   p,
@@ -296,7 +296,7 @@ function Scaffold({
   ey: number;
   h: number;
 }) {
-  // หน้ารับแสงคือด้าน +gy · ไล่ตามความยาวของหน้านั้น
+  // The lit face is the +gy side · spaced along that face's length
   const a = p(-ex, ey);
   const b = p(ex, ey);
   const at = (t: number, lift: number): Point => ({
@@ -333,11 +333,11 @@ function Scaffold({
 }
 
 /**
- * ช่วงกำแพงที่พังจากการถอนเงิน — ตอม่อเตี้ยๆ + กองหินร่วง + รอยแตก
+ * A wall section broken by a withdrawal — low stumps + fallen stones + cracks.
  *
- * ⚠️ ห้ามวาดเหมือนช่วงที่ยังไม่ก่อ (RUBBLE + เส้นประ = "แบบก่อสร้าง รอคิว")
- * ตรงนี้ต้องอ่านเป็นซาก: หินคล้ำอมแดง เศษกระจาย รอยแตกสีเดียวกับตัวเลขขาดทุน
- * และ **ไม่มีไฟ** — คบไฟที่เคยติดตรงนี้ดับไปพร้อมกำแพง
+ * ⚠️ Must not look like an unbuilt section (RUBBLE + dashed outline = "planned, waiting").
+ * This must read as ruins: darker reddish stone, scattered debris, cracks in the loss colour,
+ * and **no light** — the torches that used to burn here went out with the wall.
  */
 function Breach({
   p,
@@ -355,12 +355,12 @@ function Breach({
   gy: number;
 }) {
   /**
-   * ⚠️ ความสูงต้องไม่เท่ากันทุกช่วง
+   * ⚠️ Heights must not all be equal.
    *
-   * เวอร์ชันแรกใช้ 11px เท่ากันหมด แล้วแนวซากยาวๆ อ่านเป็น **ทางลาด**
-   * ไม่ใช่ซากปรักหักพัง — ซ้ำรอยบทเรียนเดิมเป๊ะ (กำแพงรุ่นแรก = "ทางด่วนคอนกรีต"):
-   * ของที่ดูไม่เหมือนของจริง ผิดที่สัดส่วนก่อนเสมอ · ของพังจริงพังไม่เท่ากัน
-   * บางช่วงเหลือตอสูง บางช่วงราบไปเลย ⇒ สุ่มแบบคงที่จากพิกัด (ภาพนิ่งทุกครั้งที่วาด)
+   * The first version used a uniform 11px and long runs of ruins read as a **ramp**,
+   * not ruins — the same lesson as before (first wall = "concrete highway"):
+   * things that don't look real are wrong in proportion first · real ruins break unevenly,
+   * some stumps stay tall, some are flattened ⇒ deterministic randomness from coordinates (stable every render).
    */
   const stump = 3 + seededRandom(`breach${gx}:${gy}`, gx * 17 + gy) * 15;
 
@@ -371,12 +371,12 @@ function Breach({
         fill="#1c1410"
       />
 
-      {/* ตอม่อที่เหลือจากกำแพงเดิม — เตี้ยกว่ากำแพงมาก แต่ไม่ราบไปกับพื้น */}
+      {/* Stumps left from the old wall — much lower than the wall, but not flush with the ground */}
       <Box p={p} ex={ex} ey={ey} h={stump} palette={BROKEN} />
 
       {/*
-        หินที่ร่วงลงมากองข้างซาก — หลักฐานว่าเคยมีของสูงกว่านี้ตรงนี้
-        ใช้สีของหินกำแพง (ไม่ใช่สีซาก) เพราะมันคือก้อนเดียวกับที่หล่นลงมา
+        Stones fallen beside the ruins — evidence that something taller stood here.
+        Uses the wall's stone colour (not the ruin colour), because it's the same stone that fell.
       */}
       {[
         { dx: -0.34, dy: 0.72, s: 3.0 },
@@ -397,7 +397,7 @@ function Breach({
         );
       })}
 
-      {/* รอยแตกบนตอม่อ — เส้นหักมุม ไม่ใช่เส้นตรง ไม่งั้นอ่านเป็นรอยต่อหิน */}
+      {/* Cracks on the stumps — jagged lines, not straight ones, or they read as mortar joints */}
       <polyline
         points={[
           `${c.x - 5},${c.y - stump - 1}`,
@@ -414,7 +414,7 @@ function Breach({
   );
 }
 
-/** เปลวไฟ + แสงฟุ้ง — ใช้ภาษาเดียวกับไฟถนนในเมือง */
+/** Flame + glow — same visual language as the city's street lights */
 function Flame({ x, y, big }: { x: number; y: number; big: boolean }) {
   const r = big ? 3 : 2;
   return (
@@ -428,10 +428,10 @@ function Flame({ x, y, big }: { x: number; y: number; big: boolean }) {
 }
 
 /**
- * ประตูเมือง — ป้อมสองข้างขนาบช่องเปิด มีแสงอุ่นลอดออกมา
+ * City gate — two towers flanking an opening, with warm light spilling out.
  *
- * เหตุผลที่ต้องมี: วงกำแพงที่ปิดตายรอบด้านอ่านเป็น "กำแพงกั้น" ไม่ใช่ "เมืองมีกำแพง"
- * ประตูเป็นจุดเดียวที่บอกว่าข้างในมีคนอยู่ และเป็นจุดนำสายตาของภาพทั้งภาพ
+ * Why: a ring sealed on every side reads as "a barrier", not "a walled city".
+ * The gate is the one thing that says people live inside, and it anchors the whole picture.
  */
 function Gate({
   p,
@@ -446,7 +446,7 @@ function Gate({
   const archH = 30;
   const half = 0.5;
   const thick = THICK;
-  // เสาสองต้นขนาบ ช่องเปิดอยู่ตรงกลาง
+  // Two pillars on either side, opening in the middle
   const piers = [-1, 1].map((sign) =>
     alongX
       ? { ox: sign * 0.34, oy: 0, ex: 0.16, ey: thick }
@@ -466,7 +466,7 @@ function Gate({
         fill="rgba(0,0,0,0.45)"
       />
 
-      {/* แสงอุ่นลอดจากช่องประตู */}
+      {/* Warm light spilling through the gateway */}
       <ellipse cx={c.x} cy={c.y + 6} rx={26} ry={12} fill={FIRE} opacity={0.16} />
 
       {piers.map((pier, i) => (
@@ -481,7 +481,7 @@ function Gate({
         />
       ))}
 
-      {/* คานเหนือช่องประตู */}
+      {/* Lintel above the gateway */}
       <Box
         p={(dx, dy, lift = 0) => p(lintel.ox + dx, lintel.oy + dy, pierH - archH + lift)}
         ex={lintel.ex}
@@ -496,10 +496,10 @@ function Gate({
 }
 
 /**
- * ลายหินก่อบนหน้ากำแพงหนึ่งหน้า
+ * Masonry pattern on one wall face.
  *
- * a→b คือขอบล่างของหน้านั้น · แถวสลับกันครึ่งก้อนแบบ running bond
- * หน้าที่สั้น (ด้านสกัด) ใช้ก้อนน้อยลง ไม่งั้นลายจะถี่จนเละ
+ * a→b is the bottom edge of the face · rows offset by half a block, running bond
+ * Short faces (the ends) use fewer blocks, otherwise the pattern gets too dense to read.
  */
 function Masonry({
   a,
@@ -540,7 +540,7 @@ function Masonry({
   }
   for (let r = 0; r < rows; r++) {
     for (let cIdx = 1; cIdx <= cols; cIdx++) {
-      // แถวคู่/คี่เยื้องกันครึ่งก้อน
+      // Even/odd rows offset by half a block
       const t = (cIdx - (r % 2 === 0 ? 0.5 : 0)) / cols;
       if (t <= 0.02 || t >= 0.98) continue;
       const p0 = at(t, r * ch);

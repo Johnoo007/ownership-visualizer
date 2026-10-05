@@ -13,9 +13,9 @@ import type { CityState } from "@/lib/types";
 import { plural } from "@/lib/text";
 
 /**
- * ความทรงจำของเมือง — เก็บภาพพอร์ตตามเวลาแล้วเทียบกับวันนี้
- * เทียบที่ "เงินที่ลงไป" ล้วน ไม่ใช่มูลค่าตลาด เพราะสิ่งที่อยากให้เห็นคือ
- * เมืองที่ตัวเองสร้างขึ้นมา ไม่ใช่ตลาดขึ้นลง
+ * The city's memory — snapshots of the portfolio over time, compared with today.
+ * Compares money invested only, not market value: the point is to show the city
+ * you built yourself, not the market moving up and down.
  */
 export function TimeMachine({
   state,

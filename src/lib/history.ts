@@ -5,7 +5,7 @@ const KEY = "ownership-visualizer:history:v1";
 const MAX_SNAPSHOTS = 60;
 
 export type Snapshot = {
-  /** ISO ของตอนที่บันทึก */
+  /** ISO timestamp of when it was saved */
   at: string;
   state: CityState;
 };
@@ -32,11 +32,11 @@ function save(list: Snapshot[]): void {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(list.slice(-MAX_SNAPSHOTS)));
   } catch {
-    // เขียนไม่ได้ก็ปล่อย ประวัติไม่ใช่ข้อมูลหลัก
+    // Can't write? Let it go — history isn't primary data
   }
 }
 
-/** บันทึกภาพเมืองวันนี้ — วันเดียวกันทับของเดิม ไม่ให้ประวัติบวมจากการกดซ้ำ */
+/** Save today's city — same day overwrites, so repeated clicks don't bloat history */
 export function pushSnapshot(state: CityState): Snapshot[] {
   if (state.isDemo || state.holdings.length === 0) return loadHistory();
 
@@ -54,20 +54,20 @@ export function clearHistory(): void {
   try {
     window.localStorage.removeItem(KEY);
   } catch {
-    // ไม่เป็นไร
+    // Not critical
   }
 }
 
 export type Growth = {
   investedDelta: number;
-  /** ตึกที่เพิ่งขึ้นใหม่หลังจากภาพนั้น */
+  /** Towers that went up after that snapshot */
   newTowers: string[];
-  /** ตึกที่สูงขึ้น (ลงเงินเพิ่ม) */
+  /** Towers that grew (more money invested) */
   grownTowers: string[];
   days: number;
 };
 
-/** เทียบเมืองวันนี้กับภาพในอดีต — วัดที่ "เงินที่ลงไป" ไม่ใช่มูลค่าตลาด */
+/** Compare today with a past snapshot — measured in money invested, not market value */
 export function compare(past: Snapshot, present: CityState): Growth {
   const pastTotals = totals(past.state);
   const nowTotals = totals(present);

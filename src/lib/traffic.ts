@@ -1,8 +1,8 @@
 import { PITCH_H, PITCH_W, seededRandom, type GroundCell } from "./iso";
 
 /**
- * ทิศทางของถนนแต่ละแนวในพิกัด isometric
- * dir = ทิศที่รถวิ่ง · perp = ทิศตั้งฉาก (ใช้ดันคนไปเดินริมทาง)
+ * Direction of each road axis in isometric coordinates.
+ * dir = the way cars drive · perp = perpendicular (used to push pedestrians to the kerb)
  */
 export const AXIS = {
   x: { dir: [0.894, 0.447], perp: [-0.894, 0.447] },
@@ -12,15 +12,15 @@ export const AXIS = {
 export type RoadAxis = "x" | "y";
 
 /**
- * ระยะพิกเซลจริงจากกลางช่องหนึ่งไปกลางช่องถัดไปตามแนวถนน
+ * Actual pixel distance from one cell centre to the next along a road.
  *
- * ⚠️ ไม่ใช่ PITCH_W — ขยับ 1 ช่องได้ระยะ (PITCH_W/2, PITCH_H/2) = (56, 28)
- * ความยาวจริงคือด้านตรงข้ามมุมฉาก ≈ 62.6px ไม่ใช่ 112px
- * ใช้ PITCH_W ตรงๆ รถจะวิ่งไกลเกินจริง 1.79 เท่า แล้วทะลุออกนอกถนน
+ * ⚠️ Not PITCH_W — one cell step moves (PITCH_W/2, PITCH_H/2) = (56, 28),
+ * so the real length is the hypotenuse ≈ 62.6px, not 112px.
+ * Using PITCH_W directly makes cars travel 1.79× too far and leave the road.
  */
 export const CELL_STEP = Math.hypot(PITCH_W / 2, PITCH_H / 2);
 
-/** สี่แยกไม่มีแนวชัดเจน — เลือกแบบคงที่ต่อช่อง จะได้ไม่กระพริบตอน re-render */
+/** Intersections have no clear axis — pick one deterministically per cell so it doesn't flicker on re-render */
 export function axisOf(cell: GroundCell): RoadAxis {
   if (cell.roadAxis === "both") {
     return seededRandom(`ax${cell.gx}:${cell.gy}`, 23) > 0.5 ? "x" : "y";
@@ -28,7 +28,7 @@ export function axisOf(cell: GroundCell): RoadAxis {
   return cell.roadAxis === "y" ? "y" : "x";
 }
 
-/** ตำแหน่งช่องถนนที่มีจริงในเลนนั้น — ไม่ใช่แค่หัวท้าย */
+/** Positions in the lane that are actually road — not just the two ends */
 export type Lane = { cells: Set<number> };
 
 export function laneKey(cell: GroundCell): string {
@@ -36,14 +36,14 @@ export function laneKey(cell: GroundCell): string {
 }
 
 /**
- * รวบช่องถนนเป็นเลน โดยเก็บ "ตำแหน่งที่เป็นถนนจริง" ไว้ทั้งชุด
+ * Group road cells into lanes, keeping the full set of positions that are actually road.
  *
- * ⚠️ ห้ามเก็บแค่ min/max — เลนขาดเป็นช่วงได้จริง เพราะถนนคั่นเขตถูกบังคับให้มี
- * แม้แถวนั้นจะมีตึกอยู่ (iso.ts) ช่องที่เป็นตึกจึงตัดเลนขาดกลาง
- * ถ้าใช้แค่หัวท้าย รถจะวิ่งคร่อมตึกทะลุไปโผล่อีกฝั่ง
+ * ⚠️ Never store only min/max — lanes really can have gaps, because district-divider roads
+ * are forced through rows even where a tower stands (iso.ts), so a tower cell splits the lane.
+ * With only the ends, cars would drive straight through towers and appear on the other side.
  *
- * สี่แยกนับเป็นสมาชิกของ "ทั้งสองเลน" ไม่ใช่เลนที่ axisOf สุ่มได้
- * ไม่งั้นเลนจะมีรูตรงทุกสี่แยก แล้วรถจะจอดก่อนถึงแยกทุกคัน
+ * Intersections belong to *both* lanes, not whichever one axisOf happened to pick —
+ * otherwise every lane has a hole at each intersection and every car stops short of it.
  */
 export function computeLanes(cells: GroundCell[]): Map<string, Lane> {
   const lanes = new Map<string, Lane>();
@@ -63,16 +63,16 @@ export function computeLanes(cells: GroundCell[]): Map<string, Lane> {
 
 export type CarRoute = {
   axis: RoadAxis;
-  /** +1 = ไปทางพิกัดมากขึ้น · −1 = ไปทางน้อยลง */
+  /** +1 = towards larger coordinates · −1 = towards smaller */
   dir: 1 | -1;
-  /** วิ่งได้กี่ช่องก่อนถึงช่องถนนสุดท้ายที่ยังต่อกันอยู่ */
+  /** How many cells it can drive before the last connected road cell */
   cellsAhead: number;
   canDrive: boolean;
 };
 
 /**
- * เส้นทางของรถหนึ่งคัน — ไล่ทีละช่องจนเจอช่องที่ไม่ใช่ถนนแล้วหยุด
- * จึงไม่มีทางข้ามช่องที่เป็นตึก/หญ้า/แปลงว่างได้เลย
+ * One car's path — walk cell by cell until a non-road cell, then stop,
+ * so it can never cross a tower/grass/vacant-plot cell.
  */
 export function carRoute(cell: GroundCell, lane: Lane | undefined): CarRoute {
   const axis = axisOf(cell);
@@ -88,11 +88,11 @@ export function carRoute(cell: GroundCell, lane: Lane | undefined): CarRoute {
   const ahead = runLength(1);
   const behind = runLength(-1);
 
-  // สุ่มทิศก่อน ถ้าฝั่งนั้นตันค่อยกลับทิศ — ถนนจะได้ยังมีรถสวนกันสองเลน
+  // Pick a random direction; if that side is a dead end, turn around — keeps two-way traffic
   let dir: 1 | -1 = seededRandom(`dir${cell.gx}:${cell.gy}`, 7) > 0.5 ? 1 : -1;
   if ((dir > 0 ? ahead : behind) < 1) dir = (-dir) as 1 | -1;
 
   const cellsAhead = dir > 0 ? ahead : behind;
-  // ตันทั้งสองฝั่ง (ถนนสั้นช่องเดียว) ก็จอดอยู่กับที่ ดีกว่าวิ่งทะลุ
+  // Dead end both ways (one-cell road)? Park in place — better than driving through things
   return { axis, dir, cellsAhead, canDrive: cellsAhead >= 1 };
 }

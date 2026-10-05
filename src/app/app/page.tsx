@@ -1,0 +1,495 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { HoldingForm } from "@/components/HoldingForm";
+import { HoldingList } from "@/components/HoldingList";
+import { IsoCity } from "@/components/IsoCity";
+import { BulkImport } from "@/components/BulkImport";
+import { PriceSync } from "@/components/PriceSync";
+import { SelectedTower } from "@/components/SelectedTower";
+import { Sidebar, type CityView } from "@/components/Sidebar";
+import { BuildLog } from "@/components/BuildLog";
+import { StatsPanel } from "@/components/StatsPanel";
+import { TimeMachine } from "@/components/TimeMachine";
+import { useCity } from "@/components/useCity";
+import { formatSnapshotDate, type Snapshot } from "@/lib/history";
+import { toStructures } from "@/lib/portfolio";
+import { exportCity, importCity } from "@/lib/storage";
+import type { Holding } from "@/lib/types";
+import { plural } from "@/lib/text";
+import { ReservePanel } from "@/components/ReservePanel";
+import { reserveStatus } from "@/lib/reserve";
+
+/** Map legend — open it when you want it, out of the way when you don't */
+function MapLegend() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={`rounded-md border px-2 py-1 text-[10px] tracking-[0.14em] uppercase transition ${
+          open
+            ? "border-[var(--accent)] bg-[var(--panel)] text-[var(--accent)]"
+            : "border-[var(--border-bright)] bg-[var(--panel)]/85 text-[var(--label-dim)] hover:text-[var(--label)]"
+        }`}
+      >
+        {open ? "Close" : "Legend"}
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-1 rounded-lg border border-[var(--border-bright)] bg-[var(--panel)]/95 px-2.5 py-2">
+          <Legend color="#7b9fd4" label="Mission — growth" />
+          <Legend color="#6fc49a" label="Golden Goose — dividends" />
+          <Legend color="#f0cf7a" label="Free — bare land" />
+          <Legend color="#6ee7a5" label="Green sign = gain" dot />
+          <Legend color="#ff8f7d" label="Red sign = loss" dot />
+          <div className="mt-1 border-t border-[var(--border)] pt-1.5 text-[10px] leading-relaxed text-[var(--label-dim)]">
+            Height = money in · Floors = shares
+            <br />
+            Lit windows = gain · Crane = added this week
+            <br />
+            Market down dims the lights, never shrinks a tower.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Legend({
+  color,
+  label,
+  dot,
+}: {
+  color: string;
+  label: string;
+  dot?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] text-[var(--label-dim)]">
+      <span
+        className={`h-2.5 w-2.5 shrink-0 ${dot ? "rounded-[1px]" : "rotate-45 rounded-[1px]"}`}
+        style={{ background: color }}
+      />
+      {label}
+    </div>
+  );
+}
+
+export default function Home() {
+  const {
+    state,
+    backup,
+    upsertHolding,
+    removeHolding,
+    setFxRate,
+    setCash,
+    setReserve,
+    adjustReserve,
+    setDeposits,
+    replaceCity,
+    importHoldings,
+    startFresh,
+    restoreBackup,
+  } = useCity();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Holding | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [view, setView] = useState<CityView>("all");
+  const [viewingPast, setViewingPast] = useState<Snapshot | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const autoOpenedRef = useRef(false);
+
+  /**
+   * First-time/sample visitors (recruiters landing from the portfolio link)
+   * get the build form collapsed by default — the map + stats already tell
+   * the story, and the form is only useful once you're actually editing a
+   * real portfolio. John's own real portfolio still opens it automatically,
+   * same as before, so his daily workflow doesn't change.
+   *
+   * Runs once per load (not on every state change) so a manual close while
+   * using the real portfolio doesn't get fought back open.
+   */
+  useEffect(() => {
+    if (state && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      if (!state.isDemo) setFormOpen(true);
+    }
+  }, [state]);
+
+  /**
+   * Clicking Edit on any tower must always expand the form,
+   * otherwise, while collapsed, the click looks like nothing happened (the form is filled but hidden).
+   */
+  const openEditor = (h: Holding) => {
+    setEditing(h);
+    setFormOpen(true);
+  };
+
+  // The city on screen = a past snapshot while time-travelling, otherwise today's
+  const displayState = viewingPast?.state ?? state;
+
+  const structures = useMemo(() => {
+    if (!displayState) return [];
+    const all = toStructures(displayState);
+    return view === "all" ? all : all.filter((s) => s.district === view);
+  }, [displayState, view]);
+
+  /**
+   * Today's city, used to pin the camera while viewing the past — filtered by district the
+   * same way as what's drawn, or switching districts would frame the whole city (zoomed out too far).
+   */
+  const cameraStructures = useMemo(() => {
+    if (!viewingPast || !state) return undefined;
+    const all = toStructures(state);
+    return view === "all" ? all : all.filter((s) => s.district === view);
+  }, [viewingPast, state, view]);
+
+  const selectedHolding =
+    displayState?.holdings.find((h) => h.id === selectedId) ?? null;
+
+  /**
+   * Wall state for the snapshot being viewed — the city needs both "how far it's built" and
+   * "how far it was built a few days ago" to draw new bricks and cracks.
+   */
+  const wall = reserveStatus(displayState?.reserve);
+
+  if (!state || !displayState) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-[var(--label-dim)]">Loading the city…</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col gap-3 p-3 lg:h-screen lg:flex-row lg:overflow-hidden">
+      <Sidebar state={displayState} view={view} onViewChange={setView} />
+
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <header className="flex flex-wrap items-center gap-3">
+          <h1 className="min-w-0 text-xl leading-tight font-semibold text-[var(--label)]">
+            City of Ownership
+          </h1>
+
+          {state.isDemo ? (
+            <div className="ml-auto flex items-center gap-2 rounded-lg border border-[var(--warn-border)] bg-[var(--warn)] px-3 py-1.5 text-xs">
+              <span className="font-medium text-[var(--warn-fg)]">
+                Sample mode — made-up numbers, not your real portfolio
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  startFresh();
+                  setSelectedId(null);
+                  setView("all");
+                }}
+                className="rounded-md border border-[var(--warn-border)] px-2 py-1 font-medium text-[var(--warn-fg)] transition hover:bg-[var(--warn-border)]/30"
+              >
+                Start real portfolio
+              </button>
+            </div>
+          ) : (
+            <div className="ml-auto flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 text-xs text-[var(--label-dim)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--gain)]" />
+              Your real portfolio
+            </div>
+          )}
+        </header>
+
+        <StatsPanel state={displayState} view={view} />
+
+        <BuildLog state={displayState} />
+
+        {backup && state.holdings.length === 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs">
+            <span className="text-[var(--label)]">
+              Previous city had {plural(backup.holdings.length, "tower")} — restorable
+            </span>
+            <button
+              type="button"
+              onClick={restoreBackup}
+              className="ml-auto rounded-md border border-[var(--accent)] px-2 py-1 font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/10"
+            >
+              Restore previous city
+            </button>
+          </div>
+        )}
+
+        <div className="glow-panel relative h-[54vh] min-h-[340px] overflow-hidden rounded-xl bg-[var(--city-bg)] lg:h-auto lg:min-h-0 lg:flex-1">
+          <div className="scanline pointer-events-none absolute inset-0 z-10" />
+          {/*
+            What-am-I-looking-at badge — must be a *badge floating on the map*, not a row in the layout.
+            ⚠️ The "Viewing the city as of…" bar used to sit above StatsPanel ⇒ every time-travel
+            pushed the whole map down ~55px · the camera was still, but the picture still "moved".
+            So it now replaces the Live City Map badge
+            in the same corner and the same footprint, and the map doesn't move a single pixel.
+          */}
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+            {viewingPast ? (
+              <span className="flex items-center gap-2 rounded-md border border-[var(--accent)] bg-[var(--panel)]/95 px-2 py-1 text-[10px] tracking-[0.14em] text-[var(--accent)] uppercase">
+                As of {formatSnapshotDate(viewingPast.at)} · read only
+                <button
+                  type="button"
+                  onClick={() => setViewingPast(null)}
+                  className="rounded border border-[var(--accent)] px-1.5 py-0.5 tracking-normal normal-case transition hover:bg-[var(--accent)]/15"
+                >
+                  Back to today
+                </button>
+              </span>
+            ) : (
+              <span className="rounded-md border border-[var(--border-bright)] bg-[var(--panel)]/85 px-2 py-1 text-[10px] tracking-[0.14em] text-[var(--label-dim)] uppercase">
+                Live City Map
+              </span>
+            )}
+          </div>
+
+          {/*
+            The single legend in the app, closed by default.
+            It used to exist in two places (a box on the map + a long list in the sidebar) with the same
+            content — text you remember after one read doesn't need permanent space.
+          */}
+          <MapLegend />
+          <IsoCity
+            structures={structures}
+            wallCoverage={wall.coverage}
+            wallPriorCoverage={wall.priorCoverage}
+            cameraStructures={cameraStructures}
+            cameraWallCoverage={reserveStatus(state?.reserve).coverage}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        </div>
+      </div>
+
+      <aside className="flex w-full shrink-0 flex-col gap-3 lg:w-[320px] lg:overflow-y-auto">
+        {!viewingPast && <PriceSync state={state} onSynced={replaceCity} />}
+
+        <TimeMachine
+          state={state}
+          viewingPast={viewingPast}
+          onViewPast={(s) => {
+            setViewingPast(s);
+            setSelectedId(null);
+            setEditing(null);
+          }}
+        />
+
+        {selectedHolding && !editing && !viewingPast && (
+          <SelectedTower
+            state={state}
+            holding={selectedHolding}
+            onEdit={openEditor}
+            onRemove={(id) => {
+              removeHolding(id);
+              setSelectedId(null);
+            }}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
+
+        <section
+          className={`rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3 ${
+            viewingPast ? "pointer-events-none opacity-40" : ""
+          }`}
+        >
+          {/*
+            The heading is a collapse/expand button — this form takes the most room in the sidebar but
+            is only needed when adding/editing a tower · collapsed, the tower list and wall move into view.
+          */}
+          <button
+            type="button"
+            onClick={() => setFormOpen((v) => !v)}
+            aria-expanded={formOpen}
+            className="group flex w-full items-center gap-2 text-left"
+          >
+            <h2 className="text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase transition group-hover:text-[var(--label)]">
+              {editing ? `Edit ${editing.ticker}` : "Build a new tower"}
+            </h2>
+            {/*
+              ⚠️ The first version used a ▾ arrow rotated 90° at 10px and it was **practically invisible**
+              (a faint dot in the corner; nobody knew it was clickable) — uses the same +/− box
+              as the map zoom buttons instead: a visual language the app already has, readable at any size.
+            */}
+            <span
+              className="ml-auto flex h-4 w-4 shrink-0 items-center justify-center rounded border border-[var(--border)] text-[11px] leading-none text-[var(--label-dim)] transition group-hover:border-[var(--accent)] group-hover:text-[var(--accent)]"
+              aria-hidden
+            >
+              {formOpen ? "−" : "+"}
+            </span>
+          </button>
+
+          {/*
+            Smooth collapse/expand with a 0fr → 1fr grid.
+            Why not max-height: you'd always have to guess a height, and when the guess is too large
+            closing "hangs then snaps", because nothing moves during the first part of the transition.
+            With 0fr→1fr the browser computes the real height ⇒ equally smooth however long the form is.
+
+            ⚠️ The form stays in the DOM while collapsed (it has to, or it can't animate out),
+            so `inert` keeps Tab from landing in fields you can't see.
+            Side benefit: half-typed values survive an accidental collapse.
+          */}
+          <div
+            className={`grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${
+              formOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+            }`}
+            inert={!formOpen}
+          >
+            <div className="overflow-hidden">
+              <div className="mt-2">
+                <HoldingForm
+                  editing={editing}
+                  onSubmit={(h) => {
+                    upsertHolding(h);
+                    setEditing(null);
+                    setSelectedId(h.id);
+                  }}
+                  onCancel={() => setEditing(null)}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)]">
+          <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
+            <h2 className="text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase">
+              All towers
+            </h2>
+            <label className="ml-auto flex items-center gap-1.5 text-[10.5px] text-[var(--label-dim)]">
+              USD→THB
+              <input
+                value={state.fxRate}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (Number.isFinite(v) && v > 0) setFxRate(v);
+                }}
+                inputMode="decimal"
+                className="w-14 rounded border border-[var(--border)] bg-[var(--input)] px-1.5 py-0.5 text-right font-mono text-[var(--label)]"
+              />
+            </label>
+          </div>
+
+          <HoldingList
+            state={displayState}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onEdit={openEditor}
+            onRemove={(id) => {
+              removeHolding(id);
+              if (selectedId === id) setSelectedId(null);
+              if (editing?.id === id) setEditing(null);
+            }}
+          />
+        </section>
+
+        {!viewingPast && (
+          <ReservePanel
+            state={displayState}
+            onChange={setReserve}
+            onAdjust={adjustReserve}
+          />
+        )}
+
+        {!viewingPast && (
+          <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3">
+            <h2 className="text-[10px] font-semibold tracking-wide text-[var(--label-dim)] uppercase">
+              Cash on hand
+            </h2>
+            <p className="mt-1 text-[10px] leading-relaxed text-[var(--label-dim)]">
+              Build sites in the city · counted in value, never in height
+            </p>
+            <label className="mt-2 block">
+              <span className="text-[10.5px] tracking-wide text-[var(--label-dim)] uppercase">
+                Total deposits (฿)
+              </span>
+              <input
+                value={state.deposits ?? ""}
+                placeholder="every baht transferred in"
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (e.target.value === "") setDeposits(0);
+                  else if (Number.isFinite(v) && v >= 0) setDeposits(v);
+                }}
+                inputMode="decimal"
+                className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-right font-mono text-sm text-[var(--label)] placeholder:text-left placeholder:font-sans placeholder:text-[10px] placeholder:text-[var(--label-dim)]/60"
+              />
+              <span className="text-[10px] text-[var(--label-dim)]">
+                Used as the base for return %
+              </span>
+            </label>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(["usd", "thb"] as const).map((cur) => (
+                <label key={cur} className="block">
+                  <span className="text-[10.5px] tracking-wide text-[var(--label-dim)] uppercase">
+                    {cur === "usd" ? "USD" : "THB"}
+                  </span>
+                  <input
+                    value={state.cash?.[cur] ?? 0}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (Number.isFinite(v) && v >= 0) setCash(cur, v);
+                    }}
+                    inputMode="decimal"
+                    className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-right font-mono text-sm text-[var(--label)]"
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {!viewingPast && (
+          <BulkImport
+            state={state}
+            onImport={(holdings, replace) => {
+              importHoldings(holdings, replace);
+              setSelectedId(null);
+              setEditing(null);
+            }}
+          />
+        )}
+
+        <div className="flex gap-2 pb-1">
+          <button
+            type="button"
+            onClick={() => exportCity(state)}
+            className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2 text-xs text-[var(--label-dim)] transition hover:border-[var(--accent)] hover:text-[var(--label)]"
+          >
+            Save to file
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            className="flex-1 rounded-lg border border-[var(--border)] px-3 py-2 text-xs text-[var(--label-dim)] transition hover:border-[var(--accent)] hover:text-[var(--label)]"
+          >
+            Load from file
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const next = await importCity(file);
+              if (next) {
+                replaceCity(next);
+                setSelectedId(null);
+                setEditing(null);
+              } else {
+                alert("Could not read this file — it must be a JSON exported from this app");
+              }
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </aside>
+    </main>
+  );
+}

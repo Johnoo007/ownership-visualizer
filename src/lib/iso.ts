@@ -1,28 +1,28 @@
 import type { Structure } from "./types";
 
 /**
- * ระยะห่างระหว่างแปลง (pitch) แยกจากขนาดฐานตึก — ต้องมีช่องว่างคั่น
- * ไม่งั้นตึกจะเบียดกันเป็นก้อนตันจนแยกไม่ออกว่ามีกี่หลัง
+ * Spacing between plots (pitch), separate from the tower footprint — there must be a gap,
+ * otherwise towers merge into one solid mass and you can't tell how many there are.
  */
 export const PITCH_W = 112;
 export const PITCH_H = 56;
 
-/** ขนาดฐานตึกแบบ 2:1 isometric */
+/** Tower footprint size, 2:1 isometric */
 export const TILE_W = 68;
 export const TILE_H = 34;
 
 /**
- * ความสูงตึก: ต่ำสุดแค่พอให้เห็นว่ามีตึก — ไม่ใช่เพื่อปลอบใจตัวเล็ก
- * MIN_H ต้องเล็กจริงๆ ไม่งั้นตัวที่ลงเงินหลักหมื่นจะดูเท่ากับตัวที่ลงเงิน 0
+ * Tower height: the minimum is just enough to see a tower exists — not to flatter small ones.
+ * MIN_H must be genuinely small, or a holding with tens of thousands in it looks the same as one with 0.
  */
 export const MIN_H = 5;
 
-/** เกินนี้เส้นชั้นจะถี่จนเละ เปลี่ยนไปวาดเป็น texture แทน */
+/** Beyond this, floor lines get too dense to read — switch to drawing a texture instead */
 export const MAX_DRAWN_FLOORS = 40;
 
 export type Point = { x: number; y: number };
 
-/** จุดกึ่งกลางของแปลง (gx, gy) ในระบบพิกัด iso */
+/** Centre of plot (gx, gy) in iso coordinates */
 export function tileCenter(gx: number, gy: number): Point {
   return {
     x: (gx - gy) * (PITCH_W / 2),
@@ -30,7 +30,7 @@ export function tileCenter(gx: number, gy: number): Point {
   };
 }
 
-/** สี่มุมของ rhombus รอบจุดกึ่งกลาง (N/E/S/W) */
+/** The four corners of the rhombus around a centre point (N/E/S/W) */
 export function rhombus(center: Point, lift = 0): [Point, Point, Point, Point] {
   const { x, y } = center;
   const cy = y - lift;
@@ -47,54 +47,54 @@ export function polygonPoints(points: Point[]): string {
 }
 
 /**
- * ไม้บรรทัดของเมือง: ฿ ต่อความสูง 1 พิกเซล — **ค่าคงที่ตลอดอายุแอป ห้ามเปลี่ยน**
+ * The city's ruler: baht per 1px of height — **constant for the life of the app, never change it**.
  *
- * ⚠️ ของเดิมเป็นขั้นบันได ×√2 ที่ปรับตามตึกใหญ่สุด แล้วมันพังตรงนี้:
- * พอตึกที่สูงสุดโตทะลุขั้น ไม้บรรทัดจะกระโดด **ตึกทุกหลังในเมืองหดพร้อมกัน 29%**
- * ตัวอย่าง: ตึก ~฿90,000 → เติมอีก ฿24,000 แล้ว **เตี้ยลงจาก 356px เหลือ 261px**
- * ส่วน GOOGL ที่ไม่ได้แตะเลยหดจาก 159px เหลือ 112px
- * ⇒ เมืองหดตอนเจ้าของทำสิ่งที่ถูกที่สุดคือเติมเงิน ซึ่งขัดสัญญาข้อแรกของแอปตรงๆ
+ * ⚠️ The old ruler stepped by ×√2 based on the tallest tower, and it broke like this:
+ * when the tallest tower grew past a step, the ruler jumped and **every tower shrank 29% at once**.
+ * Example: a ~฿90,000 tower → add another ฿24,000 and it **drops from 356px to 261px**,
+ * while GOOGL, untouched, shrank from 159px to 112px.
+ * ⇒ the city shrank when the owner did the most correct thing — adding money — directly breaking the app's first promise.
  *
- * ไม้บรรทัดที่ขยับได้ = ความคืบหน้าถูกกินคืนเป็นระยะ · ตรึงไว้แล้วตึกจะไม่มีวันหด
- * เมืองสูงเกินจอเมื่อไหร่ ให้ **กล้องถอยออก** (viewBox ขยายเอง) ไม่ใช่ให้ตึกเตี้ยลง
- * ต่างกันตรงที่ถอยกล้องแล้วสัดส่วนตึกต่อที่ดินยังเท่าเดิม ตาอ่านออกว่าเมืองใหญ่ขึ้น
+ * A ruler that moves = progress periodically eaten back · pin it and towers never shrink.
+ * When the city outgrows the screen, **the camera pulls back** (the viewBox grows), towers don't get shorter.
+ * The difference: pulling the camera back keeps tower-to-land proportions, so the eye reads a bigger city.
  *
- * เลข 320 มาจากการรักษาหน้าตาเมือง ณ วันที่เปลี่ยน (ตึก ~฿90,000 ≈ 281px ≈ ของเดิม)
+ * The value 320 preserved the city's look on the day it changed (a ~฿90,000 tower ≈ 281px ≈ before).
  */
 export const THB_PER_PX = 320;
 
 /**
- * ความสูงเป็นสัดส่วนตรงกับเงินที่ลงไป (linear ห้าม log)
- * log จะทำให้ตัวที่แทบไม่มีอะไรดูใหญ่เกินจริง — ตัวเล็กควรเห็นว่าเล็ก
+ * Height is directly proportional to money invested (linear, never log).
+ * Log would make near-empty holdings look bigger than they are — small should look small.
  *
- * ไม่มีเพดาน: เพดานคือสิ่งที่บังคับให้ต้องมีไม้บรรทัดปรับได้ตั้งแต่แรก
+ * No ceiling: a ceiling is exactly what forced an adjustable ruler in the first place.
  */
 export function heightFor(invested: number): number {
-  // ลงเงิน 0 (ของที่ได้มาฟรี) = ไม่มีตึก เหลือแค่ที่ดิน — ตรงกฎ "ความสูง = เงินที่ลงไป"
-  // ถ้าดัน MIN_H ให้ ตึก ฿0 จะสูงเท่าตึก ฿1,572 ซึ่งโกหกสายตา
+  // Zero invested (a free holding) = no tower, just land — matching "height = money invested"
+  // Forcing MIN_H here would make a ฿0 tower as tall as a ฿1,572 one, which lies to the eye
   if (invested <= 0) return 0;
   return Math.max(MIN_H, invested / THB_PER_PX);
 }
 
 /**
- * เพดานความสูงต่อ "หนึ่งตึก" — เกินนี้ให้ขึ้นตึกใหม่ข้างๆ แทนที่จะยืดตึกเดิม
+ * Height cap per tower — beyond it a new tower goes up next door instead of stretching the old one.
  *
- * ทำไมต้องมี: ไม้บรรทัดตรึง (THB_PER_PX) แก้ปัญหาตึกหดได้ แต่ทำให้ตึกกลายเป็น
- * เข็มเมื่อพอร์ตโต — ที่ ฿560,000 ตึกเดียวจะสูง 25.7 เท่าของความกว้างแปลง
- * แตกเป็นหลายตึกแล้วอัตราส่วนค้างที่ 5.9 เท่าตลอดไป ไม่ว่าพอร์ตจะโตแค่ไหน
+ * Why: the pinned ruler (THB_PER_PX) fixed shrinking towers, but turns towers into needles
+ * as the portfolio grows — at ฿560,000 a single tower is 25.7× as tall as a plot is wide.
+ * Splitting into several towers keeps the ratio at 5.9× forever, however large the portfolio gets.
  *
- * ⚠️ กฎเหล็ก: **ห้ามผ่าตึกเดิมออกเป็นหลายส่วนเท่าๆ กัน**
- * (฿142,364 → 2 ตึก ตึกละ 222px = ตึกเดิมหดจาก 445px ซึ่งคือบั๊ก √2 กลับมา)
- * ตึกที่เต็มเพดานแล้วต้อง **ค้างที่เพดานตลอดไป** แล้วให้ตึกใหม่โตจากศูนย์ข้างๆ
- * ⇒ ความสูงของทุกตึกเป็นฟังก์ชันไม่ลดของเงิน · เดินเงิน ฿0→฿800,000 ทีละไม้
- *   แล้วไม่มีตึกไหนเตี้ยลงแม้แต่ครั้งเดียว (มีเทสต์ล็อก)
+ * ⚠️ Hard rule: **never split an existing tower into several equal parts**
+ * (฿142,364 → 2 towers of 222px each = the original shrinks from 445px, which is the √2 bug again).
+ * A tower that reached the cap **stays at the cap forever**, and the new tower grows from zero beside it
+ * ⇒ every tower's height is a non-decreasing function of money · walking ฿0→฿800,000 one round at a time,
+ *   no tower ever gets shorter, even once (locked by a test).
  */
 export const TOWER_CAP_PX = 400;
 export const TOWER_CAP_THB = TOWER_CAP_PX * THB_PER_PX;
 
 /**
- * แบ่งเงินของหนึ่งรายการเป็นความสูงของตึกแต่ละหลัง
- * หลังก่อนหน้าเต็มเพดานเสมอ หลังสุดท้ายคือหลังที่กำลังก่อสร้าง
+ * Split one holding's money into the heights of its towers.
+ * Earlier towers are always at the cap; the last one is the one under construction.
  */
 export function towerHeights(invested: number): number[] {
   const h = heightFor(invested);
@@ -103,30 +103,30 @@ export function towerHeights(invested: number): number[] {
   const full = Math.floor(invested / TOWER_CAP_THB);
   const rest = heightFor(invested - full * TOWER_CAP_THB);
   const out = Array.from({ length: full }, () => TOWER_CAP_PX);
-  // เศษที่เล็กกว่า MIN_H ยังต้องขึ้นเป็นตึกใหม่ ไม่งั้นตึกจะวูบหายตอนข้ามเพดานพอดี
+  // A remainder smaller than MIN_H must still become a new tower, or it would vanish right at the cap
   if (invested - full * TOWER_CAP_THB > 0) out.push(rest);
   return out;
 }
 
 export type PlacedStructure = {
   structure: Structure;
-  /** ตึกหลังที่เท่าไหร่ของรายการนี้ (0 = หลังแรก) — หลังสุดท้ายคือหลังที่กำลังสร้าง */
+  /** Which tower of this holding (0 = first) — the last one is the one being built */
   partIndex: number;
   partCount: number;
   gx: number;
   gy: number;
   center: Point;
   height: number;
-  /** ยิ่งมากยิ่งอยู่หน้า — ใช้เรียงลำดับการวาด */
+  /** Larger = further forward — used to order drawing */
   depth: number;
 };
 
 export type DistrictLayout = {
   id: string;
   placed: PlacedStructure[];
-  /** แถวแรกของเขตนี้ในกริดรวม */
+  /** First row of this district in the combined grid */
   startRow: number;
-  /** แถวที่เขตนี้กินไปในกริดรวม */
+  /** Rows this district takes in the combined grid */
   rows: number;
 };
 
@@ -139,13 +139,13 @@ export type CityLayout = {
 const DISTRICT_GAP = 2;
 
 /**
- * จัดผังเมือง: เขตเรียงถอยหลังไปข้างหลัง, ในเขตเรียงเงินมาก→น้อย
- * ตัวใหญ่ถูกดันไปอยู่แถวหลัง (gx+gy น้อย) เพื่อไม่ให้บังตึกเตี้ยด้านหน้า
+ * City layout: districts recede backwards; within a district, money sorted high → low.
+ * Big holdings are pushed to the back rows (small gx+gy) so they don't hide short towers in front.
  */
 export function layoutCity(
   structures: Structure[],
   districtOrder: string[],
-  /** เขตที่ให้ไปอยู่ "อีกทิศ" (ยื่นออกไปตามแกน gx) แทนที่จะต่อแถวลงมา */
+  /** Districts placed "off to the side" (extending along gx) instead of stacking below */
   asideDistricts: string[] = [],
 ): CityLayout {
   const districts: DistrictLayout[] = [];
@@ -164,15 +164,15 @@ export function layoutCity(
     if (rows_.length === 0) return 0;
 
     /**
-     * รายการที่กินหลายแปลงจัดเป็น "บล็อกสี่เหลี่ยม" ไม่ใช่เรียงเป็นแถวยาว
+     * Holdings spanning several plots are arranged as a *square block*, not a long row.
      *
-     * เหตุผล: พอพอร์ตโตจนตึกชนเพดานกันหลายหลัง ความสูงจะเท่ากันหมด
-     * มองปราดเดียวแยกไม่ออกว่าตัวไหนใหญ่กว่า (ปีที่ 30 มี 47% ที่ชนเพดาน)
-     * ⇒ ย้ายตัวบอกขนาดจาก "ความสูง" ไปเป็น "พื้นที่ที่ยึดครอง"
-     * SPYM 4 หลังกลายเป็นบล็อก 2×2 = อ่านเป็นอาณาเขต ไม่ใช่ตึกสูงเท่ากัน 4 หลัง
+     * Why: once the portfolio grows and many towers hit the cap, they're all the same height,
+     * and at a glance you can't tell which holding is bigger (in year 30, 47% are at the cap).
+     * ⇒ size moves from "height" to "area occupied".
+     * SPYM's 4 towers become a 2×2 block = reads as territory, not 4 equally tall towers.
      *
-     * ช่องที่เหลือในบล็อก (เช่น 3 หลังในบล็อก 2×2) จงใจปล่อยว่าง —
-     * มันคือแปลงที่ตึกหลังถัดไปจะขึ้นพอดี
+     * Leftover slots in a block (e.g. 3 towers in a 2×2 block) are deliberately left empty —
+     * that's exactly the plot where the next tower will go up.
      */
     const blocks = rows_.map((structure) => {
       const heights = towerHeights(structure.invested);
@@ -190,12 +190,12 @@ export function layoutCity(
     });
 
     /**
-     * วางบล็อกแบบ shelf packing — เรียงต่อกันไปทางขวาจนเต็มแถว แล้วขึ้นแถวใหม่
-     * บล็อกใหญ่มาก่อน (เรียงเงินมาก→น้อย) จึงไปอยู่แถวหลังสุด ไม่บังตึกเตี้ยด้านหน้า
+     * Place blocks by shelf packing — left to right until the row is full, then a new row.
+     * Bigger blocks come first (money high → low), so they end up in the back rows, not hiding short towers.
      *
-     * ⚠️ เคยลองเว้นแปลงว่างคั่นระหว่างบล็อก 1 ช่อง แล้วแย่กว่าเดิม:
-     * 1 ช่องกริด = 112px = ถนนกว้างมาก เมืองเลยโหรงเหรง ตึกกลับไปโดดเดี่ยวทีละหลัง
-     * ⇒ คงความหนาแน่นไว้ แล้วไปบอกขอบเขตบล็อกด้วย "เส้นอาณาเขตบนพื้น" แทน
+     * ⚠️ Leaving one empty plot between blocks was tried and was worse:
+     * one grid cell = 112px = a very wide road, so the city looked sparse and towers isolated again.
+     * ⇒ keep the density; block size is shown by the "×N" label on the front tower instead.
      */
     const BLOCK_GAP = 0;
     const totalParts = blocks.reduce((a, b) => a + b.parts.length, 0);
@@ -227,14 +227,14 @@ export function layoutCity(
     return usedRows;
   };
 
-  // เขตหลักเรียงต่อกันลงมาตามแกน gy
+  // Main districts stack downwards along gy
   for (const districtId of districtOrder) {
     if (asideDistricts.includes(districtId)) continue;
     const used = place(districtId, 0, rowOffset);
     if (used > 0) rowOffset += used + DISTRICT_GAP;
   }
 
-  // เขตที่แยกออกไปอีกทิศ — ยื่นไปตามแกน gx จากขอบขวาของเมือง
+  // Side districts extend along gx from the city's right edge
   const mainMaxGx = all.length > 0 ? Math.max(...all.map((p) => p.gx)) : 0;
   let asideX = mainMaxGx + DISTRICT_GAP + 1;
   for (const districtId of asideDistricts) {
@@ -246,7 +246,7 @@ export function layoutCity(
     }
   }
 
-  // ไกลไปใกล้ — ตึกหน้าทับตึกหลังได้ถูกต้อง
+  // Back to front — nearer towers correctly cover farther ones
   all.sort((a, b) => a.depth - b.depth || a.gx - b.gx);
 
   return { districts, all, bounds: boundsOf(all) };
@@ -260,53 +260,53 @@ export type GroundCell = {
   kind: CellKind;
   center: Point;
   depth: number;
-  /** ของประดับ — deterministic ไม่กระพริบตอน re-render */
+  /** Decoration — deterministic, so it doesn't flicker on re-render */
   decor: "none" | "tree" | "bush" | "car" | "lamp" | "person";
   /**
-   * แนวของถนนช่องนี้ — รถ เส้นแบ่งเลน และคนเดินริมทางต้องอิงตามนี้
-   * "x" = ถนนพาดตามแกนที่ gx เพิ่ม · "y" = ตามแกนที่ gy เพิ่ม · "both" = สี่แยก
+   * This cell's road axis — cars, lane markings and kerbside pedestrians all follow it.
+   * "x" = road runs along +gx · "y" = along +gy · "both" = intersection
    */
   roadAxis?: "x" | "y" | "both";
-  /** แปลงนี้เป็นของกลุ่มอาคารไหน (หุ้นที่กินหลายแปลง) — undefined = ตึกเดี่ยว */
+  /** Which building group this plot belongs to (a holding spanning several plots) — undefined = single tower */
   blockId?: string;
 };
 
 /**
- * ระยะขยายพื้นออกไปรอบเมือง (หน่วยช่อง)
- * ตั้งใจให้พื้นล้นออกนอกกรอบภาพ — ถ้าเห็นขอบพื้นครบทุกด้าน เมืองจะดูเหมือน
- * แผ่นดินลอยในอวกาศแล้วรู้สึกเล็ก · bounds จงใจไม่นับระยะนี้ (ดู boundsOf)
+ * How far the ground extends around the city (in cells).
+ * Deliberately overflows the frame — if every edge of the ground is visible, the city looks like
+ * an island floating in space and feels small · bounds deliberately ignore this (see boundsOf).
  */
 const GROUND_PAD = 6;
 
-/** ระยะที่ยังวางต้นไม้/คน/รถ — ไกลกว่านี้ปล่อยเป็นพื้นโล่ง กันรกและกันช้า */
+/** Range where trees/people/cars are placed — beyond it the ground is left bare, to avoid clutter and slowness */
 const DECOR_REACH = 3;
 
 /**
- * ระยะที่ถือว่ายังอยู่ใน "ผังเมืองของเรา" — แปลงจัดสรรที่ตัดถนนรอไว้แล้วแต่ยังว่าง
- * จงใจไม่ใส่เมืองของคนอื่นรอบๆ เพราะไม่มีข้อมูลจริงว่าใครถืออะไร
- * (ถ้าใส่ = สกอร์บอร์ดที่เทียบกับตัวเลขที่เราแต่งเอง)
+ * Range that still counts as "our own city plan" — allocated plots with roads cut, waiting to be built.
+ * Deliberately no other people's cities around it, because there's no real data on who owns what
+ * (that would be a scoreboard against numbers we made up).
  */
 const PLAN_REACH = 4;
 
-/** ระยะห่างขั้นต่ำระหว่างถนนสองสาย (หน่วยช่อง) */
+/** Minimum spacing between two roads (in cells) */
 const ROAD_SPACING = 3;
 
 /**
- * พื้นทั้งผืนของเมือง — แปลงที่ดินใต้ตึก, ถนนคั่นระหว่างเขต, และหญ้า/ต้นไม้รอบนอก
- * คำนวณแยกจากตึกเพราะพื้นต้องวาดก่อนเสมอ (ไม่เข้าคิว depth sort เดียวกับตึก)
+ * The city's whole ground — plots under towers, roads between districts, and grass/trees around.
+ * Computed separately from towers because the ground is always drawn first (not in the towers' depth sort).
  */
 export function groundCells(
   layout: CityLayout,
   /**
-   * ช่องที่กำแพงยืนอยู่ (เฉพาะช่วงที่ก่อแล้ว และไม่ใช่ประตู)
+   * Cells where the wall stands (only built sections, excluding gates).
    *
-   * ต้องส่งเข้ามาเพราะ **กำแพงต้องตัดถนน** ไม่งั้นรถจะวิ่งทะลุกำแพงออกไปข้างนอก
-   * ช่วงที่ยังไม่ได้ก่อจงใจไม่กั้น — รูคือรูจริง รถลอดออกไปได้ ตรงกับความหมาย
-   * ส่วนประตูก็ปล่อยเป็นถนน รถจะได้วิ่งผ่านประตูได้เหมือนเมืองจริง
+   * Passed in because **the wall must cut roads**, otherwise cars drive straight through it.
+   * Unbuilt sections deliberately don't block — a gap is a real gap, cars can get out, matching the meaning.
+   * Gates are left as road too, so cars drive through the gate like a real city.
    */
   blocked: ReadonlySet<string> = new Set(),
 ): GroundCell[] {
-  // ล้อมทุกอย่างที่อยู่บนแผนที่ ทั้งตึกและไซต์เงินสด
+  // Enclose everything on the map — towers and the cash site
   const gxs = layout.all.map((p) => p.gx);
   const gys = layout.all.map((p) => p.gy);
   const minGx = Math.min(...gxs) - GROUND_PAD;
@@ -316,23 +316,23 @@ export function groundCells(
 
   const occupied = new Set(layout.all.map((p) => `${p.gx},${p.gy}`));
   /**
-   * แปลงของหุ้นที่กินหลายแปลง — ใช้ตีเส้นอาณาเขตให้เห็นว่าบล็อกนี้เป็นผืนเดียวกัน
-   * พอตึกชนเพดานกันหมด ความสูงบอกขนาดไม่ได้แล้ว ต้องให้ "พื้นที่" เป็นตัวบอกแทน
+   * Plots of holdings spanning several plots — marks the block as one piece of land.
+   * Once towers all hit the cap, height can't show size anymore, so "area" has to.
    */
   const blockOf = new Map<string, string>();
   for (const p of layout.all) {
     if (p.partCount > 1) blockOf.set(`${p.gx},${p.gy}`, p.structure.id);
   }
 
-  // ขอบเขตของตึกจริง (ยังไม่รวมพื้นที่ขยาย) — ใช้กำหนดโซนผังเมือง
+  // Extent of the actual towers (not the extended ground) — defines the city-plan zone
   const tMinGx = Math.min(...gxs);
   const tMaxGx = Math.max(...gxs);
   const tMinGy = Math.min(...gys);
   const tMaxGy = Math.max(...gys);
 
   /**
-   * ตัดถนนเป็นตารางล้อมบล็อกตึก — เลือกเฉพาะแถว/คอลัมน์ที่ไม่มีตึกอยู่เลย
-   * เพื่อไม่ให้ถนนพาดทับแปลงที่สร้างไปแล้ว
+   * Cut roads in a grid around tower blocks — only rows/columns with no towers at all,
+   * so a road never runs over a plot that's already built.
    */
   const usedRows = new Set(layout.all.map((p) => p.gy));
   const usedCols = new Set(layout.all.map((p) => p.gx));
@@ -352,14 +352,14 @@ export function groundCells(
   const roadRows = pickLines(minGy, maxGy, usedRows);
   const roadCols = pickLines(minGx, maxGx, usedCols);
 
-  // ถนนคั่นระหว่างเขตต้องมีเสมอ ถึงจะชนกติกาเว้นระยะก็ตาม
+  // A road between districts must always exist, even if it breaks the spacing rule
   for (let i = 1; i < layout.districts.length; i++) {
     roadRows.add(layout.districts[i].startRow - 1);
   }
 
   /**
-   * นอกกำแพงคือ "นอกเมือง" — ห้ามมีรถหรือคนอยู่ตรงนั้น
-   * เหลือแค่ต้นไม้กับพุ่มไม้ ให้อ่านเป็นป่านอกอาณาเขต ไม่ใช่ชานเมืองที่มีชีวิต
+   * Outside the wall is "outside the city" — no cars or people allowed there,
+   * only trees and bushes, so it reads as forest beyond the realm, not a lively suburb.
    */
   const wb = wallBounds(layout);
   const insideWall = (gx: number, gy: number) =>
@@ -400,14 +400,14 @@ export function groundCells(
       } else if (kind === "road") {
         if (r > 0.62) decor = "car";
         else if (r > 0.3) decor = "lamp";
-        else if (r > 0.12) decor = "person"; // คนเดินริมถนน
-        // ถนนนอกกำแพงเหลือแค่ไฟส่องทาง ไม่มีรถไม่มีคน
+        else if (r > 0.12) decor = "person"; // pedestrian along the road
+        // Roads outside the wall keep only street lights — no cars, no people
         if (!insideWall(gx, gy) && decor !== "lamp") decor = "none";
       } else if (kind === "vacant") {
-        // แปลงจัดสรรปล่อยโล่งเป็นหลัก มีคนเดินผ่านบ้าง
+        // Allocated plots are mostly left empty, with the occasional passer-by
         if (r > 0.88) decor = "person";
       } else if (kind === "grass") {
-        // ชานเมืองรอบผัง — ป่า/ทุ่ง
+        // Outskirts around the plan — forest/fields
         if (r > 0.72) decor = "tree";
         else if (r > 0.58) decor = "bush";
         else if (r > 0.5 && nearCity && insideWall(gx, gy)) decor = "person";
@@ -442,13 +442,13 @@ function boundsOf(placed: PlacedStructure[]) {
   for (const p of placed) {
     minX = Math.min(minX, p.center.x - PITCH_W / 2);
     maxX = Math.max(maxX, p.center.x + PITCH_W / 2);
-    // เผื่อที่ด้านบนให้ยอดตึก + ป้ายชื่อ · ด้านล่างให้ป้ายเขต
+    // Leave room above for tower tops + labels · below for district labels
     minY = Math.min(minY, p.center.y - p.height - TILE_H / 2 - 26);
     maxY = Math.max(maxY, p.center.y + PITCH_H / 2 + 30);
   }
 
-  // จงใจเผื่อแค่พอหายใจ ไม่นับ GROUND_PAD ทั้งก้อน — ปล่อยให้พื้นล้นออกนอกเฟรมไป
-  // เพื่อให้เมืองกินพื้นที่จอมากที่สุดและมองไม่เห็นขอบแผ่นดิน
+  // Deliberately just breathing room, not the whole GROUND_PAD — let the ground overflow the frame
+  // so the city fills as much of the screen as possible and the edge of the land isn't visible
   const padX = PITCH_W * 0.75;
   const padY = PITCH_H + 24;
   return {
@@ -460,19 +460,19 @@ function boundsOf(placed: PlacedStructure[]) {
 }
 
 export type FloorPlan = {
-  /** ชั้นที่สร้างเสร็จแล้ว (หุ้นเต็มใบ) */
+  /** Completed floors (whole shares) */
   fullFloors: number;
-  /** ความสูงต่อ 1 หุ้น */
+  /** Height per share */
   floorHeight: number;
-  /** เศษหุ้นที่เหลือ 0–1 — ชั้นบนสุดที่ยังสร้างไม่เสร็จ */
+  /** Remaining fractional share 0–1 — the unfinished top floor */
   partial: number;
-  /** ชั้นถี่เกินกว่าจะวาดเส้นทีละชั้น */
+  /** Floors too dense to draw one line each */
   toodense: boolean;
 };
 
 /**
- * แบ่งความสูง (ที่มาจากเงิน) ออกเป็นชั้นตามจำนวนหุ้น
- * ⇒ ตึกสูงเท่าเงินที่ลง แต่ "นับชั้น" ได้เท่าจำนวนหุ้นที่สะสม
+ * Divide the height (which comes from money) into floors by share count
+ * ⇒ the tower is as tall as the money invested, but you can "count floors" as shares held.
  */
 export function floorPlan(units: number, height: number): FloorPlan {
   if (units <= 0) {
@@ -488,9 +488,9 @@ export function floorPlan(units: number, height: number): FloorPlan {
 }
 
 /**
- * สัดส่วนหน้าต่างที่ติดไฟ จากกำไร/ขาดทุน
- * ตั้งใจไม่ใช้แดง–เขียว (panic trigger) — ใช้สว่าง ↔ หรี่แทน
- * และพื้นไม่เคยเป็น 0: ตึกที่ขาดทุนหนักก็ยังมีคนอยู่
+ * Fraction of windows lit, from gain/loss.
+ * Deliberately not red–green (a panic trigger) — bright ↔ dim instead,
+ * and the floor is never 0: even a tower deep in the red still has people living in it.
  */
 export function litRatio(health: number | null): number {
   if (health === null) return 0.8;
@@ -498,7 +498,7 @@ export function litRatio(health: number | null): number {
   return Math.max(0.12, 0.55 + Math.max(health, -0.6) * 0.72);
 }
 
-/** สุ่มแบบคงที่ — หน้าต่างต้องไม่กระพริบใหม่ทุกครั้งที่ re-render */
+/** Deterministic randomness — windows must not re-flicker on every re-render */
 export function seededRandom(seed: string, index: number): number {
   let h = 2166136261 ^ index;
   for (let i = 0; i < seed.length; i++) {
@@ -509,14 +509,14 @@ export function seededRandom(seed: string, index: number): number {
 }
 
 /**
- * กำแพงอยู่ห่างจากของชิ้นนอกสุดกี่ช่อง
+ * How many cells the wall sits from the outermost object.
  *
- * ล้อม "ทั้งแผนที่" ไม่ใช่แค่กระจุกตึก (John เคาะ) — เหตุผลเชิงความหมายด้วย:
- * เงินสำรองปกป้องทุกอย่างที่เรามี ไม่ใช่เฉพาะส่วนที่กลายเป็นหุ้นแล้ว
- * ไซต์เงินสดจึงต้องอยู่ในกำแพงด้วย
+ * Encloses "the whole map", not just the cluster of towers — for a semantic reason too:
+ * the emergency fund protects everything you have, not only what has already become shares,
+ * so the cash site must be inside the wall as well.
  *
- * ตั้งไว้ต่ำกว่า GROUND_PAD อยู่ 2 ช่อง เพื่อให้ยังเห็นผืนดินนอกกำแพง
- * ถ้าเท่ากันพอดี กำแพงจะไปแปะขอบภาพ อ่านเป็นกรอบรูปแทนที่จะเป็นกำแพง
+ * Set 2 cells inside GROUND_PAD so there's still visible land outside the wall;
+ * if equal, the wall would sit on the edge of the picture and read as a picture frame, not a wall.
  */
 const WALL_MARGIN = 4;
 
@@ -525,61 +525,61 @@ export type WallSegment = {
   gy: number;
   center: Point;
   depth: number;
-  /** สร้างแล้วหรือยัง — ยังไม่สร้าง = ตอม่อเปล่า เห็นเป็นช่องโหว่ */
+  /** Built yet? — unbuilt = bare footing, visible as a gap */
   built: boolean;
   /**
-   * เพิ่งก่อในกรอบไม่กี่วันนี้ — อิฐใหม่ยังเรืองแสง มีนั่งร้าน
+   * Laid within the last few days — new bricks still glow, with scaffolding.
    *
-   * นี่คือช่องทาง feedback ของกำแพง เทียบเท่า "เครน + ขีด DCA" ของตึก:
-   * เติมเงินสำรอง ฿4,000 ทำให้ตัวเลขเดือนขยับนิดเดียวเสมอ แต่ "อิฐใหม่ 2 ก้อน"
-   * เป็นของที่เห็นได้เต็มๆ และไม่ถูกเจือจางเมื่อกำแพงยาวขึ้น
+   * This is the wall's feedback channel, the equivalent of the towers' "crane + DCA tally":
+   * adding ฿4,000 to the reserve always moves the months figure only slightly, but "2 new bricks"
+   * are fully visible and never diluted as the wall grows.
    */
   fresh: boolean;
   /**
-   * เคยก่อไว้แล้วเพิ่งพังเพราะถอนเงินออก — คนละความหมายกับ "ยังไม่ได้ก่อ"
+   * Was built, then just fell because money was withdrawn — a different meaning from "not built yet".
    *
-   * ต้องแยกให้เห็น: ตอม่อเปล่า = ยังไม่เคยถึงตรงนี้ · ซากร้าว = เคยปลอดภัยแล้วเสียไป
-   * ถ้าวาดเหมือนกันหมด การถอนเงินจะเงียบสนิท ซึ่งเป็นสิ่งที่ไม่ควรเงียบที่สุด
+   * Must be distinguishable: bare footing = never reached here · cracked ruins = was safe and lost it.
+   * Drawn the same, a withdrawal would be completely silent, which is the last thing it should be.
    */
   broken: boolean;
-  /** ด้านไหนของวง ใช้เลือกทิศวางตัวกำแพง */
+  /** Which side of the ring — used to orient the wall section */
   side: "nw" | "ne" | "se" | "sw";
-  /** มุมของวง วาดเป็นป้อม */
+  /** Ring corner, drawn as a tower */
   corner: boolean;
-  /** ประตูเมือง — จุดเดียวที่เข้าออกได้ อยู่ด้านหน้าสุดเพื่อให้เป็นจุดนำสายตา */
+  /** City gate — the one way in or out, at the very front to anchor the eye */
   gate: boolean;
-  /** มีคบไฟบนสันกำแพง — เว้นระยะ ไม่ใช่ทุกช่วง */
+  /** Has a torch on the wall top — spaced out, not on every section */
   torch: boolean;
 };
 
 /**
- * วงกำแพงล้อมเมือง — Kingdom v1
+ * Wall ring around the city.
  *
- * สัดส่วนที่สร้างแล้วคือ "ความยาว" ไม่ใช่ "ความสูง" โดยตั้งใจ:
- * กำแพงเตี้ยทั้งวงยังแปลว่าล้อมครบ แต่กำแพงสูงครึ่งวงแปลว่ามีรูให้เดินเข้า
- * ⇒ ช่องโหว่ = เดือนที่ยังไม่มีเงินคุ้ม ซึ่งเป็นสิ่งที่ต้องรู้สึกได้ ไม่ใช่ตัวเลข
+ * The built fraction is *length*, not *height*, on purpose:
+ * a low wall all the way round still means fully enclosed, but a tall wall half-way round means a gap to walk through
+ * ⇒ a gap = months not yet covered, something to feel, not just a number.
  *
- * เริ่มก่อจากด้านหลังไล่มาข้างหน้า ⇒ **รูอยู่ด้านหน้าเสมอ มองเห็นแน่นอน**
- * (ถ้าให้รูไปอยู่หลังเมือง มันจะถูกตึกบังแล้วความรู้สึก "ยังไม่ปลอดภัย" หายไป)
+ * Building starts at the back and works forward ⇒ **the gap is always at the front, always visible**
+ * (if the gap were behind the city, towers would hide it and the "not safe yet" feeling would disappear).
  */
 /**
- * กรอบภาพที่เผื่อที่ให้วงกำแพงแล้ว — ต้องใช้แทน layout.bounds ตอนตั้ง viewBox
- * ไม่งั้นกล้องจะเล็งเฉพาะตึก แล้วกำแพงโดนตัดขอบหายไปครึ่งวง
+ * Camera frame with room for the wall ring — use it instead of layout.bounds when setting the viewBox,
+ * otherwise the camera aims only at the towers and half the wall gets cropped.
  */
 export type Bounds = { minX: number; minY: number; width: number; height: number };
 
 /**
- * รวมสองกรอบให้เป็นกรอบเดียวที่คลุมทั้งคู่
+ * Merge two frames into one that covers both.
  *
- * ใช้ตอนย้อนดูอดีต: กล้องต้องเล็ง **กรอบเดียวกับวันนี้** ไม่ใช่เล็งเมืองในอดีตใหม่
+ * Used when viewing the past: the camera must aim at **the same frame as today**, not re-aim at the past city.
  *
- * ⚠️ ถ้าปล่อยให้กล้องเล็งใหม่ตามเมืองที่วาด จะเกิดสองปัญหาพร้อมกัน:
- * (1) ภาพกระโดดทุกครั้งที่กดสลับวัน — John: *"พอขยับแล้วมันรู้สึกแปลกๆ"*
- * (2) หนักกว่านั้น **การเติบโตหายไปจากภาพ** เพราะเมืองอดีตที่เล็กกว่าจะถูก
- *     ซูมเข้าจนเต็มจอเท่าเมืองวันนี้ ⇒ เทียบแล้วดูเท่ากัน ทั้งที่มันโตขึ้นจริง
+ * ⚠️ Letting the camera re-aim at whatever city is drawn causes two problems at once:
+ * (1) the picture jumps every time you switch dates, which feels off;
+ * (2) worse, **growth disappears from the picture**, because the smaller past city gets
+ *     zoomed in to fill the screen like today's ⇒ they look the same even though it really grew.
  *
- * เป็นกฎเดียวกับที่ตกลงกันไว้ตอนตรึงไม้บรรทัดความสูง: **กล้องขยับได้ แต่ห้าม
- * ขยับจนกลบความจริงที่ต้องการให้เห็น** (เมืองสูงเกินจอ → กล้องถอย ไม่ใช่ตึกเตี้ยลง)
+ * Same rule as when the height ruler was pinned: **the camera may move, but never
+ * so much that it hides the truth you're meant to see** (city taller than the screen → camera pulls back, towers don't shrink).
  */
 export function unionBounds(a: Bounds, b: Bounds): Bounds {
   const minX = Math.min(a.minX, b.minX);
@@ -609,10 +609,10 @@ export function boundsWithWall(layout: CityLayout, segments: WallSegment[]) {
 }
 
 /**
- * กรอบสี่เหลี่ยมที่กำแพงวางอยู่ — ล้อมทุกอย่างบนแผนที่ ทั้งตึกและไซต์เงินสด
+ * The rectangle the wall sits on — encloses everything on the map, towers and the cash site.
  *
- * แยกออกมาเพราะพื้นดินก็ต้องรู้ว่า "ตรงไหนคือในกำแพง" ด้วย
- * ไม่งั้นจะมีรถวิ่งอยู่นอกเมืองทั้งที่ข้างนอกควรเป็นป่า
+ * Factored out because the ground also needs to know "where is inside the wall",
+ * otherwise cars would drive around outside the city where it should be forest.
  */
 export function wallBounds(layout: CityLayout) {
   if (layout.all.length === 0) return null;
@@ -627,9 +627,9 @@ export function wallBounds(layout: CityLayout) {
 }
 
 /**
- * @param coverage      สัดส่วนที่ก่อแล้ววันนี้ 0..1
- * @param priorCoverage สัดส่วนเมื่อไม่กี่วันก่อน — ส่วนต่างคือ "อิฐใหม่" หรือ "รอยร้าว"
- *                      ไม่ส่งมา = ไม่มีอะไรเพิ่งเกิดขึ้น (กำแพงนิ่ง)
+ * @param coverage      fraction built today, 0..1
+ * @param priorCoverage fraction a few days ago — the difference is "new bricks" or "cracks"
+ *                      omitted = nothing just happened (a still wall)
  */
 export function wallRing(
   layout: CityLayout,
@@ -649,7 +649,7 @@ export function wallRing(
       corner: (gx === x0 || gx === x1) && (gy === y0 || gy === y1),
     });
 
-  // ไล่ตามเข็ม เริ่มมุมหลังสุด (x0,y0) — ด้านหลังก่อน ด้านหน้าทีหลัง
+  // Walk clockwise from the backmost corner (x0,y0) — back sides first, front sides later
   for (let gx = x0; gx <= x1; gx++) push(gx, y0, "ne");
   for (let gy = y0 + 1; gy <= y1; gy++) push(x1, gy, "se");
   for (let gx = x1 - 1; gx >= x0; gx--) push(gx, y1, "sw");
@@ -663,17 +663,17 @@ export function wallRing(
       : Math.round(clamp01(priorCoverage) * ring.length);
 
   /**
-   * ⚠️ ลำดับใน ring ใช้ตัดสินว่า "ก่อถึงไหนแล้ว" เท่านั้น ห้ามใช้เป็นลำดับการวาด
+   * ⚠️ Ring order only decides "how far it's built" — never use it as drawing order.
    *
-   * วงไล่ตามเข็ม: ด้านบน (gx เพิ่ม) กับด้านขวา (gy เพิ่ม) บังเอิญได้ความลึกเพิ่มขึ้น
-   * ตามลำดับพอดี แต่ด้านล่าง (gx ลด) กับด้านซ้าย (gy ลด) ไล่ย้อนกลับ
-   * ⇒ ถ้าวาดตามลำดับวง สองด้านนั้นจะเอาช่วงที่อยู่ไกลกว่าไปวาดทับช่วงที่อยู่ใกล้กว่า
-   *   กำแพงเลยดูเป็นก้อนซ้อนผิดรูป (John: "โอเคแค่สองด้าน อีกสองด้านยังผิด")
-   * ⇒ ต้องเรียงตามความลึกก่อนคืนออกไปเสมอ แบบเดียวกับตึก
+   * The ring goes clockwise: the top side (gx increasing) and right side (gy increasing) happen to
+   * increase in depth in order, but the bottom (gx decreasing) and left (gy decreasing) run backwards
+   * ⇒ drawn in ring order, those two sides paint farther sections over nearer ones,
+   *   and the wall looks like mis-stacked blocks (correct on two sides, wrong on the other two).
+   * ⇒ always sort by depth before returning, the same as towers.
    */
   /**
-   * ประตูเมืองอยู่กลางด้านหน้าสุด (sw) — กำแพงที่ปิดตายรอบด้านอ่านเป็นคุก
-   * ไม่ใช่เมือง · ประตูทำให้วงมีจุดนำสายตาและบอกว่าข้างในมีคนอยู่
+   * The city gate is in the middle of the front side (sw) — a ring sealed on all sides reads as a prison,
+   * not a city · the gate gives the ring a focal point and says people live inside.
    */
   const frontIdx = ring
     .map((r, i) => ({ r, i }))
@@ -687,11 +687,11 @@ export function wallRing(
       center: tileCenter(r.gx, r.gy),
       depth: r.gx + r.gy,
       built: i < builtCount,
-      // อิฐใหม่ = ช่วงที่วันก่อนยังไม่มี · ซากร้าว = ช่วงที่วันก่อนมีแล้วตอนนี้ไม่มี
+      // New bricks = sections that didn't exist before · cracked ruins = sections that existed and are now gone
       fresh: i < builtCount && i >= priorCount,
       broken: i >= builtCount && i < priorCount,
       gate: i === gateIdx,
-      // คบไฟทุก 3 ช่วง — ถี่กว่านี้จะกลายเป็นไฟวิ่ง ห่างกว่านี้จะดูร้าง
+      // A torch every 3 sections — denser looks like running lights, sparser looks abandoned
       torch: !r.corner && i % 3 === 1,
     }))
     .sort((a, b) => a.depth - b.depth || a.gx - b.gx);

@@ -24,7 +24,7 @@ const FILL: Record<GroundCell["kind"], string> = {
   road: "var(--road)",
   vacant: "var(--vacant)",
   grass: "var(--grass)",
-  // ใต้กำแพง — พื้นมืดๆ ไม่ต้องมีลาย ตัวกำแพงทับอยู่แล้ว
+  // Under the wall — plain dark ground, no pattern; the wall covers it anyway
   wall: "#1b1a15",
 };
 
@@ -37,7 +37,7 @@ function rhombus(c: Point, w: number, h: number): Point[] {
   ];
 }
 
-/** พื้นทั้งผืน วาดก่อนตึกเสมอ — แปลงที่ดิน / ถนน / หญ้าและต้นไม้ */
+/** The whole ground layer, always drawn before buildings — plots / roads / grass and trees */
 export function IsoGround({ cells }: { cells: GroundCell[] }) {
   const lanes = useMemo(() => computeLanes(cells), [cells]);
 
@@ -50,7 +50,7 @@ export function IsoGround({ cells }: { cells: GroundCell[] }) {
 
         return (
           <g key={`${cell.gx},${cell.gy}`}>
-            {/* เต็มระยะกริดพอดี เพื่อให้พื้นต่อกันเป็นผืนเดียว ไม่ใช่แผ่นลอยๆ */}
+            {/* Exactly one grid pitch wide so tiles join into one surface, not floating slabs */}
             <polygon
               points={polygonPoints(rhombus(cell.center, PITCH_W, PITCH_H))}
               fill={fill}
@@ -65,7 +65,7 @@ export function IsoGround({ cells }: { cells: GroundCell[] }) {
               />
             )}
 
-            {/* แปลงที่จัดสรรไว้แล้วแต่ยังไม่มีตึก — ขอบเส้นประ = รอสร้าง */}
+            {/* Allocated plot with no tower yet — dashed outline = waiting to be built */}
             {cell.kind === "vacant" && (
               <polygon
                 points={polygonPoints(rhombus(cell.center, PITCH_W - 14, PITCH_H - 7))}
@@ -77,7 +77,7 @@ export function IsoGround({ cells }: { cells: GroundCell[] }) {
               />
             )}
 
-            {/* เส้นแบ่งเลนลากตามแนวถนนของช่องนั้น — สี่แยกไม่มีเส้นแบ่ง */}
+            {/* Lane markings follow that cell's road axis — intersections have none */}
             {cell.kind === "road" && cell.roadAxis !== "both" && (
               <line
                 x1={cell.center.x - (AXIS[axisOf(cell)].dir[0] * PITCH_W) / 4}
@@ -94,7 +94,7 @@ export function IsoGround({ cells }: { cells: GroundCell[] }) {
         );
       })}
 
-      {/* ของประดับวาดทีหลังทั้งหมด กันต้นไม้ถูกพื้นช่องถัดไปทับ */}
+      {/* Decorations are all drawn afterwards so trees aren't covered by the next tile */}
       {cells
         .filter((c) => c.decor !== "none")
         .map((cell) => (
@@ -122,7 +122,7 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
         <rect x={cx - 0.7} y={cy - 15} width={1.4} height={15} fill="#2a3d57" />
         <rect x={cx - 3} y={cy - 16.5} width={6} height={2} rx={1} fill="#3c5273" />
         <circle cx={cx} cy={cy - 15} r={2.2} fill="#ffe9a8" />
-        {/* แสงตกลงพื้นเป็นวงรี */}
+        {/* Light pool on the ground, as an ellipse */}
         <ellipse cx={cx} cy={cy - 14} rx={7} ry={5} fill="#ffe9a8" opacity={0.13} />
         <ellipse cx={cx} cy={cy + 1} rx={13} ry={6} fill="#ffe9a8" opacity={0.07} />
       </g>
@@ -134,8 +134,8 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
     const color = shirt > 0.66 ? "#b9634f" : shirt > 0.33 ? "#4f77aa" : "#6b9a80";
     const stride = seededRandom(`st${cell.gx}:${cell.gy}`, 17) > 0.5 ? 1 : -1;
 
-    // คนบนถนนต้องเดินริมทาง ไม่ยืนกลางเลนให้รถชน
-    // ขยับตามแกนที่ตั้งฉากกับแนวถนน (ทิศที่ gy เพิ่ม)
+    // People on roads walk along the kerb, not in the middle of the lane
+    // offset along the axis perpendicular to the road (the +gy direction)
     if (cell.kind === "road") {
       const perp = AXIS[axisOf(cell)].perp;
       const side = seededRandom(`sd${cell.gx}:${cell.gy}`, 19) > 0.5 ? 1 : -1;
@@ -143,11 +143,11 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
       cy = cell.center.y + perp[1] * 17 * side;
     }
 
-    // เดินไป-กลับตามแนวทางเท้า ระยะสั้นๆ พอให้รู้ว่ามีชีวิต ไม่ใช่วิ่งข้ามเมือง
+    // Walk back and forth a short way along the pavement — enough to feel alive, not cross the city
     const walkAxis = cell.kind === "road" ? AXIS[axisOf(cell)].dir : AXIS.x.dir;
     const walkLen = 10 + seededRandom(`wl${cell.gx}:${cell.gy}`, 29) * 12;
 
-    // เงาสั้นๆ + ขาสองข้างแยกจังหวะ ทำให้อ่านเป็นคนเดิน ไม่ใช่หมุดปัก
+    // A short shadow + legs moving out of phase reads as a person walking, not a pin
     return (
       <g
         className="anim-walk"
@@ -184,8 +184,8 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
     const { dir, cellsAhead, canDrive } = carRoute(cell, lane);
 
     /**
-     * รถวางตามแนวถนน "ของช่องนั้น" — ผังเมืองมีถนนสองแนวตัดกัน
-     * ถ้าใช้แกนเดียวทั้งเมือง รถบนถนนอีกแนวจะขวางเลนหมด
+     * Cars align with *that cell's* road axis — the city has roads in two directions,
+     * and one axis for the whole city would put every car on the other roads sideways.
      */
     const ax = AXIS[axisOf(cell)];
     const L = 8.5;
@@ -207,20 +207,20 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
     const backR = p(-1, 1);
 
     /**
-     * ระยะวิ่ง = ระยะพิกเซลจริงต่อช่อง × จำนวนช่องที่ถนนยังต่อกันอยู่
-     * หยุดที่กลางช่องสุดท้ายพอดี · ผูกเวลากับระยะ ทุกคันจึงวิ่งเร็วเท่ากัน
+     * Travel = real pixel distance per cell × number of connected road cells ahead,
+     * stopping exactly at the centre of the last cell. Time is tied to distance, so every car has the same speed.
      */
     const travel = CELL_STEP * cellsAhead;
-    const speed = 11 + seededRandom(`cs${cell.gx}:${cell.gy}`, 37) * 5; // วินาทีต่อช่อง
+    const speed = 11 + seededRandom(`cs${cell.gx}:${cell.gy}`, 37) * 5; // seconds per cell
     const dur = (cellsAhead * speed) / 4;
 
     /**
-     * จุดเริ่มของแต่ละคันเป็น "สัดส่วนของรอบ" ไม่ใช่วินาทีคงที่
+     * Each car's start is a *fraction of its loop*, not a fixed number of seconds.
      *
-     * เหตุผล: ตอนกดหยุด รถจะค้างอยู่ตรงเฟรมนั้นจริงๆ ถ้าดันไปค้างช่วง 0–10%
-     * หรือ 85–100% ซึ่งเป็นช่วงที่ keyframe ทำ opacity fade รถคันนั้นจะจางหรือหายไปเลย
-     * ⇒ บังคับให้ทุกคันเริ่มอยู่ในช่วง 15–85% ของรอบ = ทึบเต็มที่เสมอ
-     * และหน่วงเป็นสัดส่วนยังทำให้รถกระจายทั่วถนนเท่าๆ กันไม่ว่ารอบจะสั้นยาวแค่ไหน
+     * Why: when paused, a car freezes on that exact frame. If it froze in the 0–10% or
+     * 85–100% part of the loop, where the keyframes fade opacity, it would look faded or gone.
+     * ⇒ every car starts within 15–85% of its loop = always fully opaque,
+     * and a fractional delay also spreads cars evenly along the road regardless of loop length.
      */
     const phase = 0.15 + seededRandom(`cl${cell.gx}:${cell.gy}`, 41) * 0.7;
 
@@ -237,12 +237,12 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
       <g className={canDrive ? "anim-car" : undefined} style={driveStyle}>
         <ellipse cx={cx} cy={cy + 1.5} rx={9} ry={4} fill="rgba(0,0,0,0.5)" />
 
-        {/* ล้อ */}
+        {/* Wheels */}
         {[p(0.6, -1), p(0.6, 1), p(-0.6, -1), p(-0.6, 1)].map((w, i) => (
           <ellipse key={i} cx={w.x} cy={w.y} rx={1.5} ry={1} fill="#14161c" />
         ))}
 
-        {/* ตัวถัง 3 หน้า */}
+        {/* Body, three faces */}
         <polygon
           points={polygonPoints([backR, frontR, p(1, 1, H), p(-1, 1, H)])}
           fill={bodyDark}
@@ -261,7 +261,7 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
           fill={roof}
         />
 
-        {/* กระจก/หลังคาห้องโดยสาร */}
+        {/* Windows / cabin roof */}
         <polygon
           points={polygonPoints([
             p(-0.5, -0.72, H),
@@ -272,7 +272,7 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
           fill="#1d2c44"
         />
 
-        {/* ไฟหน้าอยู่ที่หัวรถ ไม่ลอยข้างตัว */}
+        {/* Headlights at the front, not floating beside the car */}
         <circle cx={p(1, -0.55, H * 0.45).x} cy={p(1, -0.55, H * 0.45).y} r={1} fill="#ffeeb5" />
         <circle cx={p(1, 0.55, H * 0.45).x} cy={p(1, 0.55, H * 0.45).y} r={1} fill="#ffeeb5" />
         <ellipse
@@ -283,7 +283,7 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
           fill="#ffeeb5"
           opacity={0.12}
         />
-        {/* ไฟท้าย */}
+        {/* Tail lights */}
         <circle cx={p(-1, 0, H * 0.5).x} cy={p(-1, 0, H * 0.5).y} r={0.9} fill="#ff6b5a" />
       </g>
     );
@@ -314,7 +314,7 @@ function Decor({ cell, lane }: { cell: GroundCell; lane?: Lane }) {
     );
   }
 
-  // ต้นไม้ — พุ่ม 2 ชั้นไล่เฉด + ลำต้น
+  // Tree — two shaded canopy layers + trunk
   return (
     <g>
       <ellipse cx={cx} cy={cy + 2} rx={7} ry={3} fill="rgba(0,0,0,0.45)" />

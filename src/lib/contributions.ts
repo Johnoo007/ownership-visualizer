@@ -1,17 +1,17 @@
 import type { CityState, Contribution, Holding } from "./types";
 
-/** ตึกยังนับว่า "กำลังก่อสร้าง" กี่วันหลังเติมเงิน */
+/** How many days a tower still counts as "under construction" after a top-up */
 export const RECENT_DAYS = 7;
 
-/** เล็กกว่านี้ถือเป็นเศษปัดเศษ ไม่ใช่การเติมเงินจริง */
+/** Smaller than this is rounding noise, not a real top-up */
 const MIN_AMOUNT = 1;
 
 /**
- * ต้นทุนในสกุลของตัวมันเอง — ใช้ตรวจจับการเติมเงิน
+ * Cost in the holding's own currency — used to detect top-ups.
  *
- * ⚠️ ห้ามเทียบด้วยยอดบาท: ถ้า John แก้ค่าเงินอย่างเดียวโดยไม่ได้ซื้ออะไรเลย
- * ยอดบาทของทุกตัวจะขยับพร้อมกัน แล้วระบบจะบันทึกว่าเติมเงินทั้งพอร์ต
- * ซึ่งเป็นการปลอมประวัติ · ราคาตลาดไม่กระทบตัวนี้ (avgCost ไม่ขยับตามราคา)
+ * ⚠️ Never compare baht totals: changing only the FX rate, without buying anything,
+ * moves every holding's baht value at once and would record a top-up across the
+ * whole portfolio — fake history. Market prices don't affect this (avgCost doesn't move).
  */
 function nativeCost(h: Holding): number {
   return h.shares * h.avgCost;
@@ -22,10 +22,10 @@ function todayISO(now: Date): string {
 }
 
 /**
- * เทียบเมืองก่อน/หลัง แล้วคืน "ไม้ที่เพิ่งเติม" — ไม่รวมของที่มีอยู่แล้ว
+ * Compare the city before/after and return the rounds just added — not existing ones.
  *
- * ขายออก (shares ลด) → ต้นทุนลด → ไม่นับเป็นการเติม และไม่ลบขีดเก่าทิ้ง
- * เพราะไม้ที่เคยลงแรงไปมันเกิดขึ้นจริงแล้ว ขายทีหลังไม่ได้ลบอดีต
+ * Selling (fewer shares) → lower cost → not a top-up, and old tallies are never removed:
+ * a round that was put in really happened, and selling later doesn't erase the past.
  */
 export function detectContributions(
   prev: CityState,
@@ -44,8 +44,8 @@ export function detectContributions(
     if (nativeDelta <= 0) continue;
 
     /**
-     * ถ้ามีบาทที่จ่ายจริงทั้งสองฝั่ง ใช้ส่วนต่างของมันตรงๆ (แม่นที่สุด)
-     * ไม่งั้นแปลงส่วนต่างสกุลเดิมด้วยค่าเงินวันนี้
+     * If both sides have baht actually paid, use that difference directly (most accurate);
+     * otherwise convert the native-currency difference at today's FX.
      */
     const bahtDelta =
       typeof h.costTHB === "number" && typeof old?.costTHB === "number"
@@ -59,7 +59,7 @@ export function detectContributions(
   return found;
 }
 
-/** ต่อไม้ใหม่เข้าประวัติ — วันเดียวกัน ตัวเดียวกัน รวมเป็นไม้เดียว */
+/** Append new rounds to history — same day, same ticker merges into one round */
 export function appendContributions(
   existing: Contribution[] | undefined,
   added: Contribution[],
@@ -83,23 +83,23 @@ export function contributionsFor(
 }
 
 /**
- * อยู่ในกรอบ "เพิ่งเติม" ไหม
+ * Is this inside the "just added" window?
  *
- * ใช้ร่วมกับกำแพงเมืองด้วย (อิฐเรืองแสง/รอยร้าว) — กรอบเวลาเดียวกันทั้งแอป
- * เพื่อไม่ให้ "เพิ่งทำ" แปลว่าคนละอย่างกันในสองที่
+ * Shared with the city wall too (glowing bricks/cracks) — one time window across the app,
+ * so "just happened" never means two different things in two places.
  *
- * ต้องกันวันที่ในอนาคตด้วย ไม่ใช่แค่เช็คว่าใหม่พอ — ไฟล์ที่ import เข้ามา
- * หรือนาฬิกาเครื่องที่ตั้งผิด ทำให้ทุกตึกขึ้นเครนพร้อมกันทั้งเมืองได้
- * (เจอตอนจำลองอนาคต: ไม้ 12 ไม้ลงวันข้างหน้า → เมืองกลายเป็นไซต์ก่อสร้างทั้งเมือง)
+ * Future dates must be excluded too, not just checked for being recent enough — an imported
+ * file or a wrong system clock could otherwise put cranes on every tower at once
+ * (found while simulating the future: 12 rounds dated ahead → the whole city became a building site).
  */
 export function inRecentWindow(at: string, now: Date): boolean {
   const t = Date.parse(`${at}T00:00:00Z`);
   if (Number.isNaN(t)) return false;
-  const end = now.getTime() + 86_400_000; // เผื่อเขตเวลา 1 วัน
+  const end = now.getTime() + 86_400_000; // one day of slack for time zones
   return t >= now.getTime() - RECENT_DAYS * 86_400_000 && t <= end;
 }
 
-/** บาทที่เติมเข้าตัวนี้ในช่วง RECENT_DAYS วันหลังสุด — null = ไม่มีของใหม่ */
+/** Baht added to this holding in the last RECENT_DAYS days — null = nothing new */
 export function recentAddFor(
   contributions: Contribution[] | undefined,
   ticker: string,
@@ -112,13 +112,13 @@ export function recentAddFor(
 }
 
 export type ContributionSummary = {
-  /** จำนวนไม้ทั้งหมดที่เคยลง */
+  /** Total rounds ever made */
   rounds: number;
   totalTHB: number;
-  /** ไม้ในรอบ RECENT_DAYS วันล่าสุด */
+  /** Rounds within the last RECENT_DAYS days */
   recentTHB: number;
   recentTickers: string[];
-  /** ปีปัจจุบัน */
+  /** Current year */
   thisYearTHB: number;
   thisYearRounds: number;
 };

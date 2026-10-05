@@ -8,10 +8,10 @@ import { applyReserveEvent } from "@/lib/reserve";
 import type { CityState, Holding } from "@/lib/types";
 
 /**
- * ทุกครั้งที่ต้นทุนของตัวไหนเพิ่มขึ้น = John เพิ่งลงไม้ใหม่ → บันทึกเป็นไม้ DCA
+ * Whenever a holding's cost goes up, a new purchase was made → record it as a DCA round.
  *
- * จงใจใช้เฉพาะตอนแก้พอร์ตด้วยมือ/นำเข้าจากชีต ไม่ใช้ตอนอัปเดตราคาตลาด
- * (ราคาไม่แตะ avgCost อยู่แล้ว แต่กันไว้ไม่ให้ประวัติงอกจากเหตุอื่น)
+ * Only used for manual edits / sheet imports, never for market price updates
+ * (prices don't touch avgCost anyway, but this keeps history from growing for other reasons)
  */
 function withContributions(prev: CityState, next: CityState): CityState {
   const added = detectContributions(prev, next);
@@ -23,7 +23,7 @@ export function useCity() {
   const [state, setState] = useState<CityState | null>(null);
   const [backup, setBackup] = useState<CityState | null>(null);
 
-  // อ่านหลัง mount เท่านั้น — localStorage ไม่มีบนเซิร์ฟเวอร์
+  // Read only after mount — there's no localStorage on the server
   useEffect(() => {
     setState(loadCity());
     setBackup(loadBackup());
@@ -41,7 +41,7 @@ export function useCity() {
       const exists = prev.holdings.some((h) => h.id === holding.id);
       return withContributions(prev, {
         ...prev,
-        // แตะพอร์ตเมื่อไหร่ = เลิกเป็นเมืองตัวอย่างทันที
+        // Touching the portfolio means it's no longer the sample city
         isDemo: false,
         holdings: exists
           ? prev.holdings.map((h) => (h.id === holding.id ? holding : h))
@@ -83,10 +83,10 @@ export function useCity() {
   }, []);
 
   /**
-   * แก้ตัวเลขกำแพงตรงๆ — **ไม่บันทึกประวัติ**
+   * Set the wall numbers directly — **does not record history**.
    *
-   * ใช้กับรายจ่ายต่อเดือน และกับการแก้ยอดที่กรอกผิด · การพิมพ์แก้ตัวเลข
-   * ไม่ใช่เหตุการณ์ในชีวิตจริง ⇒ ห้ามงอกเป็นอิฐหรือรอยร้าว
+   * Used for the monthly burn and for fixing a mistyped amount. Correcting a number
+   * is not a real-life event ⇒ it must never turn into new bricks or cracks.
    */
   const setReserve = useCallback(
     (field: "amountTHB" | "monthlyBurnTHB", value: number) => {
@@ -108,7 +108,7 @@ export function useCity() {
     [],
   );
 
-  /** ก่ออิฐ (บวก) / ถอนออก (ลบ) — ทางเดียวที่ทำให้เกิดประวัติกำแพง */
+  /** Lay bricks (+) / withdraw (−) — the only way wall history gets created */
   const adjustReserve = useCallback((deltaTHB: number) => {
     setState((prev) =>
       prev

@@ -4,16 +4,16 @@ export type ParsedRow =
   | { ok: true; holding: Holding }
   | { ok: false; line: number; text: string; reason: string };
 
-// จงใจเก็บคำไทยไว้ — ตัวนี้อ่าน "ชีตของ John" ซึ่งหัวตารางเป็นไทย
-// ไม่ใช่ข้อความที่โชว์บนหน้าจอ จึงไม่ต้องแปลตาม UI ของเว็บ
+// Thai words kept on purpose — this parses the owner's spreadsheet, whose headers are
+// in Thai. It's input data, not UI text, so it isn't translated with the interface.
 const HEADER_WORDS = ["ticker", "symbol", "shares", "หุ้น", "ต้นทุน"];
 
 /**
- * อ่านตารางที่คัดลอกมาจากชีต/สเปรดชีต
- * รูปแบบ: ticker, จำนวนหุ้น, ต้นทุนต่อหุ้น [, ราคาปัจจุบัน] [, สกุลเงิน] [, เขต] [, บาทที่จ่ายจริง]
+ * Parse a table copied from a sheet/spreadsheet.
+ * Format: ticker, shares, cost per share [, current price] [, currency] [, district] [, baht actually paid]
  *
- * รับทั้ง comma และ tab (วางจาก Google Sheets จะมาเป็น tab)
- * แถวที่อ่านไม่ได้จะถูกรายงานกลับทีละแถว ไม่ทำให้ทั้งชุดล้ม
+ * Accepts commas or tabs (pasting from Google Sheets gives tabs).
+ * Rows that can't be parsed are reported one by one instead of failing the whole batch.
  */
 export function parseHoldingsTable(text: string): ParsedRow[] {
   const rows: ParsedRow[] = [];
@@ -28,7 +28,7 @@ export function parseHoldingsTable(text: string): ParsedRow[] {
         .split(/\t|,|;/)
         .map((c) => c.trim().replace(/^"|"$/g, ""));
 
-      // ข้ามหัวตาราง
+      // Skip the header row
       if (
         i === 0 &&
         HEADER_WORDS.some((w) => cols[0]?.toLowerCase().includes(w))
@@ -79,7 +79,7 @@ export function parseHoldingsTable(text: string): ParsedRow[] {
           ? "goldengoose"
           : "mission";
 
-      // ช่องที่ 7 (ถ้ามี) = บาทที่จ่ายจริงทั้งก้อน — ใช้แทนการคูณค่าเงินวันนี้
+      // Column 7 (optional) = total baht actually paid — used instead of today's FX
       const parsedCostTHB = Number(String(rawCostTHB ?? "").replace(/,/g, ""));
       const costTHB =
         Number.isFinite(parsedCostTHB) && parsedCostTHB >= 0 && rawCostTHB

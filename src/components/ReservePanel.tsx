@@ -7,15 +7,15 @@ import { plural } from "@/lib/text";
 import type { CityState } from "@/lib/types";
 
 /**
- * กำแพงเมือง = เงินสำรองฉุกเฉิน
+ * City wall = emergency fund.
  *
- * ⚠️ แผงนี้จงใจแยกออกจากทุกยอดของพอร์ต และไม่โชว์เป็น "อีกก้อนหนึ่งของความมั่งคั่ง"
- * หน่วยหลักคือ **เดือน** ไม่ใช่บาท เพราะคำถามจริงคือ "ถ้าพรุ่งนี้ไม่มีรายได้ อยู่ได้นานแค่ไหน"
- * ไม่ใช่ "มีเงินเก็บเท่าไหร่"
+ * ⚠️ Deliberately separate from every portfolio total, and never shown as "another pile of wealth".
+ * The main unit is **months**, not baht — the real question is "if income stopped tomorrow, how
+ * long could I last?", not "how much have I saved?".
  *
- * 🧱 การขยับเงินเข้า/ออก ทำผ่าน **ปุ่ม** ไม่ใช่การพิมพ์ทับยอดรวม
- * เพราะยอดรวมแยกไม่ออกว่า "ถอนเงินจริง" หรือ "พิมพ์ผิดแล้วแก้" — และอย่างหลัง
- * ต้องไม่ทำให้กำแพงร้าว · ช่องแก้ยอดยังมีอยู่ แต่ซ่อนไว้และไม่บันทึกประวัติ
+ * 🧱 Money goes in/out through **buttons**, not by overwriting the total, because a total
+ * can't tell a real withdrawal from a typo being fixed — and the latter must never crack
+ * the wall. A field to correct the total still exists, but it's hidden and records no history.
  */
 export function ReservePanel({
   state,
@@ -70,7 +70,7 @@ export function ReservePanel({
             </span>
           </div>
 
-          {/* แถบความยาวกำแพง — ตรงกับสัดส่วนที่ก่อจริงในเมือง */}
+          {/* Wall length bar — matches the share of the ring actually built in the city */}
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--input)]">
             <div
               className="h-full rounded-full transition-[width] duration-500"
@@ -95,9 +95,9 @@ export function ReservePanel({
       )}
 
       {/*
-        ก่ออิฐ / ถอน — ช่องนี้รับ *ส่วนต่าง* ไม่ใช่ยอดรวม
-        นี่คือช่องทาง feedback ของกำแพง: ฿4,000 ขยับตัวเลขเดือนแค่นิดเดียวเสมอ
-        แต่ "ก่ออิฐอีกครั้ง" เป็น 1 เต็มเสมอ และเห็นเป็นอิฐใหม่บนกำแพงจริง
+        Lay bricks / withdraw — this field takes a *delta*, not a total.
+        This is the wall's feedback channel: ฿4,000 barely moves the months figure,
+        but "laid bricks again" always counts as one full step, and shows as new bricks on the wall.
       */}
       <div className="mt-2.5 flex gap-1.5">
         <input
@@ -129,7 +129,7 @@ export function ReservePanel({
         </button>
       </div>
 
-      {/* เรื่องที่เพิ่งเกิดกับกำแพง — คู่กับ BuildLog ของตึก */}
+      {/* What just happened to the wall — the counterpart of the towers' BuildLog */}
       {(s.recentAddTHB > 0 || s.recentWithdrawTHB > 0) && (
         <p className="mt-1.5 text-[10px] leading-relaxed">
           {s.recentWithdrawTHB > 0 && (
@@ -165,8 +165,8 @@ export function ReservePanel({
       </div>
 
       {/*
-        ช่องแก้ยอดให้ถูก — ซ่อนไว้เพราะมันไม่ใช่ทางปกติ
-        เปิดไว้ตลอดเมื่อไหร่ คนจะใช้มันแทนปุ่ม แล้วประวัติกำแพงจะว่างเปล่าตลอดกาล
+        Field to correct the total — hidden because it isn't the normal path.
+        Left open, people would use it instead of the buttons and wall history would stay empty forever.
       */}
       <div className="mt-2 border-t border-[var(--border)] pt-2">
         {fixing ? (
@@ -187,7 +187,7 @@ export function ReservePanel({
         )}
       </div>
 
-      {/* กฎที่ต้องเห็นบนหน้าจอ ไม่ใช่ซ่อนไว้ในโค้ด */}
+      {/* Rules that must be visible on screen, not buried in code */}
       <p className="mt-2 border-t border-[var(--border)] pt-2 text-[10px] leading-relaxed text-[var(--label-dim)]">
         Never counted in portfolio value or tower height — a wall does not make the
         city bigger, it keeps it standing.

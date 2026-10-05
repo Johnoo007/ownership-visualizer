@@ -2,38 +2,38 @@ import { CASH_ZONE, type CityState, type Currency, type DistrictId, type Holding
 import { towerHeights } from "./iso";
 import { contributionsFor, recentAddFor } from "./contributions";
 
-/** แปลงจำนวนเงินในสกุลใดก็ได้ให้เป็นบาท */
+/** Convert an amount in any currency to baht */
 export function toTHB(amount: number, currency: Currency, fxRate: number): number {
   return currency === "USD" ? amount * fxRate : amount;
 }
 
 /**
- * เงินที่ลงไปจริง (บาท) — ตัวนี้คือไม้บรรทัด ไม่ขยับตามราคาตลาด
+ * Money actually invested (baht) — this is the ruler; it doesn't move with market prices.
  *
- * ถ้ามีบาทที่จ่ายจริงบันทึกไว้ ใช้ตัวนั้นเสมอ ไม่ต้องคูณค่าเงินวันนี้
- * (ค่าเงินตอนแลกกับวันนี้ไม่เท่ากัน — การคูณย้อนหลังทำให้ตัวเลขเพี้ยนจากที่จ่ายจริง)
+ * If the baht actually paid was recorded, always use it rather than today's FX,
+ * (the rate when exchanged differs from today's — converting backwards drifts from what was paid).
  */
 export function investedTHB(h: Holding, fxRate: number): number {
   if (typeof h.costTHB === "number" && h.costTHB >= 0) return h.costTHB;
   return toTHB(h.shares * h.avgCost, h.currency, fxRate);
 }
 
-/** true = ตัวเลขเงินที่ลงเป็นบาทจริงที่จ่าย ไม่ใช่การตีราคาด้วยค่าเงินวันนี้ */
+/** true = invested amount is the baht actually paid, not an estimate at today's FX */
 export function hasRealTHBCost(h: Holding): boolean {
   return typeof h.costTHB === "number" && h.costTHB >= 0;
 }
 
-/** มูลค่าตลาดตอนนี้ (บาท) — ขยับทุกวัน ใช้แค่บอกสภาพ ไม่ใช้กำหนดขนาดตึก */
+/** Current market value (baht) — moves daily; shows condition, never sets tower size */
 export function marketValueTHB(h: Holding, fxRate: number): number {
   return toTHB(h.shares * h.currentPrice, h.currency, fxRate);
 }
 
 /**
- * กำไร/ขาดทุนรายตัว — คิด "ในสกุลของหุ้นตัวนั้น" เสมอ (USD สำหรับหุ้น US)
+ * Per-holding gain/loss — always in the holding's own currency (USD for US stocks).
  *
- * จงใจไม่แปลงเป็นบาท เพราะระดับรายตัวคือการวัด **ผลตอบแทนตลาดล้วน**
- * ถ้าเอาค่าเงินมาปนตรงนี้ จะแยกไม่ออกว่าตึกดวงไฟหรี่เพราะบริษัทแย่ หรือเพราะบาทแข็ง
- * ส่วนผลกระทบค่าเงินไปโผล่ที่ระดับพอร์ตรวม (ดู totals) ซึ่งเป็นฐานบาท
+ * Deliberately not converted to baht, because per holding we measure **pure market return**.
+ * Mixing FX in here would make it impossible to tell whether a tower's lights dimmed because
+ * the company did badly or because the baht strengthened. FX effects show at the portfolio level (see totals), in baht.
  */
 export function pnlRatio(h: Holding): number | null {
   const cost = h.shares * h.avgCost;
@@ -50,17 +50,17 @@ export type Totals = {
   invested: number;
   marketValue: number;
   pnl: number;
-  /** สัดส่วนกำไร/ขาดทุน เทียบเฉพาะส่วนที่มีต้นทุนจริง */
+  /** Gain/loss ratio, measured only against holdings with a real cost */
   pnlRatio: number | null;
   /**
-   * ตึกที่ "ยืนอยู่จริงในเมือง" — ไม่ใช่จำนวนหุ้นที่ถือ
+   * Towers *actually standing in the city* — not the number of holdings.
    *
-   * ต่างกัน 2 ทาง: (1) ของที่ได้มาฟรี (ต้นทุน 0) ถูกวาดเป็นที่ดินเปล่า+กองทอง
-   * ไม่ใช่ตึก จึงไม่นับ (2) ตัวที่เงินเกินเพดานแตกเป็นหลายหลัง จึงนับมากกว่า 1
-   * ⇒ เลขนี้ต้องตรงกับสิ่งที่นับได้ด้วยตาในเมือง ไม่งั้น sidebar โกหกภาพ
+   * Differs in two ways: (1) free holdings (zero cost) are drawn as bare land + a gold pile,
+   * not towers, so they don't count; (2) holdings over the height cap split into several towers, counting more than 1.
+   * ⇒ this must match what you can count by eye in the city, or the sidebar contradicts the picture.
    */
   towerCount: number;
-  /** ของที่ได้มาฟรี — มีมูลค่าแต่ไม่มีตึก */
+  /** Free holdings — they have value but no tower */
   landCount: number;
   shareCount: number;
 };
@@ -97,11 +97,11 @@ export function totals(state: CityState, district?: DistrictId): Totals {
 }
 
 /**
- * ตึกที่กินพื้นที่เมืองมากที่สุด + สัดส่วนของมัน
+ * The tower taking up the most of the city + its share.
  *
- * ⚠️ จงใจไม่รายงาน "ผลรวมจำนวนหุ้นทุกตัว" เป็นตัวชี้วัด — บวก 12 หุ้น VOO (฿16,000/หุ้น)
- * กับ 200 หุ้น PTT (฿31/หุ้น) เข้าด้วยกันแล้วได้ตัวเลขที่ไม่ได้แปลว่าอะไร
- * (กับดักหน่วยวัดตัวเดียวกับที่ทำให้ "ความสูง = จำนวนหุ้น" ผิด)
+ * ⚠️ Deliberately never reports "total shares across holdings" — adding 12 VOO shares (฿16,000 each)
+ * to 200 PTT shares (฿31 each) gives a number that means nothing
+ * (the same unit trap that made "height = share count" wrong).
  */
 export function topConcentration(
   state: CityState,
@@ -127,29 +127,29 @@ export function topConcentration(
   return top ? { label: top.ticker, share: max / totalInvested } : null;
 }
 
-/** เงินสดรวมเป็นบาท */
+/** Total cash in baht */
 export function cashTHB(state: CityState): number {
   if (!state.cash) return 0;
   return state.cash.usd * state.fxRate + state.cash.thb;
 }
 
 export type PortfolioSummary = Totals & {
-  /** เงินสดรวม (บาท) */
+  /** Total cash (baht) */
   cash: number;
-  /** มูลค่าทั้งพอร์ตแบบที่ชีตนับ = หุ้น + เงินสด */
+  /** Whole-portfolio value as the spreadsheet counts it = stocks + cash */
   marketTotal: number;
-  /** เงินที่ใส่เข้าพอร์ตทั้งหมด — เงินเติมสะสมถ้ามี ไม่งั้นประมาณด้วยต้นทุนหุ้น + เงินสด */
+  /** All money put into the portfolio — total deposits if known, otherwise stock cost + cash */
   returnBase: number;
   usingDeposits: boolean;
-  /** ผลตอบแทนรวมแบบชีต: (เงินสด + มูลค่าหุ้น) ÷ เงินเติมสะสม − 1 */
+  /** Total return as the spreadsheet computes it: (cash + stock value) ÷ total deposits − 1 */
   totalReturn: number | null;
 };
 
 /**
- * ยอดรวมทั้งพอร์ตแบบเดียวกับที่ชีตรายงาน — นับเงินสดเข้าไปด้วย
+ * Whole-portfolio totals the way the spreadsheet reports them — cash included.
  *
- * จงใจแยกจาก totals(): totals คือ "เมือง" (เฉพาะเงินที่กลายเป็นตึกแล้ว)
- * ส่วนตัวนี้คือ "พอร์ตทั้งก้อน" ซึ่งรวมเงินที่ยังรอลงทุนอยู่ด้วย
+ * Deliberately separate from totals(): totals is "the city" (only money that became towers),
+ * this is "the whole portfolio", including money still waiting to be invested.
  */
 export function portfolioSummary(state: CityState): PortfolioSummary {
   const t = totals(state);
@@ -157,8 +157,8 @@ export function portfolioSummary(state: CityState): PortfolioSummary {
   const marketTotal = t.marketValue + cash;
 
   const usingDeposits = typeof state.deposits === "number" && state.deposits > 0;
-  // ไม่มีเงินเติมสะสม ก็ยังต้องนับเงินสดเข้าไปด้วย — เงินที่โอนเข้าพอร์ตแล้ว
-  // แต่ยังไม่ได้ซื้อหุ้น ก็คือเงินที่เก็บมาได้แล้วเหมือนกัน
+  // Without total deposits, cash still has to count — money moved into the portfolio
+  // but not yet spent on shares has still been saved
   const returnBase = usingDeposits ? state.deposits! : t.invested + cash;
 
   return {
@@ -171,7 +171,7 @@ export function portfolioSummary(state: CityState): PortfolioSummary {
   };
 }
 
-/** Holding[] → Structure[] — สะพานเดียวที่ renderer ใช้ (Kingdom ต่อยอดตรงนี้) */
+/** Holding[] → Structure[] — the only bridge the renderer uses */
 export function toStructures(state: CityState, now: Date = new Date()): Structure[] {
   const towers: Structure[] = state.holdings.map((h) => ({
     id: h.id,
@@ -189,11 +189,11 @@ export function toStructures(state: CityState, now: Date = new Date()): Structur
   }));
 
   /**
-   * เงินสด = ไซต์ก่อสร้างที่รอกลายเป็นตึก อยู่โซนแยกนอกเมือง
+   * Cash = a construction site waiting to become a tower, in its own zone outside the city.
    *
-   * ใส่ค่าเงินไว้ที่ invested เพื่อให้ไซต์ "ใหญ่ตามเงินจริง" ด้วยสเกลเดียวกับตึก
-   * ปลอดภัยเพราะ totals()/topConcentration() คิดจาก holdings ไม่ได้อ่าน structures
-   * ⇒ ตัวเลข "เงินที่ลงไปแล้ว" จึงไม่ขยับตามเงินสด (มีเทสต์ล็อกไว้)
+   * The amount goes into `invested` so the site is "as big as the money" on the same scale as towers.
+   * Safe because totals()/topConcentration() read holdings, never structures
+   * ⇒ "money invested" doesn't move with cash (locked by a test).
    */
   const sites: Structure[] = [];
   const pushSite = (id: string, label: string, value: number) => {
@@ -209,7 +209,7 @@ export function toStructures(state: CityState, now: Date = new Date()): Structur
       isFree: false,
       district: CASH_ZONE,
       marketValue: value,
-      // เงินสดยังไม่ได้เลือกว่าจะเป็นตึกไหน จึงไม่มีไม้ DCA ของตัวเอง
+      // Cash hasn't chosen which tower to become, so it has no DCA rounds of its own
       contributionCount: 0,
       recentAdd: null,
     });
@@ -232,7 +232,7 @@ export function formatTHB(amount: number): string {
 }
 
 export function formatShares(shares: number): string {
-  // เศษหุ้นต้องเห็นว่าเป็นเศษ ไม่ปัดทิ้งจนดูเหมือนถือเต็มหุ้น
+  // Fractional shares must look fractional, not rounded into looking like whole shares
   return Number.isInteger(shares) ? String(shares) : shares.toFixed(4).replace(/0+$/, "");
 }
 

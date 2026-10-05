@@ -6,11 +6,11 @@ import type { CityState } from "@/lib/types";
 import { plural } from "@/lib/text";
 
 /**
- * รายงานการก่อสร้าง — ตอบคำถาม "ฉันเพิ่งทำอะไรลงไป"
+ * Build report — answers "what did I just do?"
  *
- * แผงสถิติที่เหลือตอบแต่ "ตอนนี้เป็นยังไง" ซึ่งเป็นตัวเลขที่ ฿4,000 ไปโผล่
- * เป็นแค่ 1.15% เสมอ · ตัวนี้จงใจวัดคนละหน่วย: *จำนวนครั้งที่ลงมือ*
- * ซึ่งไม่ถูกเจือจางเมื่อพอร์ตโตขึ้น — เดือนหน้ายังเป็น "อีกหนึ่งไม้" เท่าเดิม
+ * The other stats only answer "where am I now?", where a ฿4,000 top-up shows
+ * up as roughly 1% every time. This one deliberately counts a different unit:
+ * number of times you acted, which never gets diluted as the portfolio grows.
  */
 export function BuildLog({ state }: { state: CityState }) {
   const s = summarize(state.contributions);

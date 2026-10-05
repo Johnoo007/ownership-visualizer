@@ -2,41 +2,41 @@ import { RECENT_DAYS, inRecentWindow } from "./contributions";
 import type { CityState, Reserve, ReserveEvent } from "./types";
 
 /**
- * เป้าหมายกำแพง = 6 เดือน
+ * Wall target = 6 months.
  *
- * ธปท. แนะนำ 3–6 เดือนของรายจ่ายปกติ — เลือกขอบบนเพราะกำแพงที่ "เสร็จแล้ว"
- * ควรหมายถึงปลอดภัยจริง ไม่ใช่แค่ผ่านเกณฑ์ขั้นต่ำ
- * (อ้างอิง: สำรวจทักษะทางการเงินคนไทย ปี 2567 — มีเพียง 23.7% ที่ไปถึง 6 เดือน)
+ * Thailand's central bank suggests 3–6 months of normal expenses — the upper bound is used
+ * because a "finished" wall should mean genuinely safe, not just past the minimum.
+ * (Source: Bank of Thailand financial literacy survey 2024 — only 23.7% reach 6 months.)
  */
 export const TARGET_MONTHS = 6;
 
-/** ขยับน้อยกว่านี้ถือเป็นเศษปัดเศษ ไม่ใช่การก่อ/ถอนจริง */
+/** Moves smaller than this are rounding noise, not a real deposit/withdrawal */
 const MIN_EVENT = 1;
 
 export type ReserveStatus = {
-  /** กันได้กี่เดือน — null = ยังไม่ได้กรอกรายจ่าย จึงคำนวณไม่ได้ */
+  /** Months covered — null = monthly expenses not entered yet, so it can't be computed */
   months: number | null;
-  /** สัดส่วนความยาวกำแพงที่สร้างแล้ว 0..1 */
+  /** Fraction of the wall ring built, 0..1 */
   coverage: number;
   /**
-   * coverage เมื่อ RECENT_DAYS วันก่อน — ใช้หา "ช่วงที่เพิ่งก่อ" กับ "ช่วงที่เพิ่งพัง"
+   * Coverage RECENT_DAYS days ago — used to find "just built" and "just broken" sections.
    *
-   * มากกว่า coverage = เพิ่งถอนเงินออก (กำแพงหดลง → ร้าว)
-   * น้อยกว่า coverage = เพิ่งก่ออิฐใหม่ (ช่วงส่วนต่างเรืองแสง)
+   * Greater than coverage = money was just withdrawn (wall shrank → cracks).
+   * Less than coverage = bricks were just laid (the difference glows).
    */
   priorCoverage: number;
-  /** ยังขาดอีกกี่บาทถึงจะครบเป้า */
+  /** Baht still missing to reach the target */
   gapTHB: number;
   complete: boolean;
   amountTHB: number;
   monthlyBurnTHB: number;
-  /** บาทที่ก่อเข้ามาในกรอบ RECENT_DAYS วัน */
+  /** Baht laid in within the last RECENT_DAYS days */
   recentAddTHB: number;
-  /** บาทที่ถอนออกในกรอบ RECENT_DAYS วัน (เป็นเลขบวก) */
+  /** Baht withdrawn within the last RECENT_DAYS days (as a positive number) */
   recentWithdrawTHB: number;
-  /** จำนวนครั้งที่ลงมือก่อทั้งหมด — หน่วยที่ไม่ถูกเจือจางเมื่อกำแพงยาวขึ้น */
+  /** Total times bricks were laid — a unit that doesn't get diluted as the wall grows */
   rounds: number;
-  /** ครั้งที่ก่อในกรอบ RECENT_DAYS วัน */
+  /** Times bricks were laid within the last RECENT_DAYS days */
   recentRounds: number;
 };
 
@@ -66,13 +66,13 @@ export function reserveStatus(
   const recentRounds = recent.filter((e) => e.amountTHB > 0).length;
 
   /**
-   * ยอดก่อนหน้า = ยอดวันนี้ ถอยกลับด้วยผลรวมสุทธิของเหตุการณ์ในกรอบ
-   * (ไม่แยกบวก/ลบ เพราะกำแพงมีความยาวเดียว — ก่อ 4,000 แล้วถอน 20,000
-   *  ในสัปดาห์เดียวกันต้องอ่านเป็น "สุทธิแล้วหดลง" ไม่ใช่ทั้งเรืองแสงทั้งร้าว)
+   * Previous amount = today's amount rolled back by the *net* of events in the window
+   * (not split into + and −, because the wall has one length — laying 4,000 then withdrawing
+   *  20,000 in the same week must read as "net shrink", not glowing and cracked at once)
    */
   const priorAmountTHB = amountTHB - (recentAddTHB - recentWithdrawTHB);
 
-  // ไม่รู้รายจ่าย = บอกไม่ได้ว่ากันได้กี่เดือน · ห้ามเดาแทน ไม่งั้นกำแพงจะโกหก
+  // Unknown expenses = can't say how many months it covers · never guess, or the wall lies
   if (monthlyBurnTHB <= 0) {
     return {
       months: null,
@@ -112,12 +112,12 @@ function todayISO(now: Date): string {
 }
 
 /**
- * ก่ออิฐ (delta > 0) หรือถอนออก (delta < 0) แล้วคืน reserve ชุดใหม่
+ * Lay bricks (delta > 0) or withdraw (delta < 0) and return the new reserve.
  *
- * จงใจรับ **ส่วนต่าง** ไม่ใช่ยอดรวม เพราะยอดรวมแยกไม่ออกระหว่าง
- * "ถอนเงินจริง" กับ "พิมพ์ผิดแล้วแก้ให้ถูก" — อย่างหลังต้องไม่ทำให้กำแพงร้าว
+ * Deliberately takes a **delta**, not a total, because a total can't tell
+ * "really withdrew money" from "fixed a typo" — and the latter must never crack the wall.
  *
- * ถอนเกินที่มี = เหลือ 0 (ติดลบไม่ได้) และเหตุการณ์บันทึกเท่าที่ถอนได้จริง
+ * Withdrawing more than there is leaves 0 (never negative), and only what could actually be withdrawn is recorded.
  */
 export function applyReserveEvent(
   reserve: Reserve | undefined,
@@ -132,7 +132,7 @@ export function applyReserveEvent(
 
   if (!Number.isFinite(deltaTHB) || Math.abs(deltaTHB) < MIN_EVENT) return base;
 
-  // ถอนได้มากสุดเท่าที่มี — กำแพงไม่มีความยาวติดลบ
+  // Withdraw at most what exists — the wall can't have negative length
   const applied = Math.max(deltaTHB, -base.amountTHB);
   if (Math.abs(applied) < MIN_EVENT) return base;
 
@@ -147,10 +147,10 @@ export function applyReserveEvent(
 }
 
 /**
- * ต่อเหตุการณ์เข้าประวัติ — วันเดียวกัน *ทิศเดียวกัน* รวมเป็นรายการเดียว
+ * Append an event to history — same day *and same direction* merge into one entry.
  *
- * ⚠️ ต้องแยกทิศ ไม่งั้นวันที่ก่อ ฿5,000 แล้วถอน ฿5,000 จะหักกันเหลือ 0
- * แล้วหายไปจากประวัติทั้งที่มันเกิดขึ้นจริงสองครั้ง
+ * ⚠️ Directions must stay separate, or a day with +฿5,000 and −฿5,000 would net to 0
+ * and vanish from history even though two real events happened.
  */
 export function appendReserveEvent(
   existing: ReserveEvent[] | undefined,
@@ -166,8 +166,8 @@ export function appendReserveEvent(
 }
 
 /**
- * ⚠️ ตัวช่วยเตือนความจำ ไม่ใช่ตัวคำนวณ: เงินสำรองไม่เคยเข้าไปอยู่ในยอดใดๆ ของพอร์ต
- * ถ้าวันไหนมีใครอยากบวกมัน ให้กลับไปอ่านเหตุผลใน types.ts ก่อน
+ * ⚠️ A reminder helper, not a calculation: the reserve is never part of any portfolio total.
+ * If anyone ever wants to add it in, read the reasoning in types.ts first.
  */
 export function reserveTHB(state: CityState): number {
   return reserveStatus(state.reserve).amountTHB;

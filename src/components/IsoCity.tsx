@@ -20,7 +20,7 @@ import { IsoTower, TowerLabel } from "./IsoTower";
 import { useAnimation } from "./useAnimation";
 
 const DISTRICT_ORDER = ["mission", "goldengoose", CASH_ZONE];
-// เงินสดยื่นออกไปอีกทิศ (แกน gx) ไม่ต่อแถวลงมาเหมือนเขตหุ้น
+// Cash extends off in the other direction (gx axis) rather than stacking below like stock districts
 const ASIDE_DISTRICTS = [CASH_ZONE];
 
 export function IsoCity({
@@ -36,25 +36,25 @@ export function IsoCity({
   initialScale = 1,
 }: {
   structures: Structure[];
-  /** สัดส่วนกำแพงที่ก่อแล้ว 0..1 — เงินสำรองฉุกเฉิน (Kingdom v1) */
+  /** Fraction of the wall built, 0..1 — the emergency fund */
   wallCoverage: number;
-  /** สัดส่วนเมื่อไม่กี่วันก่อน — ส่วนต่างคืออิฐใหม่ที่เรืองแสง หรือรอยร้าวจากการถอน */
+  /** Fraction a few days ago — the difference is glowing new bricks, or cracks from a withdrawal */
   wallPriorCoverage: number;
   /**
-   * เมืองที่ใช้ "เล็งกล้อง" แทนเมืองที่วาด — ส่งมาเฉพาะตอนย้อนดูอดีต
+   * The city used to *aim the camera* instead of the one being drawn — only passed when viewing the past.
    *
-   * ไม่ส่ง = เล็งเมืองที่วาดตามปกติ · ส่งมา = กรอบภาพถูกตรึงไว้ที่เมืองวันนี้
-   * เมืองในอดีตจึงนั่งอยู่ในกรอบเดิม เห็นเป็น "เมืองเล็กกว่าในที่เดิม" ไม่ใช่ภาพกระโดด
+   * Omitted = frame the drawn city as usual · passed = the frame stays pinned to today's city,
+   * so a past city sits inside the same frame, reading as "a smaller city in the same place", not a jump.
    */
   cameraStructures?: Structure[];
   cameraWallCoverage?: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  /** แถบปุ่ม motion/zoom มุมขวาล่าง — หน้า showcase ปิดไว้ให้ภาพโล่ง */
+  /** Motion/zoom buttons, bottom right — the showcase hides them for a cleaner picture */
   controls?: boolean;
-  /** ป้ายชื่อเขตบนพื้น — คนที่ไม่รู้จักแอปอ่านไม่ออกว่าคืออะไร หน้า showcase จึงปิด */
+  /** District names on the ground — meaningless to people who don't know the app, so the showcase hides them */
   districtLabels?: boolean;
-  /** ซูมตั้งต้น — หน้า showcase ถอยกล้องให้เมืองไม่ชนข้อความที่ลอยทับขอบบน/ล่าง */
+  /** Initial zoom — the showcase pulls the camera back so the city clears the text floating over the top/bottom */
   initialScale?: number;
 }) {
   const layout = useMemo(
@@ -66,8 +66,8 @@ export function IsoCity({
     [layout, wallCoverage, wallPriorCoverage],
   );
   /**
-   * ช่องที่กำแพงกั้นจริง — ก่อแล้วและไม่ใช่ประตู
-   * ถนนที่ลอดใต้กำแพงต้องถูกตัด ไม่งั้นรถจะวิ่งทะลุกำแพงออกไปนอกเมือง
+   * Cells the wall actually blocks — built and not a gate.
+   * Roads passing under the wall must be cut, or cars would drive straight through it out of the city.
    */
   const blocked = useMemo(
     () => new Set(wall.filter((w) => w.built && !w.gate).map((w) => `${w.gx},${w.gy}`)),
@@ -76,8 +76,8 @@ export function IsoCity({
   const cells = useMemo(() => groundCells(layout, blocked), [layout, blocked]);
 
   /**
-   * กรอบภาพ — ต้องคลุมกำแพงด้วย ไม่ใช่แค่ตึก
-   * และตอนย้อนดูอดีต ต้องคลุม "เมืองวันนี้" ด้วย เพื่อให้กล้องอยู่นิ่งขณะสลับวัน
+   * Camera frame — must include the wall, not just the towers,
+   * and when viewing the past it must also include today's city, so the camera stays still while switching dates.
    */
   const cameraLayout = useMemo(
     () =>
@@ -97,7 +97,7 @@ export function IsoCity({
   }, [layout, wall, cameraLayout, cameraWallCoverage]);
   const stars = useMemo(() => {
     if (structures.length === 0) return [];
-    // กระจายเกินกรอบ เพราะ letterbox ทำให้เห็นพื้นที่นอก viewBox
+    // Spread beyond the frame, because letterboxing shows area outside the viewBox
     return Array.from({ length: 140 }, (_, i) => ({
       x: bounds.minX - bounds.width * 0.5 + seededRandom("sx", i) * bounds.width * 2,
       y: bounds.minY - bounds.height * 0.5 + seededRandom("sy", i) * bounds.height * 1.4,
@@ -107,8 +107,8 @@ export function IsoCity({
   }, [bounds, structures.length]);
 
   /**
-   * ตำแหน่งป้ายที่หลบกันแล้ว — วางป้ายของตึกสูงก่อน ตัวที่ชนถูกดันขึ้นทีละขั้น
-   * (ไม่งั้นป้ายตึกเตี้ยจะไปนั่งทับกลางตึกที่อยู่ข้างหลัง อ่านไม่ออก)
+   * Label positions after collision avoidance — tallest towers are placed first, colliding ones pushed up step by step
+   * (otherwise short towers' labels land in the middle of the towers behind them, unreadable).
    */
   const labelYs = useMemo(() => {
     const result = new Map<string, number>();
@@ -142,13 +142,13 @@ export function IsoCity({
   }, [layout]);
 
   /**
-   * เงาตึกไกลๆ ที่เส้นขอบฟ้า — ไม่ใช่ข้อมูล เป็นฉากหลังล้วน
-   * จงใจทำให้จางและไร้รายละเอียด (ไม่มีหน้าต่าง/ป้าย) จะได้ไม่มีใครอ่านว่าเป็นหุ้น
+   * Distant towers on the skyline — not data, pure backdrop.
+   * Deliberately faint and detail-free (no windows/signs) so nobody reads them as holdings.
    */
   const skyline = useMemo(() => {
     if (cells.length === 0) return { baseY: 0, items: [] };
-    // วางที่ระดับที่มองเห็นในเฟรมเสมอ ไม่ผูกกับขอบพื้นจริง (ซึ่งอยู่ไกลนอกจอ)
-    // โคนตึกจะถูกพื้นเมืองทับ = เหมือนเมืองไกลโผล่พ้นขอบฟ้า
+    // Placed at a height that's always in frame, not tied to the real ground edge (far off-screen);
+    // their bases get covered by the city ground = a distant city rising over the horizon
     const baseY = bounds.minY + bounds.height * 0.2;
     const spread = bounds.width * 2;
     const startX = bounds.minX - bounds.width * 0.5;
@@ -179,13 +179,13 @@ export function IsoCity({
   const suppressClick = useRef(false);
 
   /**
-   * ⚠️ ห้าม setPointerCapture ตั้งแต่ pointerdown — พอจับ pointer ไว้ที่ svg แล้ว
-   * Chrome ยิง click ไปที่ svg แทนตึกที่กดจริง ⇒ ไปเข้าเงื่อนไข "กดที่ว่าง = ยกเลิกเลือก"
-   * กดตึกเท่าไหร่ก็ไม่มีอะไรขึ้น · จับ pointer เฉพาะตอนลากจริง (ขยับเกิน 4px)
+   * ⚠️ Never setPointerCapture on pointerdown — once the svg captures the pointer,
+   * Chrome sends the click to the svg instead of the tower that was pressed ⇒ it hits the
+   * "click on empty space = deselect" path and towers never open · capture only once it's a real drag (> 4px).
    */
   const onPointerDown = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
-      // เผื่อการลากรอบก่อนไม่มี click ตามมา จะได้ไม่ค้างไปกินการกดครั้งถัดไป
+      // In case the previous drag had no click after it, so it doesn't swallow the next real click
       suppressClick.current = false;
       drag.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y, moved: false };
     },
@@ -206,7 +206,7 @@ export function IsoCity({
   }, []);
 
   const endDrag = useCallback(() => {
-    // ลากเสร็จแล้วปล่อยเมาส์บนตึก ต้องไม่นับเป็นการกดเลือกตึก
+    // Releasing the mouse over a tower at the end of a drag must not count as selecting it
     if (drag.current?.moved) suppressClick.current = true;
     drag.current = null;
   }, []);
@@ -256,8 +256,8 @@ export function IsoCity({
           </linearGradient>
         </defs>
 
-        {/* ท้องฟ้ากลางคืน + ดาว — อยู่นอก transform จึงไม่เลื่อนตามตอน pan
-            วาดเกินกรอบไปมาก เพราะ SVG letterbox ทำให้เห็นพื้นที่นอก viewBox ได้ */}
+        {/* Night sky + stars — outside the transform, so they don't move when panning.
+            Drawn far beyond the frame, because SVG letterboxing can show area outside the viewBox */}
         <rect
           x={bounds.minX - bounds.width}
           y={bounds.minY - bounds.height}
@@ -289,7 +289,7 @@ export function IsoCity({
         <g
           transform={`translate(${cx} ${cy}) scale(${scale}) translate(${-cx} ${-cy}) translate(${pan.x / scale} ${pan.y / scale})`}
         >
-          {/* ฉากหลัง: เมืองที่ไกลออกไปจนไม่เห็นรายละเอียด */}
+          {/* Backdrop: a city so far away it has no detail */}
           <g className="pixel-art">
             {skyline.items.map((b, i) => (
               <g key={i}>
@@ -309,7 +309,7 @@ export function IsoCity({
                 />
               </g>
             ))}
-            {/* หมอกกลบโคนตึกไกล ให้กลืนเข้ากับพื้น */}
+            {/* Haze over the bases of the distant towers, blending them into the ground */}
             <rect
               x={bounds.minX - bounds.width}
               y={skyline.baseY - 46}
@@ -322,9 +322,9 @@ export function IsoCity({
           <IsoGround cells={cells} />
 
           {/*
-            เลเยอร์สิ่งปลูกสร้าง — ไกลไปใกล้ ตัวหน้าทับตัวหลังได้ถูกต้อง
-            กำแพงต้องเข้าคิวความลึกเดียวกับตึก ไม่ใช่วาดก่อน/หลังทั้งวง
-            เพราะวงกำแพงคร่อมเมืองอยู่ ด้านข้างของวงมีทั้งส่วนที่ลึกกว่าและตื้นกว่าตึก
+            Building layer — back to front, so nearer things correctly cover farther ones.
+            The wall joins the same depth queue as the towers instead of being drawn entirely before/after,
+            because the ring surrounds the city: each side has parts both deeper and shallower than towers.
           */}
           {wall
             .filter((w) => w.depth < layout.all[0].depth)
@@ -354,7 +354,7 @@ export function IsoCity({
               <IsoWall key={`wf-${w.gx},${w.gy}`} segments={[w]} />
             ))}
 
-          {/* เลเยอร์ป้าย — บนสุดเสมอ ไม่โดนตึกบัง */}
+          {/* Label layer — always on top, never hidden behind a tower */}
           {districtLabels && layout.districts.map((d) => {
             const meta = DISTRICTS[d.id as keyof typeof DISTRICTS];
             const labelX = Math.min(...d.placed.map((p) => p.center.x)) - PITCH_W / 2;
@@ -390,12 +390,12 @@ export function IsoCity({
             const selected = placed.structure.id === selectedId;
             const hovered = placed.structure.id === hoveredId;
 
-            // มีป้ายบนตัวเองอยู่แล้ว (ผนัง/ดาดฟ้า/บนกองทอง) ไม่ต้องมีป้ายลอยซ้ำ
-            // เหลือไว้เฉพาะตอนเลือก/ชี้ ที่ต้องเห็นรายละเอียด
+            // Already has its own sign (wall/rooftop/on the gold pile), so no floating label too —
+            // only when selected/hovered, where the details are needed
             const hasOwnSign =
               placed.height > 0 || placed.structure.marketValue > 0;
             if (hasOwnSign && !selected && !hovered) return null;
-            // รายการที่กินหลายแปลง ป้ายลอยต้องมีใบเดียว ไม่ใช่ใบต่อหนึ่งตึก
+            // Holdings spanning several plots get one floating label, not one per tower
             if (placed.partIndex > 0) return null;
 
             return (

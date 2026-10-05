@@ -4,11 +4,11 @@ import { TILE_H, TILE_W, polygonPoints, type PlacedStructure, type Point } from 
 import { formatTHB } from "@/lib/portfolio";
 
 /**
- * ไซต์ก่อสร้าง = เงินสดที่ยังไม่ได้ลงทุน
+ * Construction site = cash not yet invested.
  *
- * จงใจไม่ทำเป็นตึก เพราะเงินสดยังไม่ใช่ความเป็นเจ้าของอะไรเลย — มันคือของ
- * ที่รอกลายเป็นตึก · ยิ่งเงินสดเยอะไซต์ยิ่งใหญ่ พอเอาไปซื้อหุ้นไซต์จะหดลง
- * แล้วตึกจะโตขึ้นแทน ซึ่งตรงกับสิ่งที่เกิดขึ้นจริง
+ * Deliberately not a tower, because cash doesn't own anything yet — it's material
+ * waiting to become a tower. More cash = bigger site; spend it on shares and the
+ * site shrinks while a tower grows, which mirrors what actually happens.
  */
 export function IsoSite({
   placed,
@@ -27,16 +27,16 @@ export function IsoSite({
   const value = s.marketValue;
 
   /**
-   * กองวัสดุต้องสูงตามสเกลเดียวกับตึก — เงินก้อนนี้ถ้าซื้อหุ้นจะได้ตึกสูงเท่าไหร่
-   * กองก็ควรใหญ่ประมาณนั้น (เดิมเอา height ไปแปลงเป็นตัวคูณอีกที กองเลยหดเหลือ 1/5)
+   * Material piles use the same height scale as towers — as tall as the tower this money
+   * would buy (it used to convert height into a multiplier, shrinking piles to 1/5).
    *
-   * จงใจไม่ทำเป็นโครงตึก/นั่งร้าน เพราะโครงแปลว่าตัดสินใจแล้วว่าจะสร้างอะไร
-   * แต่เงินสดยังไม่ได้เลือกเลยว่าจะไปเป็นหุ้นตัวไหน มันคือวัสดุที่ยังไม่ได้ประกอบ
+   * Deliberately not a frame/scaffolding: a frame means you've decided what to build,
+   * but cash hasn't picked a stock yet — it's material that hasn't been assembled.
    */
   const stackH = Math.max(8, height * 0.78);
   const sandH = Math.max(6, height * 0.34);
   const craneH = Math.max(30, height * 1.05);
-  // กองเดียวสูงเกิน ~22px จะเริ่มอ่านเป็นตึก — เกินนั้นแตกเป็นกองใหม่แทน
+  // One pile taller than ~22px starts reading as a building — split into a new pile instead
   const stackCount = Math.max(1, Math.min(4, Math.ceil(stackH / 22)));
 
   const N: Point = { x: center.x, y: center.y - TILE_H / 2 };
@@ -54,7 +54,7 @@ export function IsoSite({
     >
       <title>{`${s.label} — ${s.sublabel}\n${formatTHB(value)}`}</title>
 
-      {/* พื้นไซต์ + รั้วล้อม */}
+      {/* Site ground + fence */}
       <polygon
         points={polygonPoints([N, E, S, W])}
         fill="#2a2b21"
@@ -63,7 +63,7 @@ export function IsoSite({
         strokeDasharray="4 3"
       />
 
-      {/* แถบเตือนสีเหลืองรอบขอบ */}
+      {/* Yellow warning stripe around the edge */}
       <polyline
         points={polygonPoints([W, S, E])}
         fill="none"
@@ -75,13 +75,13 @@ export function IsoSite({
 
       <Crane x={center.x - 21} y={center.y - 4} h={craneH} />
 
-      {/* วัสดุก่อสร้างที่ยังไม่ได้ประกอบ — กองสูงตามเงินด้วยสเกลเดียวกับตึก */}
+      {/* Unassembled building material — piles scale with money on the same scale as towers */}
       <SandPile x={center.x - 13} y={center.y + 6} h={sandH} />
       <Rebar x={center.x - 1} y={center.y + 14} scale={1} />
 
       {/*
-        ปริมาตรรวมมาจากเงิน แต่กระจายเป็นหลายกองแทนกองเดียวสูงลิ่ว
-        ไม่งั้นกองอิฐจะอ่านเป็นตึกอิฐ ไม่ใช่ของที่กองไว้รอใช้
+        Total volume comes from the money, spread over several piles instead of one tall one,
+        otherwise a brick pile would read as a brick building, not stock waiting to be used.
       */}
       {STACK_SPOTS.slice(0, stackCount)
         .slice()
@@ -95,7 +95,7 @@ export function IsoSite({
           />
         ))}
 
-      {/* ป้ายไซต์ — ใช้แบบเดียวกับป้ายบิลบอร์ดของตึก จะได้ไม่หลุดแบบ */}
+      {/* Site sign — same billboard style as the towers, so it doesn't look out of place */}
       <g
         transform={`matrix(0.894 0.447 0 1 ${center.x} ${center.y - stackH - 16})`}
       >
@@ -131,7 +131,7 @@ export function IsoSite({
   );
 }
 
-/** จุดวางกองวัสดุในแปลง — เรียงไม่ให้ทับกัน */
+/** Where piles sit on the plot — arranged so they don't overlap */
 const STACK_SPOTS: Array<[number, number]> = [
   [12, 2],
   [-3, 9],
@@ -139,7 +139,7 @@ const STACK_SPOTS: Array<[number, number]> = [
   [7, 17],
 ];
 
-/** กองทราย/กรวด — ทรงกรวย กว้างคุมไม่ให้ล้นแปลง สูงตามเงิน */
+/** Sand/gravel pile — a cone, width capped to stay on the plot, height from money */
 function SandPile({ x, y, h }: { x: number; y: number; h: number }) {
   const w = Math.min(30, 12 + h * 0.75);
   return (
@@ -178,8 +178,8 @@ function SandPile({ x, y, h }: { x: number; y: number; h: number }) {
 }
 
 /**
- * กองอิฐ/บล็อกวางซ้อนเป็นชั้น — เหมือนพาเลทวัสดุในโกดัง
- * ความสูงมาจากเงิน ส่วนความกว้างคงที่ ยิ่งเงินเยอะยิ่งซ้อนสูงขึ้นเรื่อยๆ
+ * Bricks/blocks stacked in layers — like pallets of material in a yard.
+ * Height comes from money; width is fixed, so more money stacks higher.
  */
 function BrickStack({ x, y, h }: { x: number; y: number; h: number }) {
   const w = 22;
@@ -227,7 +227,7 @@ function BrickStack({ x, y, h }: { x: number; y: number; h: number }) {
   );
 }
 
-/** มัดเหล็กเส้น/ท่อ วางนอนกับพื้น */
+/** Bundle of rebar/pipes lying on the ground */
 function Rebar({ x, y, scale }: { x: number; y: number; scale: number }) {
   const len = 26 * scale;
   const bars = Math.max(3, Math.round(5 * scale));
@@ -267,7 +267,7 @@ function Rebar({ x, y, scale }: { x: number; y: number; scale: number }) {
   );
 }
 
-/** เครน — สูงตามไซต์ ยิ่งเงินเยอะยิ่งตระหง่าน */
+/** Crane — scales with the site; more money, taller crane */
 function Crane({ x, y, h }: { x: number; y: number; h: number }) {
   const jib = Math.max(16, h * 0.5);
   return (
@@ -283,7 +283,7 @@ function Crane({ x, y, h }: { x: number; y: number; h: number }) {
       <ellipse cx={x} cy={y + 1} rx={5} ry={2} fill="rgba(0,0,0,0.45)" />
       <rect x={x - 3} y={y - 3} width={6} height={4} fill="#8a7420" />
       <rect x={x - 1.2} y={y - h} width={2.4} height={h} fill="#c9a227" />
-      {/* ขาไขว้ของเสาเครน */}
+      {/* Cross-bracing on the crane mast */}
       {Array.from({ length: Math.max(2, Math.round(h / 12)) }, (_, i) => (
         <line
           key={i}

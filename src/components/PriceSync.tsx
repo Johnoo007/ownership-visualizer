@@ -12,9 +12,9 @@ import type { CityState } from "@/lib/types";
 import { pluralize } from "@/lib/text";
 
 /**
- * แถบความสดของราคา + ปุ่มดึงราคาล่าสุด
- * เหตุผลที่ต้องมี: ถ้าไม่โชว์อายุของข้อมูล ราคาที่ค้างมา 3 เดือนจะทำให้
- * ไฟหน้าต่างและกำไร/ขาดทุนผิดทั้งหมดโดยหน้าจอยังดูปกติดี
+ * Price freshness bar + a button to fetch the latest prices.
+ * Why it exists: without showing how old the data is, prices that are three
+ * months stale make the windows and gain/loss wrong while the screen looks fine.
  */
 export function PriceSync({
   state,
@@ -72,7 +72,7 @@ export function PriceSync({
         </button>
       </div>
 
-      {/* ห้ามเอาราคาจริงมาทับต้นทุนสมมติ — จะได้กำไร/ขาดทุนที่อ่านผิดโดยดูเหมือนจริง */}
+      {/* Never put real prices on top of made-up costs — the gain/loss would look real and be wrong */}
       {state.isDemo ? (
         <p className="mt-2 text-[10.5px] leading-relaxed text-[var(--label-dim)]">
           The sample city uses made-up numbers — hit “Start real portfolio” before fetching live prices

@@ -5,10 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 const KEY = "ownership-visualizer:animate:v1";
 
 /**
- * สวิตช์เปิด/ปิดความเคลื่อนไหวทั้งเมือง
+ * Motion on/off switch for the whole city.
  *
- * ค่าเริ่มต้นตามการตั้งค่าเครื่อง — ถ้าผู้ใช้ตั้ง "ลดการเคลื่อนไหว" ไว้
- * เมืองต้องนิ่งตั้งแต่แรกโดยไม่ต้องมากดปิดเอง
+ * Defaults to the OS setting — if the user prefers reduced motion, the city
+ * starts still without them having to turn it off.
  */
 export function useAnimation() {
   const [enabled, setEnabled] = useState(false);
@@ -33,12 +33,12 @@ export function useAnimation() {
       try {
         window.localStorage.setItem(KEY, next ? "1" : "0");
       } catch {
-        // จำค่าไม่ได้ก็ไม่เป็นไร ยังใช้ได้ในรอบนี้
+        // Can't persist the choice? Fine — it still applies for this session
       }
       return next;
     });
   }, []);
 
-  // ระหว่างยังอ่านค่าไม่เสร็จให้ถือว่าปิดไว้ก่อน กันภาพกระตุกตอนโหลด
+  // Treat it as off until the setting is read, so the first paint doesn't jitter
   return { enabled: ready && enabled, toggle, ready };
 }

@@ -33,15 +33,15 @@ function baseCity(): CityState {
     fxRate: 33.3,
     isDemo: false,
     holdings: [
-      // ลงเงินมาก แต่หุ้นน้อย — เคสที่ทำให้ "ความสูง = จำนวนหุ้น" ผิด
+      // Lots of money, few shares — the case that makes "height = share count" wrong
       { id: "a", ticker: "GOOGL", name: "Alphabet", shares: 5, avgCost: 172, currentPrice: 205, currency: "USD", district: "mission" },
-      // หุ้นเยอะกว่า 6 เท่า แต่ลงเงินน้อยกว่า
+      // 6× more shares, but less money invested
       { id: "b", ticker: "IEMG", name: "EM", shares: 30, avgCost: 10, currentPrice: 12, currency: "USD", district: "mission" },
-      // ได้มาฟรี ต้นทุน 0
+      // Obtained free, zero cost
       { id: "c", ticker: "GLD", name: "Gold", shares: 0.5, avgCost: 0, currentPrice: 234, currency: "USD", district: "mission" },
-      // เศษหุ้น + ขาดทุนหนัก
+      // Fractional share + heavy loss
       { id: "d", ticker: "TMDX", name: "TransMedics", shares: 0.4, avgCost: 118, currentPrice: 62, currency: "USD", district: "mission" },
-      // สกุลบาท คนละเขต
+      // Baht-denominated, different district
       { id: "e", ticker: "SCB", name: "SCB X", shares: 100, avgCost: 128, currentPrice: 131, currency: "THB", district: "goldengoose" },
     ],
   };
@@ -55,28 +55,28 @@ const crash = (s: CityState, factor: number): CityState => ({
   holdings: s.holdings.map((h) => ({ ...h, currentPrice: h.currentPrice * factor })),
 });
 
-test("ความสูงมาจากเงินที่ลงไป ไม่ใช่จำนวนหุ้น", () => {
+test("height comes from money invested, not share count", () => {
   const s = baseCity();
   assert.ok(
     heightOf(s, "a") > heightOf(s, "b"),
-    "GOOGL (5 หุ้น ฿28,638) ต้องสูงกว่า IEMG (30 หุ้น ฿9,990)",
+    "GOOGL (5 shares, ฿28,638) must be taller than IEMG (30 shares, ฿9,990)",
   );
 });
 
-test("ตลาดแดง −30% แล้วตึกต้องไม่หดแม้แต่ตึกเดียว", () => {
+test("a −30% market drop must not shrink a single tower", () => {
   const before = layoutCity(toStructures(baseCity()), ORDER);
   const after = layoutCity(toStructures(crash(baseCity(), 0.7)), ORDER);
 
   for (const p of before.all) {
     const q = after.all.find((x) => x.structure.id === p.structure.id)!;
-    assert.equal(q.height, p.height, `${p.structure.label} ความสูงเปลี่ยน`);
+    assert.equal(q.height, p.height, `${p.structure.label} height changed`);
   }
   assert.equal(totals(crash(baseCity(), 0.7)).invested, totals(baseCity()).invested);
   assert.ok(totals(crash(baseCity(), 0.7)).marketValue < totals(baseCity()).marketValue);
 });
 
-test("DCA เข้าตัวที่ใหญ่ที่สุดตอนตลาดแดง แล้วตึกต้องสูงขึ้น", () => {
-  // เคสที่พังตอนใช้ normalize-by-max: ตึกใหญ่สุดติดเพดานถาวร
+test("DCA into the biggest holding during a drop must make its tower taller", () => {
+  // The case that broke under normalize-by-max: the biggest tower was pinned to the ceiling forever
   const crashed = crash(baseCity(), 0.7);
   const dca: CityState = {
     ...crashed,
@@ -86,10 +86,10 @@ test("DCA เข้าตัวที่ใหญ่ที่สุดตอน�
   };
 
   assert.ok(heightOf(dca, "a") > heightOf(crashed, "a"));
-  assert.equal(heightOf(dca, "e"), heightOf(crashed, "e"), "ตึกที่ไม่ได้เติมต้องนิ่ง");
+  assert.equal(heightOf(dca, "e"), heightOf(crashed, "e"), "towers without a top-up must not move");
 });
 
-test("ข้ามขั้นสเกลแล้วสัดส่วนเทียบตึกอื่นยังโตขึ้น (กล้องถอย ไม่ใช่ตึกหด)", () => {
+test("crossing a scale step still grows relative to other towers (camera pulls back, towers don't shrink)", () => {
   const crashed = crash(baseCity(), 0.7);
   const big: CityState = {
     ...crashed,
@@ -104,13 +104,13 @@ test("ข้ามขั้นสเกลแล้วสัดส่วนเ�
 });
 
 /**
- * บั๊กที่เคยมีจริง: ไม้บรรทัดเป็นขั้นบันได ×√2 ที่ปรับตามตึกใหญ่สุด
- * พอตึกสูงสุดโตทะลุขั้น ตึก "ทุกหลัง" หดพร้อมกัน 29% — รวมตัวที่ไม่ได้แตะเลย
- * ตัวอย่าง: ตึกใหญ่สุดเติมอีก ฿24,000 แล้วเตี้ยลง 356px → 261px
+ * A real bug that existed: the ruler stepped by ×√2 based on the biggest tower.
+ * When the tallest tower grew past a step, *every* tower shrank 29% at once — including untouched ones.
+ * Example: adding ฿24,000 to the biggest tower made it drop from 356px → 261px.
  */
-test("เติมเงินเข้าตัวใหญ่สุด ห้ามทำให้ตึกหลังไหนในเมืองเตี้ยลงแม้แต่หลังเดียว", () => {
+test("adding money to the biggest holding must never make any tower in the city shorter", () => {
   const before = baseCity();
-  // คีย์ต้องเป็น "ตึกหลังที่เท่าไหร่ของรายการไหน" — หนึ่งรายการกินได้หลายแปลง
+  // The key must be "which tower of which holding" — one holding can span several plots
   const heightsOf = (st: CityState) =>
     new Map(
       layoutCity(toStructures(st), ORDER).all.map((p) => [
@@ -122,9 +122,9 @@ test("เติมเงินเข้าตัวใหญ่สุด ห้�
   let current = before;
   const start = heightsOf(current);
 
-  // อัดเงินเข้าตัวที่ใหญ่ที่สุดซ้ำๆ ให้ทะลุทุกขั้นที่ไม้บรรทัดเดิมเคยกระโดด
+  // Keep pumping money into the biggest holding so it crosses every step the old ruler used to jump at
   for (let round = 0; round < 40; round++) {
-    // ⚠️ ต้องเทียบเป็นบาท ไม่ใช่สกุลเดิม — SCB 12,800 บาท ดูใหญ่กว่า GOOGL $860
+    // ⚠️ Compare in baht, not native currency — SCB at 12,800 baht looks bigger than GOOGL at $860
     const c = current;
     const biggest = [...c.holdings].sort(
       (a, b) => investedTHB(b, c.fxRate) - investedTHB(a, c.fxRate),
@@ -140,31 +140,31 @@ test("เติมเงินเข้าตัวใหญ่สุด ห้�
 
     const nowH = heightsOf(current);
     for (const [label, h] of nowH) {
-      // ตึกหลังใหม่ที่เพิ่งขึ้นไม่มีค่าเดิมให้เทียบ — ผ่านไป
+      // A newly added tower has no previous height to compare — skip
       assert.ok(
         h >= (prevH.get(label) ?? 0) - 1e-9,
-        `รอบ ${round}: ${label} เตี้ยลงจาก ${prevH.get(label)?.toFixed(1)} เหลือ ${h.toFixed(1)} ทั้งที่ไม่ได้ขายอะไร`,
+        `round ${round}: ${label} dropped from ${prevH.get(label)?.toFixed(1)} to ${h.toFixed(1)} without selling anything`,
       );
     }
   }
 
-  // ตัวที่ถูกเติมต้องโตขึ้นจริง ไม่ใช่แค่ "ไม่หด" เพราะชนเพดาน
-  // ตัวที่ถูกอัดเงินต้องกลายเป็นกลุ่มอาคารหลายหลัง ไม่ใช่เข็มเดียวสูงลิ่ว
+  // The holding that received money must actually grow, not just "not shrink" because it hit the cap
+  // and the one being pumped must become a group of towers, not one towering needle
   const end = layoutCity(toStructures(current), ORDER).all.filter(
     (p) => p.structure.label === "GOOGL",
   );
-  assert.ok(end.length > 3, `GOOGL ควรแตกเป็นหลายหลัง ได้ ${end.length}`);
+  assert.ok(end.length > 3, `GOOGL should split into several towers, got ${end.length}`);
   assert.ok(
     end.every((p) => p.height <= TOWER_CAP_PX + 1e-9),
-    "ห้ามมีหลังไหนทะลุเพดาน",
+    "no tower may exceed the cap",
   );
   const total = end.reduce((a, p) => a + p.height, 0);
-  assert.ok(total > (start.get("GOOGL#0") ?? 0) * 50, "ความสูงรวมต้องโตขึ้นจริง");
+  assert.ok(total > (start.get("GOOGL#0") ?? 0) * 50, "total height must really grow");
 });
 
-test("ไม้บรรทัดตรึงตายตัว — เงินเท่ากันได้ความสูงเท่ากันเสมอ ไม่ว่าเมืองจะใหญ่แค่ไหน", () => {
+test("the ruler is fixed — the same money always gives the same height, however big the city", () => {
   assert.equal(heightFor(THB_PER_PX * 100), 100);
-  // เมืองเล็กกับเมืองใหญ่ ตึก ฿50,000 ต้องสูงเท่ากันเป๊ะ
+  // In a small city and a big one, a ฿50,000 tower must be exactly the same height
   const small = layoutCity(toStructures(baseCity()), ORDER).all;
   const huge = layoutCity(
     toStructures({
@@ -181,21 +181,21 @@ test("ไม้บรรทัดตรึงตายตัว — เงิน
   assert.equal(h(small, "GOOGL"), h(huge, "GOOGL"));
 });
 
-test("ของที่ได้มาฟรี (ต้นทุน 0) ไม่พัง และไม่มีตึก", () => {
+test("free holdings (zero cost) don't break anything and have no tower", () => {
   const s = baseCity();
   const gld = s.holdings.find((h) => h.id === "c")!;
 
-  assert.equal(pnlRatio(gld), null, "ห้ามหารศูนย์แล้วได้ Infinity");
+  assert.equal(pnlRatio(gld), null, "must not divide by zero and get Infinity");
   assert.equal(investedTHB(gld, s.fxRate), 0);
   assert.ok(isFreeHolding(gld));
-  assert.equal(heightOf(s, "c"), 0, "ลงเงิน 0 = ที่ดินเปล่า ไม่ใช่ตึก");
+  assert.equal(heightOf(s, "c"), 0, "zero invested = bare land, not a tower");
   assert.ok(
     heightOf(s, "d") > heightOf(s, "c"),
-    "ตึกที่ลงเงินจริงต้องสูงกว่าที่ดินของฟรีเสมอ",
+    "a tower with real money in it must always be taller than free land",
   );
 });
 
-test("จำนวนชั้นตรงกับจำนวนหุ้น", () => {
+test("floor count matches share count", () => {
   const full = floorPlan(5, 100);
   assert.equal(full.fullFloors, 5);
   assert.equal(full.partial, 0);
@@ -205,14 +205,14 @@ test("จำนวนชั้นตรงกับจำนวนหุ้น",
   assert.equal(frac.fullFloors, 0);
   assert.ok(Math.abs(frac.partial - 0.4) < 1e-9);
 
-  assert.ok(floorPlan(120, 200).toodense, "หุ้นเยอะเกินต้องเลิกวาดเส้นรายชั้น");
+  assert.ok(floorPlan(120, 200).toodense, "too many shares must stop drawing per-floor lines");
 });
 
-test("สกุลเงินผสมและการแยกเขต", () => {
+test("mixed currencies and separate districts", () => {
   const s = baseCity();
   const scb = s.holdings.find((h) => h.id === "e")!;
 
-  assert.equal(investedTHB(scb, s.fxRate), 12_800, "บาทห้ามคูณ FX ซ้ำ");
+  assert.equal(investedTHB(scb, s.fxRate), 12_800, "baht must not be multiplied by FX again");
 
   const gg = totals(s, "goldengoose");
   assert.equal(gg.towerCount, 1);
@@ -222,47 +222,47 @@ test("สกุลเงินผสมและการแยกเขต", ()
   assert.ok(
     Math.max(...l.districts[0].placed.map((p) => p.gy)) <
       Math.min(...l.districts[1].placed.map((p) => p.gy)),
-    "สองเขตต้องไม่ทับกันในกริด",
+    "the two districts must not overlap in the grid",
   );
 });
 
-test("ตัวชี้วัดความกระจุก แทนการบวก share count ข้ามบริษัท", () => {
+test("concentration metric instead of summing share counts across companies", () => {
   const top = topConcentration(baseCity());
   assert.equal(top?.label, "GOOGL");
   assert.ok(top!.share > 0 && top!.share <= 1);
   assert.equal(topConcentration({ holdings: [], fxRate: 33.3, isDemo: false }), null);
 });
 
-test("เงินสดเป็นไซต์ก่อสร้าง ไม่ใช่ความสูงของเมือง", () => {
+test("cash is a construction site, not city height", () => {
   const withCash: CityState = { ...baseCity(), cash: { usd: 300, thb: 20_000 } };
 
-  // เงินสดยังไม่ใช่ความเป็นเจ้าของ ห้ามไปเพิ่ม "เงินที่ลงไปแล้ว"
+  // Cash isn't ownership yet — it must not increase "money invested"
   assert.equal(totals(withCash).invested, totals(baseCity()).invested);
   assert.equal(totals(withCash).towerCount, totals(baseCity()).towerCount);
 
   const sites = toStructures(withCash).filter((s) => s.kind === "site");
-  assert.equal(sites.length, 2, "แยกกอง USD กับบาท");
+  assert.equal(sites.length, 2, "separate USD and baht piles");
   assert.equal(cashTHB(withCash), 300 * 33.3 + 20_000);
 
-  // ไซต์ต้องอยู่คนละโซนกับตึก ไม่ปนกับของที่เป็นเจ้าของแล้ว
+  // Sites must be in a separate zone from towers, not mixed with what's already owned
   assert.ok(sites.every((s) => s.district === "cash"));
 
-  // ขนาดไซต์ต้องสะท้อนเงินจริง: กองบาท 20,000 ต้องใหญ่กว่ากอง USD 9,990
+  // Site size must reflect real money: a 20,000 baht pile must be bigger than a USD 9,990 pile
   const l = layoutCity(toStructures(withCash), [...ORDER, "cash"]);
   const usd = l.all.find((p) => p.structure.id === "cash-usd")!;
   const thb = l.all.find((p) => p.structure.id === "cash-thb")!;
-  assert.ok(thb.height > usd.height, "ไซต์ที่เงินเยอะกว่าต้องใหญ่กว่า");
+  assert.ok(thb.height > usd.height, "a site with more money must be bigger");
 
-  // ไม่มีเงินสด = ไม่มีไซต์
+  // No cash = no site
   assert.equal(toStructures(baseCity()).filter((s) => s.kind === "site").length, 0);
-  // ใส่ 0 ก็ต้องไม่โผล่ไซต์เปล่า
+  // Entering 0 must not produce an empty site either
   const zero: CityState = { ...baseCity(), cash: { usd: 0, thb: 0 } };
   assert.equal(toStructures(zero).filter((s) => s.kind === "site").length, 0);
 });
 
-test("ของประดับทุกชนิดที่เขียนไว้ต้องโผล่จริง ไม่กลายเป็นโค้ดตาย", () => {
-  // เคยพลาดมาแล้ว: ตอนเปลี่ยนรอบเมืองเป็นแปลงจัดสรร คนเดินที่ผูกกับ "ทุ่งหญ้า
-  // ใกล้เมือง" เลยไม่มีพื้นที่เหลือให้ยืน กลายเป็นโค้ดตายโดยไม่มีใครสังเกต
+test("every decoration type that exists in code actually appears, not dead code", () => {
+  // This went wrong before: when the outskirts became allocated plots, pedestrians tied to "grass near the
+  // city" had nowhere left to stand and silently became dead code without anyone noticing
   const withCash: CityState = { ...baseCity(), cash: { usd: 300, thb: 20_000 } };
   const cells = groundCells(
     layoutCity(toStructures(withCash), [...ORDER, "cash"], ["cash"]),
@@ -271,30 +271,30 @@ test("ของประดับทุกชนิดที่เขียน�
   for (const kind of ["plot", "road", "vacant", "grass"] as const) {
     assert.ok(
       cells.some((c) => c.kind === kind),
-      `ไม่มีช่องชนิด ${kind} เลย`,
+      `no cells of kind ${kind} at all`,
     );
   }
 
   for (const decor of ["tree", "bush", "car", "lamp", "person"] as const) {
     assert.ok(
       cells.some((c) => c.decor === decor),
-      `${decor} ไม่โผล่เลยสักช่อง — น่าจะเป็นโค้ดตาย`,
+      `${decor} never appears in any cell — probably dead code`,
     );
   }
 
-  // ผังถนนมีสองแนวตัดกัน ทุกช่องถนนต้องรู้ว่าตัวเองเป็นแนวไหน
-  // ไม่งั้นรถกับเส้นแบ่งเลนจะวางขวางถนนอีกแนวทั้งหมด
+  // The street plan has roads in two directions; every road cell must know which one it is,
+  // otherwise cars and lane markings get placed sideways across the other roads
   const roads = cells.filter((c) => c.kind === "road");
-  assert.ok(roads.every((c) => c.roadAxis), "ช่องถนนต้องระบุแนวเสมอ");
+  assert.ok(roads.every((c) => c.roadAxis), "road cells must always have an axis");
   for (const axis of ["x", "y"] as const) {
     assert.ok(
       roads.some((c) => c.roadAxis === axis || c.roadAxis === "both"),
-      `ไม่มีถนนแนว ${axis} เลย`,
+      `no roads along ${axis} at all`,
     );
   }
 });
 
-test("ยอดรวมพอร์ตนับเงินสดแบบชีต แต่ความสูงเมืองไม่นับ", () => {
+test("portfolio totals count cash like the spreadsheet, but city height doesn't", () => {
   const base = baseCity();
   const withCash: CityState = {
     ...base,
@@ -305,88 +305,88 @@ test("ยอดรวมพอร์ตนับเงินสดแบบช�
   const s = portfolioSummary(withCash);
   const cash = 300 * 33.3 + 20_000;
 
-  // มูลค่าพอร์ต = หุ้น + เงินสด (แบบเดียวกับที่ชีตรายงาน)
+  // Portfolio value = stocks + cash (the same as the spreadsheet reports)
   assert.equal(s.marketTotal, totals(base).marketValue + cash);
 
-  // ผลตอบแทนคิดเทียบ "เงินเติมสะสม" ไม่ใช่ต้นทุนหุ้น
+  // Return is measured against "total deposits", not stock cost
   assert.ok(s.usingDeposits);
   assert.equal(s.returnBase, 400_000);
   assert.ok(Math.abs(s.totalReturn! - (s.marketTotal / 400_000 - 1)) < 1e-12);
 
-  // แต่ความสูงเมืองยังเป็นต้นทุนหุ้นล้วน ไม่ขยับตามเงินสดหรือเงินเติมสะสม
+  // But city height is still pure stock cost, unaffected by cash or total deposits
   assert.equal(s.invested, totals(base).invested);
 
-  // ไม่กรอกเงินเติมสะสม → ประมาณด้วยต้นทุนหุ้น + เงินสด (ต้องนับเงินสดด้วยเสมอ
-  // เพราะเงินที่โอนเข้าพอร์ตแล้วก็คือเงินที่เก็บมาได้แล้ว)
+  // Without total deposits → estimate from stock cost + cash (cash must always count,
+  // because money moved into the portfolio has already been saved)
   const noDeposits = portfolioSummary({ ...base, cash: { usd: 300, thb: 20_000 } });
   assert.equal(noDeposits.usingDeposits, false);
   assert.equal(noDeposits.returnBase, totals(base).invested + cash);
 });
 
-test("เมืองว่างต้องไม่ crash", () => {
+test("an empty city must not crash", () => {
   const empty = layoutCity([], ORDER);
   assert.equal(empty.all.length, 0);
   assert.ok(empty.bounds.width > 0);
 
-  assert.equal(heightFor(0), 0, "ไม่ลงเงิน = ไม่มีตึก");
-  assert.ok(heightFor(1000) > 0, "เงินน้อยมากก็ยังมีความสูงขั้นต่ำ");
+  assert.equal(heightFor(0), 0, "no money = no tower");
+  assert.ok(heightFor(1000) > 0, "very little money still gets the minimum height");
 
   const t = totals({ holdings: [], fxRate: 33.3, isDemo: false });
   assert.equal(t.invested, 0);
   assert.equal(t.pnlRatio, null);
 });
 
-test("อ่านตารางที่วางมาจากชีต", () => {
+test("parse a table pasted from a sheet", () => {
   const rows = parseHoldingsTable(
     "ticker,shares,cost\nVOO, 12, 480\nGOOGL\t5\t172\t205\nSCB;100;128;131;THB;goldengoose\nBAD, abc, 1",
   );
   const ok = rows.filter((r) => r.ok);
   const bad = rows.filter((r) => !r.ok);
 
-  assert.equal(ok.length, 3, "รับทั้ง comma / tab / semicolon และข้ามหัวตาราง");
-  assert.equal(bad.length, 1, "แถวเสียต้องถูกรายงาน ไม่ใช่ทำให้ทั้งชุดล้ม");
+  assert.equal(ok.length, 3, "accepts comma / tab / semicolon and skips the header");
+  assert.equal(bad.length, 1, "bad rows must be reported, not fail the whole batch");
 
   const scb = ok.find((r) => r.ok && r.holding.ticker === "SCB");
   assert.ok(scb?.ok && scb.holding.currency === "THB");
   assert.ok(scb?.ok && scb.holding.district === "goldengoose");
 
   const voo = ok.find((r) => r.ok && r.holding.ticker === "VOO");
-  assert.ok(voo?.ok && voo.holding.currentPrice === 480, "ไม่ระบุราคา → ใช้ต้นทุนไปก่อน");
+  assert.ok(voo?.ok && voo.holding.currentPrice === 480, "no price given → use cost for now");
 });
 
-test("แยกสกุลตามระดับ: ตึกรายตัวเป็นสกุลหุ้น พอร์ตรวมเป็นบาท", () => {
+test("currency by level: per-tower in the stock's currency, portfolio total in baht", () => {
   const usd = {
     id: "x", ticker: "VOO", name: "VOO", shares: 10, avgCost: 600,
     currentPrice: 700, currency: "USD" as const, district: "mission" as const,
   };
 
-  // รายตัว = ผลตอบแทนตลาดล้วน ห้ามมีค่าเงินปน
+  // Per holding = pure market return, no FX mixed in
   assert.ok(Math.abs(pnlRatio(usd)! - 700 / 600 + 1) < 1e-12);
 
-  // บันทึกบาทจริงแล้ว ผลตอบแทนรายตัวต้องไม่ขยับ (ยังเป็น USD)
+  // After recording real baht paid, the per-holding return must not move (still USD)
   const withReal = { ...usd, costTHB: 211_200 };
-  assert.equal(pnlRatio(withReal), pnlRatio(usd), "costTHB ห้ามไปเปลี่ยนไฟรายตัว");
+  assert.equal(pnlRatio(withReal), pnlRatio(usd), "costTHB must not change per-tower lights");
 
-  // แต่ "เงินที่ลงไป" ต้องใช้บาทจริง ไม่คูณค่าเงินวันนี้ซ้ำ
-  assert.equal(investedTHB(usd, 33), 198_000, "ไม่มีบาทจริง → ตีด้วยค่าเงินวันนี้");
+  // But "money invested" must use the real baht, not today's FX again
+  assert.equal(investedTHB(usd, 33), 198_000, "no real baht → estimate at today's FX");
   assert.equal(investedTHB(withReal, 33), 211_200);
-  assert.equal(investedTHB(withReal, 40), 211_200, "ค่าเงินวันนี้ต้องไม่กระทบเงินที่ลงไปแล้ว");
+  assert.equal(investedTHB(withReal, 40), 211_200, "today's FX must not affect money already invested");
 
-  // ระดับพอร์ตรวมคิดฐานบาท จึงรวมผลค่าเงิน → ต่ำกว่าฝั่ง USD เพราะบาทแข็งขึ้น
+  // The portfolio level is in baht, so it includes FX effects → lower than the USD side because the baht strengthened
   const city: CityState = { holdings: [withReal], fxRate: 33, isDemo: false };
   assert.equal(totals(city).invested, 211_200);
   assert.ok(totals(city).pnlRatio! < pnlRatio(usd)!);
 });
 
-test("เทียบเมืองกับอดีต วัดที่เงินที่ลง ไม่ใช่มูลค่าตลาด", () => {
+test("comparing the city with the past measures money invested, not market value", () => {
   const past = { at: new Date(Date.now() - 86_400_000 * 30).toISOString(), state: baseCity() };
 
-  // ตลาดพัง 50% แต่ไม่ได้เติมเงิน → การเติบโตต้องเป็น 0
+  // Market falls 50% with no top-up → growth must be 0
   const marketOnly = compare(past, crash(baseCity(), 0.5));
   assert.equal(marketOnly.investedDelta, 0);
   assert.equal(marketOnly.newTowers.length, 0);
 
-  // ซื้อเพิ่ม + ตึกใหม่
+  // Buy more + a new tower
   const grown: CityState = {
     ...baseCity(),
     holdings: [
@@ -404,12 +404,12 @@ test("เทียบเมืองกับอดีต วัดที่เ�
 });
 
 /**
- * รถต้องวิ่งอยู่บนถนนตลอดเส้นทาง — ตรวจทุกคันทีละช่อง
+ * Cars must stay on the road for their whole route — check every car, cell by cell.
  *
- * ตรวจด้วยตาไม่พอ: รถมีเป็นสิบคัน วิ่งวนคนละจังหวะ คันที่หลุดออกนอกถนนอาจ
- * อยู่นอกจอหรือหลุดแค่ตอนท้ายจังหวะพอดี
+ * Checking by eye isn't enough: there are dozens of cars on different loops, and one that leaves
+ * the road may be off-screen or only stray at the very end of its loop.
  */
-test("รถทุกคันวิ่งไม่พ้นถนน — ทุกช่องตลอดเส้นทางต้องเป็นถนน", () => {
+test("no car ever leaves the road — every cell along its route must be road", () => {
   const state = baseCity();
   const layout = layoutCity(toStructures(state), ORDER, [CASH_ZONE]);
   const cells = groundCells(layout);
@@ -420,30 +420,30 @@ test("รถทุกคันวิ่งไม่พ้นถนน — ทุ
   );
 
   const cars = cells.filter((c) => c.decor === "car");
-  assert.ok(cars.length > 0, "ต้องมีรถอย่างน้อยหนึ่งคันให้ตรวจ");
+  assert.ok(cars.length > 0, "need at least one car to check");
 
   let driving = 0;
   for (const car of cars) {
-    assert.equal(car.kind, "road", `รถอยู่บนช่องที่ไม่ใช่ถนน ${car.gx},${car.gy}`);
+    assert.equal(car.kind, "road", `car is on a non-road cell ${car.gx},${car.gy}`);
 
     const route = carRoute(car, lanes.get(laneKey(car)));
     if (!route.canDrive) continue;
     driving++;
 
-    // ทุกช่องที่ผ่านต้องเป็นถนน
+    // Every cell it passes through must be road
     for (let step = 1; step <= route.cellsAhead; step++) {
       const gx = route.axis === "x" ? car.gx + route.dir * step : car.gx;
       const gy = route.axis === "y" ? car.gy + route.dir * step : car.gy;
       assert.ok(
         roadAt.has(`${gx},${gy}`),
-        `รถจาก ${car.gx},${car.gy} แนว ${route.axis} วิ่งไปโผล่ที่ ${gx},${gy} ซึ่งไม่ใช่ถนน`,
+        `car from ${car.gx},${car.gy} on axis ${route.axis} ends up at ${gx},${gy}, which isn't road`,
       );
     }
 
     /**
-     * และระยะพิกเซลต้องพาไปจอดกลางช่องนั้นจริง ไม่ใช่แค่ "นับช่องถูก"
-     * เคยพลาดตรงนี้: ใช้ PITCH_W (112px) เป็นระยะต่อช่อง ทั้งที่ระยะจริง
-     * ระหว่างกลางช่อง = hypot(56,28) ≈ 62.6px รถจึงวิ่งเกินไป 1.79 เท่า
+     * and the pixel distance must actually park it at the centre of that cell, not just "count cells right".
+     * This went wrong before: PITCH_W (112px) was used as the distance per cell, while the real
+     * distance between cell centres = hypot(56,28) ≈ 62.6px, so cars overshot by 1.79×.
      */
     const ax = AXIS[route.axis];
     const travel = CELL_STEP * route.cellsAhead;
@@ -457,15 +457,15 @@ test("รถทุกคันวิ่งไม่พ้นถนน — ทุ
 
     assert.ok(
       off < 2,
-      `รถจาก ${car.gx},${car.gy} ควรจอดกลางช่อง ${tgx},${tgy} แต่เลยไป ${off.toFixed(1)}px`,
+      `car from ${car.gx},${car.gy} should park at the centre of ${tgx},${tgy} but overshot by ${off.toFixed(1)}px`,
     );
   }
 
-  assert.ok(driving > 0, "รถต้องมีคันที่วิ่งได้จริง ไม่ใช่จอดหมดทั้งเมือง");
+  assert.ok(driving > 0, "some cars must actually drive, not all parked across the whole city");
 });
 
-/** เลนต้องไม่กินช่องที่เป็นตึก — ถนนคั่นเขตถูกบังคับให้ทับแถวที่มีตึกได้ */
-test("เลนถนนเก็บเฉพาะช่องที่เป็นถนนจริง ไม่คร่อมตึก", () => {
+/** Lanes must not include tower cells — district-divider roads are allowed to run through rows with towers */
+test("lanes only contain cells that are actually road, never spanning a tower", () => {
   const state = baseCity();
   const cells = groundCells(layoutCity(toStructures(state), ORDER, [CASH_ZONE]));
   const lanes = computeLanes(cells);
@@ -476,17 +476,17 @@ test("เลนถนนเก็บเฉพาะช่องที่เป�
       const gx = axis === "x" ? pos : Number(fixed);
       const gy = axis === "x" ? Number(fixed) : pos;
       const cell = cells.find((c) => c.gx === gx && c.gy === gy);
-      assert.equal(cell?.kind, "road", `เลน ${key} กินช่อง ${gx},${gy} ที่ไม่ใช่ถนน`);
+      assert.equal(cell?.kind, "road", `lane ${key} includes ${gx},${gy}, which isn't road`);
     }
   }
 });
 
-/* ── ไม้ DCA: หน่วยวัดที่ไม่ถูกเจือจางเมื่อพอร์ตโต ───────────────── */
+/* ── DCA rounds: a unit that doesn't get diluted as the portfolio grows ───────────── */
 
 const DAY = 86_400_000;
 const NOW = new Date("2026-08-31T10:00:00Z");
 
-test("ซื้อเพิ่ม = บันทึก 1 ไม้ พร้อมยอดบาทจริง", () => {
+test("buying more = 1 round recorded, with the real baht amount", () => {
   const before = baseCity();
   const after: CityState = {
     ...before,
@@ -499,21 +499,21 @@ test("ซื้อเพิ่ม = บันทึก 1 ไม้ พร้อ�
   assert.equal(found.length, 1);
   assert.equal(found[0].ticker, "GOOGL");
   assert.equal(found[0].at, "2026-08-31");
-  // 2 หุ้น × $172 × 33.3 = ฿11,455.2
+  // 2 shares × $172 × 33.3 = ฿11,455.2
   assert.ok(Math.abs(found[0].amountTHB - 2 * 172 * 33.3) < 0.01);
 });
 
 /**
- * กับดักที่ทำให้ประวัติปลอมได้ง่ายที่สุด — ถ้าเทียบด้วยยอดบาท
- * การขยับค่าเงินอย่างเดียวจะทำให้ทุกตัวดูเหมือนเพิ่งเติมเงินพร้อมกัน
+ * The easiest trap for fake history — if compared in baht,
+ * changing only the FX rate would make every holding look like it was just topped up.
  */
-test("แก้ค่าเงินอย่างเดียว ห้ามงอกไม้ปลอม", () => {
+test("changing only the FX rate must not create fake rounds", () => {
   const before = baseCity();
   const after: CityState = { ...before, fxRate: before.fxRate + 3 };
   assert.deepEqual(detectContributions(before, after, NOW), []);
 });
 
-test("ราคาตลาดวิ่ง ห้ามงอกไม้", () => {
+test("market price moves must not create rounds", () => {
   const before = baseCity();
   assert.deepEqual(detectContributions(before, crash(baseCity(), 0.4), NOW), []);
   const up: CityState = {
@@ -523,7 +523,7 @@ test("ราคาตลาดวิ่ง ห้ามงอกไม้", () =
   assert.deepEqual(detectContributions(before, up, NOW), []);
 });
 
-test("ขายออกไม่นับเป็นไม้ และไม่ลบขีดที่เคยลงไปแล้ว", () => {
+test("selling isn't a round, and doesn't erase tallies already made", () => {
   const before = baseCity();
   const sold: CityState = {
     ...before,
@@ -537,7 +537,7 @@ test("ขายออกไม่นับเป็นไม้ และไม�
   assert.equal(appendContributions(past, []).length, 1);
 });
 
-test("เติมตัวเดิมวันเดียวกันสองครั้ง รวมเป็นไม้เดียว ไม่ใช่สองขีด", () => {
+test("topping up the same holding twice in one day merges into one round, not two", () => {
   const merged = appendContributions(
     [{ at: "2026-08-31", ticker: "SPYM", amountTHB: 2000 }],
     [{ at: "2026-08-31", ticker: "SPYM", amountTHB: 1500 }],
@@ -546,7 +546,7 @@ test("เติมตัวเดิมวันเดียวกันสอ�
   assert.equal(merged[0].amountTHB, 3500);
 });
 
-test("ถ้ามีบาทจ่ายจริงทั้งสองฝั่ง ใช้ส่วนต่างบาทตรงๆ ไม่แปลงด้วยค่าเงินวันนี้", () => {
+test("with real baht paid on both sides, use the baht difference directly, not today's FX", () => {
   const before: CityState = {
     ...baseCity(),
     holdings: [
@@ -559,10 +559,10 @@ test("ถ้ามีบาทจ่ายจริงทั้งสองฝ�
   };
   const found = detectContributions(before, after, NOW);
   assert.equal(found.length, 1);
-  assert.equal(found[0].amountTHB, 5_500); // ไม่ใช่ 172 × 33.3
+  assert.equal(found[0].amountTHB, 5_500); // not 172 × 33.3
 });
 
-test("จำนวนขีดและงานใหม่ไปถึง structure — เงินสดไม่มีขีดของตัวเอง", () => {
+test("tally counts and recent work reach the structure — cash has no tally of its own", () => {
   const state: CityState = {
     ...baseCity(),
     cash: { usd: 100, thb: 5000 },
@@ -580,14 +580,14 @@ test("จำนวนขีดและงานใหม่ไปถึง stru
   const cash = structures.find((s) => s.district === CASH_ZONE)!;
 
   assert.equal(googl.contributionCount, 3);
-  assert.equal(googl.recentAdd, 4000); // เฉพาะไม้ 29 ส.ค. ที่อยู่ในกรอบ 7 วัน
+  assert.equal(googl.recentAdd, 4000); // only the Aug 29 round falls in the 7-day window
   assert.equal(iemg.contributionCount, 1);
-  assert.equal(iemg.recentAdd, null); // ม.ค. เก่าเกินกรอบ
+  assert.equal(iemg.recentAdd, null); // January is outside the window
   assert.equal(cash.contributionCount, 0);
   assert.equal(cash.recentAdd, null);
 });
 
-test("สรุปไม้: นับครั้ง แยกปีนี้ และจับของใหม่ในกรอบ 7 วัน", () => {
+test("round summary: counts times, splits out this year, and catches new ones in the 7-day window", () => {
   const s = summarize(
     [
       { at: "2025-11-10", ticker: "VOO", amountTHB: 3000 },
@@ -604,8 +604,8 @@ test("สรุปไม้: นับครั้ง แยกปีนี้ �
   assert.deepEqual(s.recentTickers, ["SPYM"]);
 });
 
-/** เหตุผลทั้งหมดที่ฟีเจอร์นี้มีอยู่ — ขีดต้องโตเต็ม 1 ทั้งที่ตึกแทบไม่ขยับ */
-test("เติมเงินก้อนเล็กบนพอร์ตใหญ่: ตึกโตไม่ถึง 5% แต่ขีดโต 100%", () => {
+/** The whole reason this feature exists — the tally grows a full 1 while the tower barely moves */
+test("a small top-up on a big portfolio: tower grows under 5% but the tally grows 100%", () => {
   const big: CityState = {
     fxRate: 32, isDemo: false,
     holdings: [
@@ -626,12 +626,12 @@ test("เติมเงินก้อนเล็กบนพอร์ตใ�
   const afterH = toStructures(withNew, NOW)[0];
 
   const growth = afterH.invested / beforeH.invested - 1;
-  assert.ok(growth < 0.05, `เงินโตขึ้น ${(growth * 100).toFixed(1)}% ควรน้อยกว่า 5%`);
+  assert.ok(growth < 0.05, `money grew ${(growth * 100).toFixed(1)}%, should be under 5%`);
   assert.equal(beforeH.contributionCount, 1);
   assert.equal(afterH.contributionCount, 2); // +100%
 });
 
-test("ไม้ที่ลงวันที่ในอนาคต ห้ามนับเป็น 'เพิ่งเติม' — ไม่งั้นขึ้นเครนทั้งเมือง", () => {
+test("rounds dated in the future must not count as 'just added' — or every tower gets a crane", () => {
   const future = new Date(NOW.getTime() + 90 * DAY).toISOString().slice(0, 10);
   const list = [
     { at: future, ticker: "SPYM", amountTHB: 7200 },
@@ -643,14 +643,14 @@ test("ไม้ที่ลงวันที่ในอนาคต ห้า�
   const s = summarize(list, NOW);
   assert.equal(s.recentTHB, 5000);
   assert.deepEqual(s.recentTickers, ["VOO"]);
-  assert.equal(s.rounds, 2, "แต่ยังนับเป็นไม้ที่ลงไปแล้วอยู่ ไม่ได้ทิ้ง");
+  assert.equal(s.rounds, 2, "but they still count as rounds made, not dropped");
 });
 
 /**
- * กฎเหล็กของการแตกตึก: ตึกที่เต็มเพดานแล้วต้องค้างที่เพดานตลอดไป
- * ห้ามผ่าเงินออกเป็นหลายหลังเท่าๆ กัน (นั่นคือบั๊ก √2 ในเสื้อใหม่)
+ * Hard rule of tower splitting: a tower at the cap stays at the cap forever.
+ * Never split money into several equal towers (that's the √2 bug in new clothes).
  */
-test("แตกตึกแล้วต้องไม่มีหลังไหนเตี้ยลง แม้เดินเงินทีละไม้ตลอดทาง", () => {
+test("splitting never makes any tower shorter, even walking money in one round at a time", () => {
   let prev: number[] = [];
   let splits = 0;
 
@@ -658,50 +658,50 @@ test("แตกตึกแล้วต้องไม่มีหลังไ�
     const parts = towerHeights(thb);
     assert.ok(
       parts.every((h) => h <= TOWER_CAP_PX + 1e-9),
-      `฿${thb}: มีหลังทะลุเพดาน`,
+      `฿${thb}: a tower exceeds the cap`,
     );
     parts.forEach((h, i) => {
       assert.ok(
         h >= (prev[i] ?? 0) - 1e-9,
-        `฿${thb}: หลังที่ ${i + 1} เตี้ยลงจาก ${prev[i]?.toFixed(1)} เหลือ ${h.toFixed(1)}`,
+        `฿${thb}: tower ${i + 1} dropped from ${prev[i]?.toFixed(1)} to ${h.toFixed(1)}`,
       );
     });
     if (parts.length > prev.length) splits++;
     prev = parts;
   }
 
-  assert.ok(splits >= 6, `ควรแตกตึกหลายรอบในช่วงนี้ ได้ ${splits}`);
+  assert.ok(splits >= 6, `should split several times over this range, got ${splits}`);
 });
 
-test("อัตราส่วนตึกต่อแปลงหยุดโตหลังแตกตึก — ไม่กลายเป็นเข็มอีกต่อไป", () => {
+test("tower-to-plot ratio stops growing after splitting — no more needles", () => {
   const ratio = (thb: number) => Math.max(...towerHeights(thb)) / 68;
-  assert.ok(ratio(90_000) < 5, "วันนี้ยังทรงเดิม");
-  // ฿560,000 ในตัวเดียว: ตึกเดียวจะเป็น 25.7 เท่า
-  assert.ok(560_000 / THB_PER_PX / 68 > 25, "เทียบกับแบบตึกเดียวที่เป็นเข็มจริง");
-  assert.ok(ratio(560_000) < 6.2, "แตกตึกแล้วต้องค้างที่ ~5.9 เท่า");
-  assert.equal(ratio(5_000_000).toFixed(1), ratio(560_000).toFixed(1), "โตอีกกี่เท่าก็ไม่เพี้ยนเพิ่ม");
+  assert.ok(ratio(90_000) < 5, "a ~฿90k tower is still normally proportioned");
+  // ฿560,000 in one holding: a single tower would be 25.7×
+  assert.ok(560_000 / THB_PER_PX / 68 > 25, "compared with the single-tower version, which really is a needle");
+  assert.ok(ratio(560_000) < 6.2, "after splitting it must stay at ~5.9×");
+  assert.equal(ratio(5_000_000).toFixed(1), ratio(560_000).toFixed(1), "however much bigger it gets, it doesn't distort further");
 });
 
-test("เงินรวมของทุกหลังต้องเท่ากับเงินที่ลงไปจริง ไม่ตกหล่นตอนแตกตึก", () => {
+test("the money across all towers equals the money invested — nothing lost when splitting", () => {
   for (const thb of [0, 5_000, 128_000, 128_001, 300_000, 777_777]) {
     const sum = towerHeights(thb).reduce((a, h) => a + h, 0);
     const expected = thb / THB_PER_PX;
     if (thb === 0) { assert.equal(sum, 0); continue; }
-    // เศษเล็กกว่า MIN_H ถูกดันขึ้นเป็น 5px ได้ จึงยอมให้เกินได้เล็กน้อย
+    // Remainders smaller than MIN_H can be bumped up to 5px, so a small overshoot is allowed
     assert.ok(sum >= expected - 1e-9 && sum <= expected + MIN_H_ALLOWANCE,
-      `฿${thb}: รวมได้ ${sum.toFixed(1)}px ควรเป็น ${expected.toFixed(1)}px`);
+      `฿${thb}: summed to ${sum.toFixed(1)}px, should be ${expected.toFixed(1)}px`);
   }
 });
 const MIN_H_ALLOWANCE = 5;
 
-/** บล็อกสี่เหลี่ยม: ตึกของหุ้นตัวเดียวกันต้องอยู่ติดกันเป็นผืน ไม่กระจายทั่วเมือง */
-test("หุ้นที่กินหลายแปลงต้องจัดเป็นบล็อกสี่เหลี่ยมติดกัน", () => {
+/** Square blocks: one holding's towers must sit together as one piece of land, not scattered across the city */
+test("holdings spanning several plots are arranged as adjacent square blocks", () => {
   const big: CityState = {
     fxRate: 32, isDemo: false,
     holdings: [
-      // ฿1,280,000 = 10 หลัง → ควรได้บล็อก 4×3
+      // ฿1,280,000 = 10 towers → should be a 4×3 block
       { id: "a", ticker: "SPYM", name: "S&P", shares: 40_000, avgCost: 1, currentPrice: 1.2, currency: "USD", district: "mission" },
-      // ฿256,000 = 2 หลัง
+      // ฿256,000 = 2 towers
       { id: "b", ticker: "VOO", name: "Vanguard", shares: 8_000, avgCost: 1, currentPrice: 1.1, currency: "USD", district: "mission" },
       { id: "c", ticker: "PG", name: "P&G", shares: 100, avgCost: 1, currentPrice: 1, currency: "USD", district: "mission" },
     ],
@@ -709,33 +709,33 @@ test("หุ้นที่กินหลายแปลงต้องจั�
 
   const all = layoutCity(toStructures(big), ORDER).all;
   const spym = all.filter((p) => p.structure.label === "SPYM");
-  assert.ok(spym.length >= 9, `SPYM ควรได้หลายหลัง ได้ ${spym.length}`);
+  assert.ok(spym.length >= 9, `SPYM should have many towers, got ${spym.length}`);
 
   const w = new Set(spym.map((p) => p.gx)).size;
   const h = new Set(spym.map((p) => p.gy)).size;
-  assert.ok(w > 1 && h > 1, `ต้องเป็นบล็อก ไม่ใช่แถวเดียว ได้ ${w}×${h}`);
-  // สี่เหลี่ยมจริง ไม่ใช่แถวยาว — ด้านสั้นต้องไม่น้อยกว่าครึ่งของด้านยาว
-  assert.ok(Math.min(w, h) >= Math.max(w, h) / 2, `บล็อกเพี้ยน ${w}×${h}`);
+  assert.ok(w > 1 && h > 1, `must be a block, not a single row, got ${w}×${h}`);
+  // A real square, not a long row — the short side must be at least half the long side
+  assert.ok(Math.min(w, h) >= Math.max(w, h) / 2, `misshapen block ${w}×${h}`);
 
-  // ทุกหลังต้องอยู่ในกรอบสี่เหลี่ยมเดียวกัน ไม่มีหลังหลงไปอยู่อีกฝั่งเมือง
+  // Every tower must be inside one rectangle — none stranded on the other side of the city
   const gxs = spym.map((p) => p.gx), gys = spym.map((p) => p.gy);
   const area = (Math.max(...gxs) - Math.min(...gxs) + 1) * (Math.max(...gys) - Math.min(...gys) + 1);
-  assert.ok(area <= spym.length + w, `ตึกกระจายเกินบล็อก พื้นที่ ${area} สำหรับ ${spym.length} หลัง`);
+  assert.ok(area <= spym.length + w, `towers spread beyond the block: area ${area} for ${spym.length} towers`);
 
-  // บล็อกของคนละหุ้นห้ามทับกัน
+  // Blocks of different holdings must not overlap
   const seen = new Set<string>();
   for (const p of all) {
     const key = `${p.gx},${p.gy}`;
-    assert.ok(!seen.has(key), `แปลง ${key} ถูกใช้ซ้ำสองตึก`);
+    assert.ok(!seen.has(key), `plot ${key} used by two towers`);
     seen.add(key);
   }
 });
 
 /**
- * พหูพจน์อังกฤษ — ภาษาไทยไม่มีพจน์ พอเปลี่ยน UI เป็นอังกฤษความผิดแบบนี้
- * จึงโผล่พร้อมกันทั้งแอป (Golden Goose ตึกเดียวขึ้นว่า "1 towers")
+ * English plurals — Thai has no plural forms, so when the UI switched to English this kind of
+ * bug appeared across the whole app at once (Golden Goose, with one tower, showed "1 towers").
  */
-test("นับ 1 ต้องเป็นเอกพจน์ ที่เหลือพหูพจน์ — รวมเศษและศูนย์", () => {
+test("1 is singular, everything else plural — including fractions and zero", () => {
   assert.equal(plural(1, "tower"), "1 tower");
   assert.equal(plural(0, "tower"), "0 towers");
   assert.equal(plural(17, "tower"), "17 towers");
@@ -743,35 +743,35 @@ test("นับ 1 ต้องเป็นเอกพจน์ ที่เห�
   assert.equal(plural(3, "new tower"), "3 new towers");
 
   assert.equal(pluralize(1, "share"), "share");
-  assert.equal(pluralize(0.316, "share"), "shares", "เศษหุ้นเป็นพหูพจน์");
+  assert.equal(pluralize(0.316, "share"), "shares", "fractional shares are plural");
   assert.equal(pluralize(2, "share"), "shares");
 });
 
 /**
- * เลขจำนวนตึกต้องตรงกับสิ่งที่นับได้ด้วยตาในเมือง
- * ของฟรี (ต้นทุน 0) วาดเป็นที่ดินเปล่า+กองทอง ไม่ใช่ตึก จึงห้ามนับเป็นตึก
+ * The tower count must match what you can count by eye in the city.
+ * Free holdings (zero cost) are drawn as bare land + a gold pile, not towers, so they mustn't count as towers.
  */
-test("จำนวนตึกต้องเท่ากับตึกที่ยืนอยู่จริงในเมือง ไม่ใช่จำนวนหุ้นที่ถือ", () => {
+test("tower count equals towers actually standing in the city, not the number of holdings", () => {
   const state = baseCity();
   const t = totals(state);
   const standing = layoutCity(toStructures(state), ORDER).all.filter(
     (p) => p.structure.kind === "tower" && p.height > 0,
   ).length;
 
-  assert.equal(t.towerCount, standing, "sidebar ต้องไม่โกหกภาพในเมือง");
-  assert.equal(t.landCount, 1, "GLD ต้นทุน 0 = ที่ดินเปล่า 1 แปลง");
+  assert.equal(t.towerCount, standing, "the sidebar must not contradict the city");
+  assert.equal(t.landCount, 1, "GLD at zero cost = 1 plot of bare land");
   assert.equal(
     t.towerCount + t.landCount,
     state.holdings.length,
-    "ตึก + ที่ดิน ต้องครบทุกตัวที่ถือ ไม่ตกหล่น",
+    "towers + land must cover every holding, none missing",
   );
 });
 
-test("หุ้นที่แตกเป็นหลายตึกต้องถูกนับหลายหลัง ไม่ใช่หลังเดียว", () => {
+test("a holding split into several towers counts as several, not one", () => {
   const big: CityState = {
     fxRate: 32, isDemo: false,
     holdings: [
-      // ฿384,000 = 3 หลังเต็มเพดาน
+      // ฿384,000 = 3 towers at the cap
       { id: "a", ticker: "SPYM", name: "S&P", shares: 12_000, avgCost: 1, currentPrice: 1, currency: "USD", district: "mission" },
     ],
   };
@@ -784,11 +784,11 @@ test("หุ้นที่แตกเป็นหลายตึกต้อ�
 });
 
 /**
- * เลขที่ sidebar โชว์ข้างชื่อเขตต้องเป็น "มูลค่าตลาด" ไม่ใช่ต้นทุน
- * เคยโชว์ต้นทุน ฿300,000 ทั้งที่มูลค่าจริง ฿330,000 — คนอ่านเลขลอยๆ ข้างชื่อเขต
- * ว่า "เขตนี้มีค่าเท่าไหร่" เสมอ
+ * The number the sidebar shows next to a district must be market value, not cost.
+ * It used to show cost ฿300,000 while the real value was ฿330,000 — people read a bare number next to a district
+ * as "what this district is worth", always.
  */
-test("มูลค่าตลาดของแต่ละเขตบวกกันต้องเท่ากับทั้งเมือง และต่างจากต้นทุนจริง", () => {
+test("district market values add up to the whole city, and differ from cost", () => {
   const s = baseCity();
   const all = totals(s);
   const mission = totals(s, "mission");
@@ -796,27 +796,27 @@ test("มูลค่าตลาดของแต่ละเขตบวก�
 
   assert.ok(
     Math.abs(mission.marketValue + gg.marketValue - all.marketValue) < 0.01,
-    "แยกเขตแล้วบวกกลับต้องได้เท่าเดิม",
+    "splitting by district and adding back must give the same total",
   );
   assert.ok(
     Math.abs(mission.invested + gg.invested - all.invested) < 0.01,
-    "ต้นทุนก็ต้องบวกกลับได้เหมือนกัน",
+    "cost must add back up the same way",
   );
-  assert.notEqual(all.marketValue, all.invested, "สองตัวนี้ต้องไม่ใช่เลขเดียวกัน");
+  assert.notEqual(all.marketValue, all.invested, "these two must not be the same number");
 
-  // เงินสดไม่อยู่ในเขตไหน จึงห้ามโผล่ในผลรวมของเขต
+  // Cash isn't in any district, so it must not appear in district totals
   const withCash: CityState = { ...s, cash: { usd: 1000, thb: 50_000 } };
-  assert.equal(totals(withCash).marketValue, all.marketValue, "เงินสดห้ามปนมูลค่าเขต");
+  assert.equal(totals(withCash).marketValue, all.marketValue, "cash must not leak into district value");
 });
 
-/* ── Kingdom v1: กำแพงเมือง = เงินสำรองฉุกเฉิน ─────────────────── */
+/* ── City wall = emergency fund ─────────────────── */
 
 /**
- * กฎที่ John เคาะเอง (2026-08-10): ห้ามบวกเงินสำรองเข้ายอดพอร์ต
- * เหตุผลของเขา: "ไม่งั้นจะเหมือนเราเลยเป้าไปแล้ว"
- * ⇒ เติมเงินสำรองเท่าไหร่ ทุกยอดของเมืองต้องนิ่งสนิท
+ * Hard rule set by the owner: never add the emergency fund to portfolio totals.
+ * The reasoning: "otherwise it would look like the goal was already reached".
+ * ⇒ however much is added to the reserve, every city total must stay exactly the same.
  */
-test("เงินสำรองห้ามไหลเข้ายอดพอร์ต ความสูงตึก หรือจำนวนตึก", () => {
+test("the reserve never flows into portfolio totals, tower heights, or tower count", () => {
   const before = baseCity();
   const after: CityState = {
     ...before,
@@ -825,31 +825,31 @@ test("เงินสำรองห้ามไหลเข้ายอดพ�
 
   const t0 = totals(before);
   const t1 = totals(after);
-  assert.equal(t1.invested, t0.invested, "เงินที่ลงไปต้องไม่ขยับ");
-  assert.equal(t1.marketValue, t0.marketValue, "มูลค่าพอร์ตต้องไม่ขยับ");
-  assert.equal(t1.towerCount, t0.towerCount, "จำนวนตึกต้องไม่ขยับ");
+  assert.equal(t1.invested, t0.invested, "money invested must not move");
+  assert.equal(t1.marketValue, t0.marketValue, "portfolio value must not move");
+  assert.equal(t1.towerCount, t0.towerCount, "tower count must not move");
 
   const p0 = portfolioSummary(before);
   const p1 = portfolioSummary(after);
-  assert.equal(p1.marketTotal, p0.marketTotal, "ยอดรวมทั้งพอร์ตต้องไม่ขยับ");
-  assert.equal(p1.cash, p0.cash, "ห้ามไปโผล่ในเงินสดรอลงทุน");
+  assert.equal(p1.marketTotal, p0.marketTotal, "whole-portfolio total must not move");
+  assert.equal(p1.cash, p0.cash, "must not show up as cash waiting to be invested");
 
   const h0 = layoutCity(toStructures(before), ORDER).all.map((p) => p.height);
   const h1 = layoutCity(toStructures(after), ORDER).all.map((p) => p.height);
-  assert.deepEqual(h1, h0, "ความสูงตึกทุกหลังต้องเท่าเดิมเป๊ะ");
+  assert.deepEqual(h1, h0, "every tower height must be exactly the same");
 
-  // และห้ามกลายเป็น structure ในเมือง
+  // and it must not become a structure in the city
   assert.equal(
     toStructures(after).length,
     toStructures(before).length,
-    "กำแพงไม่ใช่สิ่งปลูกสร้างในผัง",
+    "the wall is not a structure in the plan",
   );
 });
 
-test("กำแพงวัดเป็นเดือน ไม่ใช่บาท — ไม่รู้รายจ่ายก็ต้องไม่เดา", () => {
+test("the wall is measured in months, not baht — and never guesses without expenses", () => {
   assert.equal(reserveStatus(undefined).months, null);
   assert.equal(reserveStatus({ amountTHB: 120_000, monthlyBurnTHB: 0 }).months, null,
-    "มีเงินแต่ไม่รู้รายจ่าย = บอกไม่ได้ว่ากันได้กี่เดือน");
+    "money but no known expenses = can't say how many months it covers");
 
   const s = reserveStatus({ amountTHB: 120_000, monthlyBurnTHB: 20_000 });
   assert.equal(s.months, 6);
@@ -857,54 +857,54 @@ test("กำแพงวัดเป็นเดือน ไม่ใช่บ�
   assert.equal(s.gapTHB, 0);
   assert.ok(s.complete);
 
-  // เงินเท่าเดิมแต่ค่าใช้จ่ายสูงขึ้น = กำแพงสั้นลงจริง ไม่ใช่บั๊ก
+  // Same money but higher expenses = the wall really gets shorter, not a bug
   const pricier = reserveStatus({ amountTHB: 120_000, monthlyBurnTHB: 40_000 });
   assert.equal(pricier.months, 3);
   assert.equal(pricier.coverage, 0.5);
   assert.equal(pricier.gapTHB, 120_000);
 });
 
-test("กำแพงยาวขึ้นตามเงินแบบไม่ลดลง และตันที่เป้า ไม่ล้น", () => {
+test("the wall grows with money without ever shrinking, and stops at the target without overflowing", () => {
   let prev = -1;
   for (let amount = 0; amount <= 300_000; amount += 5_000) {
     const c = reserveStatus({ amountTHB: amount, monthlyBurnTHB: 20_000 }).coverage;
-    assert.ok(c >= prev, `฿${amount}: กำแพงสั้นลงทั้งที่เงินเพิ่ม`);
-    assert.ok(c <= 1, `฿${amount}: coverage ${c} เกิน 1`);
+    assert.ok(c >= prev, `฿${amount}: the wall got shorter although money increased`);
+    assert.ok(c <= 1, `฿${amount}: coverage ${c} exceeds 1`);
     prev = c;
   }
-  assert.equal(prev, 1, "เติมเกินเป้าแล้วต้องตันที่เต็มวง");
+  assert.equal(prev, 1, "beyond the target it must stop at a full ring");
 });
 
-test("วงกำแพงล้อมเมืองจริง ไม่ทับแปลงตึก และก่อจากหลังมาหน้า", () => {
+test("the wall ring really encloses the city, never covers tower plots, and is built back to front", () => {
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
   const plots = new Set(layout.all.map((p) => `${p.gx},${p.gy}`));
 
   const full = wallRing(layout, 1);
-  assert.ok(full.length > 8, `วงต้องมีหลายช่วง ได้ ${full.length}`);
-  assert.ok(full.every((w) => w.built), "coverage 1 = ก่อครบทุกช่วง");
+  assert.ok(full.length > 8, `the ring must have many sections, got ${full.length}`);
+  assert.ok(full.every((w) => w.built), "coverage 1 = every section built");
   for (const w of full) {
-    assert.ok(!plots.has(`${w.gx},${w.gy}`), `กำแพงทับแปลงตึกที่ ${w.gx},${w.gy}`);
+    assert.ok(!plots.has(`${w.gx},${w.gy}`), `wall covers a tower plot at ${w.gx},${w.gy}`);
   }
-  assert.equal(full.filter((w) => w.corner).length, 4, "ป้อมมุมต้องมี 4 มุมพอดี");
+  assert.equal(full.filter((w) => w.corner).length, 4, "exactly 4 corner towers");
 
   assert.equal(wallRing(layout, 0).filter((w) => w.built).length, 0);
 
-  // ครึ่งวง: ช่วงที่ก่อแล้วต้องอยู่ "หลัง" ช่วงที่ยังไม่ได้ก่อ → รูอยู่ด้านหน้า มองเห็น
+  // Half ring: built sections must be *behind* unbuilt ones → the gap is at the front, visible
   const half = wallRing(layout, 0.5);
   const builtDepth = half.filter((w) => w.built).map((w) => w.depth);
   const gapDepth = half.filter((w) => !w.built).map((w) => w.depth);
   assert.ok(
     Math.max(...gapDepth) > Math.max(...builtDepth),
-    "รูของกำแพงต้องอยู่ด้านหน้า ไม่ใช่ซ่อนหลังเมือง",
+    "the gap in the wall must be at the front, not hidden behind the city",
   );
 });
 
-test("วงกำแพงต้องล้อมทุกอย่างบนแผนที่ รวมไซต์เงินสด ไม่ใช่แค่กระจุกตึก", () => {
+test("the wall ring encloses everything on the map, including the cash site, not just the towers", () => {
   const state: CityState = { ...baseCity(), cash: { usd: 500, thb: 30_000 } };
   const layout = layoutCity(toStructures(state), ORDER, [CASH_ZONE]);
 
   const sites = layout.all.filter((p) => p.structure.kind === "site");
-  assert.ok(sites.length > 0, "เทสต์นี้ต้องมีไซต์เงินสดถึงจะมีความหมาย");
+  assert.ok(sites.length > 0, "this test needs a cash site to mean anything");
 
   const ring = wallRing(layout, 1);
   const x0 = Math.min(...ring.map((w) => w.gx));
@@ -912,38 +912,38 @@ test("วงกำแพงต้องล้อมทุกอย่างบ�
   const y0 = Math.min(...ring.map((w) => w.gy));
   const y1 = Math.max(...ring.map((w) => w.gy));
 
-  // ทุกสิ่งปลูกสร้างต้องอยู่ในวง ไม่มีอะไรตกค้างนอกกำแพง
+  // Every structure must be inside the ring — nothing left outside the wall
   for (const p of layout.all) {
     assert.ok(
       p.gx > x0 && p.gx < x1 && p.gy > y0 && p.gy < y1,
-      `${p.structure.label} (${p.structure.kind}) อยู่นอกกำแพง`,
+      `${p.structure.label} (${p.structure.kind}) is outside the wall`,
     );
   }
 });
 
-test("ช่วงกำแพงต้องออกมาเรียงตามความลึก ทุกด้าน ไม่ใช่ตามลำดับรอบวง", () => {
+test("wall sections come out sorted by depth on every side, not in ring order", () => {
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
   const ring = wallRing(layout, 1);
 
   for (let i = 1; i < ring.length; i++) {
     assert.ok(
       ring[i].depth >= ring[i - 1].depth,
-      `ช่วงที่ ${i} ลึก ${ring[i].depth} มาหลังช่วงที่ลึก ${ring[i - 1].depth} = วาดทับผิด`,
+      `section ${i} at depth ${ring[i].depth} comes after depth ${ring[i - 1].depth} = drawn in the wrong order`,
     );
   }
 
-  // ต้องครบทั้งสี่ด้านจริง ไม่ใช่หายไปตอนเรียง
+  // All four sides must really be there, not lost in the sort
   const sides = new Set(ring.map((w) => w.side));
-  assert.equal(sides.size, 4, `ต้องมีครบ 4 ด้าน ได้ ${[...sides].join(",")}`);
+  assert.equal(sides.size, 4, `expected all 4 sides, got ${[...sides].join(",")}`);
   assert.equal(ring.length, new Set(ring.map((w) => `${w.gx},${w.gy}`)).size,
-    "ห้ามมีช่องซ้ำหลังเรียง");
+    "no duplicate cells after sorting");
 });
 
 /**
- * รถห้ามวิ่งทะลุกำแพง — พอกำแพงล้อมทั้งแผนที่ ถนนหลายเส้นลอดใต้แนวกำแพง
- * ถ้าไม่ตัดถนนตรงนั้น รถจะวิ่งผ่านหินออกไปข้างนอกเมือง
+ * Cars must not drive through the wall — once the wall encloses the whole map, several roads pass under it,
+ * and if they aren't cut there, cars drive through the stone out of the city.
  */
-test("รถวิ่งทะลุกำแพงไม่ได้ — แต่ผ่านประตูและช่องที่ยังไม่ก่อได้", () => {
+test("cars can't drive through the wall — but can pass through the gate and unbuilt gaps", () => {
   const state: CityState = { ...baseCity(), cash: { usd: 300, thb: 20_000 } };
   const layout = layoutCity(toStructures(state), ORDER, [CASH_ZONE]);
   const wall = wallRing(layout, 1);
@@ -957,14 +957,14 @@ test("รถวิ่งทะลุกำแพงไม่ได้ — แต
     cells.filter((c) => c.kind === "road").map((c) => `${c.gx},${c.gy}`),
   );
 
-  // ช่องที่กำแพงยืนอยู่ต้องไม่เป็นถนนอีกต่อไป
+  // Cells where the wall stands must no longer be road
   for (const key of blocked) {
-    assert.ok(!roadAt.has(key), `ช่อง ${key} ยังเป็นถนนทั้งที่มีกำแพงทับ`);
+    assert.ok(!roadAt.has(key), `cell ${key} is still road although the wall covers it`);
   }
 
-  // และรถทุกคันต้องไม่วิ่งผ่านช่องที่มีกำแพง
+  // and no car may pass through a cell with the wall on it
   const cars = cells.filter((c) => c.decor === "car");
-  assert.ok(cars.length > 0, "ต้องมีรถให้ตรวจ");
+  assert.ok(cars.length > 0, "need cars to check");
   for (const car of cars) {
     const route = carRoute(car, lanes.get(laneKey(car)));
     for (let step = 1; step <= route.cellsAhead; step++) {
@@ -972,23 +972,23 @@ test("รถวิ่งทะลุกำแพงไม่ได้ — แต
       const gy = route.axis === "y" ? car.gy + route.dir * step : car.gy;
       assert.ok(
         !blocked.has(`${gx},${gy}`),
-        `รถจาก ${car.gx},${car.gy} วิ่งทะลุกำแพงที่ ${gx},${gy}`,
+        `car from ${car.gx},${car.gy} drives through the wall at ${gx},${gy}`,
       );
     }
   }
 
-  // ห้ามมีของประดับโผล่ใต้กำแพง
+  // No decorations may appear under the wall
   for (const c of cells) {
-    if (c.kind === "wall") assert.equal(c.decor, "none", `มีของประดับใต้กำแพงที่ ${c.gx},${c.gy}`);
+    if (c.kind === "wall") assert.equal(c.decor, "none", `decoration under the wall at ${c.gx},${c.gy}`);
   }
 
-  // ประตูต้องยังเปิดให้ผ่านได้ ไม่ถูกกั้น
+  // The gate must stay open, not blocked
   const gate = wall.find((w) => w.gate);
-  assert.ok(gate, "ต้องมีประตูเมือง");
-  assert.ok(!blocked.has(`${gate!.gx},${gate!.gy}`), "ประตูต้องไม่ถูกกั้น");
+  assert.ok(gate, "there must be a city gate");
+  assert.ok(!blocked.has(`${gate!.gx},${gate!.gy}`), "the gate must not be blocked");
 });
 
-test("ช่วงกำแพงที่ยังไม่ก่อต้องไม่กั้นถนน — รูคือรูจริง", () => {
+test("unbuilt wall sections don't block roads — a gap is a real gap", () => {
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
   const half = wallRing(layout, 0.5);
   const blocked = new Set(
@@ -997,14 +997,14 @@ test("ช่วงกำแพงที่ยังไม่ก่อต้อ�
   for (const open of half.filter((w) => !w.built)) {
     assert.ok(
       !blocked.has(`${open.gx},${open.gy}`),
-      `ช่องที่ยังไม่ก่อ ${open.gx},${open.gy} ไม่ควรกั้นอะไร`,
+      `unbuilt cell ${open.gx},${open.gy} shouldn't block anything`,
     );
   }
-  assert.ok(blocked.size > 0 && blocked.size < half.length, "ครึ่งวงต้องกั้นแค่บางส่วน");
+  assert.ok(blocked.size > 0 && blocked.size < half.length, "a half ring must block only part of it");
 });
 
-/** นอกกำแพงคือนอกเมือง — ห้ามมีรถหรือคนอยู่ตรงนั้น เหลือแค่ป่า */
-test("ห้ามมีรถหรือคนอยู่นอกกำแพง", () => {
+/** Outside the wall is outside the city — no cars or people there, only forest */
+test("no cars or people outside the wall", () => {
   const state: CityState = { ...baseCity(), cash: { usd: 300, thb: 20_000 } };
   const layout = layoutCity(toStructures(state), ORDER, [CASH_ZONE]);
   const wall = wallRing(layout, 1);
@@ -1017,63 +1017,63 @@ test("ห้ามมีรถหรือคนอยู่นอกกำแ�
   const outside = cells.filter(
     (c) => c.gx <= b.x0 || c.gx >= b.x1 || c.gy <= b.y0 || c.gy >= b.y1,
   );
-  assert.ok(outside.length > 0, "ต้องมีพื้นที่นอกกำแพงให้ตรวจ");
+  assert.ok(outside.length > 0, "need some area outside the wall to check");
 
   for (const c of outside) {
     assert.ok(
       c.decor !== "car" && c.decor !== "person",
-      `มี ${c.decor} อยู่นอกกำแพงที่ ${c.gx},${c.gy}`,
+      `${c.decor} outside the wall at ${c.gx},${c.gy}`,
     );
   }
 
-  // ข้างนอกยังต้องมีชีวิตแบบป่า ไม่ใช่ที่ว่างเปล่าสนิท
+  // Outside must still feel alive like a forest, not completely empty
   assert.ok(
     outside.some((c) => c.decor === "tree" || c.decor === "bush"),
-    "นอกกำแพงควรยังมีต้นไม้",
+    "there should still be trees outside the wall",
   );
 
-  // ข้างในยังต้องมีรถและคนตามเดิม
+  // Inside must still have cars and people as before
   const inside = cells.filter(
     (c) => c.gx > b.x0 && c.gx < b.x1 && c.gy > b.y0 && c.gy < b.y1,
   );
-  assert.ok(inside.some((c) => c.decor === "car"), "ในเมืองต้องยังมีรถ");
-  assert.ok(inside.some((c) => c.decor === "person"), "ในเมืองต้องยังมีคน");
+  assert.ok(inside.some((c) => c.decor === "car"), "the city must still have cars");
+  assert.ok(inside.some((c) => c.decor === "person"), "the city must still have people");
 });
 
-/* ── กำแพง: ก่ออิฐ / ถอนออก ───────────────────────────────────────────────
+/* ── Wall: laying bricks / withdrawing ───────────────────────────────────────────────
  *
- * เหตุผลที่ต้องมีทั้งชุดนี้: กำแพงคือของชิ้นเดียวในแอปที่ตั้งใจแก้
- * "ช่องว่าง feedback" แต่ตัวมันเองเคยไม่มี feedback เลย — เติมเงินแล้ว
- * ตัวเลขเดือนขยับนิดเดียวจบ · เทสต์พวกนี้ล็อกไว้ว่าการลงมือต้องเห็นได้
+ * Why this whole suite exists: the wall is the one thing in the app meant to close the
+ * "feedback gap", yet it used to have no feedback itself — add money and the months figure
+ * moved a little, and that was it · these tests lock in that acting is visible.
  */
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const daysAgo = (now: Date, n: number) => iso(new Date(now.getTime() - n * DAY));
 
-test("ก่ออิฐ: เติมเงินสำรองต้องบันทึกเป็นเหตุการณ์ และเห็นเป็นอิฐใหม่บนกำแพง", () => {
+test("laying bricks: adding to the reserve is recorded as an event and shows as new bricks", () => {
   const now = new Date("2026-09-01T09:00:00Z");
   const r0 = { amountTHB: 100_000, monthlyBurnTHB: 20_000 };
 
   const r1 = applyReserveEvent(r0, 4_000, now);
-  assert.equal(r1.amountTHB, 104_000, "ยอดต้องบวกส่วนต่าง");
+  assert.equal(r1.amountTHB, 104_000, "the balance must add the delta");
   assert.deepEqual(r1.history, [{ at: "2026-09-01", amountTHB: 4_000 }]);
 
   const s = reserveStatus(r1, now);
   assert.equal(s.recentAddTHB, 4_000);
   assert.equal(s.recentRounds, 1);
   assert.equal(s.rounds, 1);
-  // ยอดก่อนหน้าต้องถอยกลับไปเป็นก่อนก่อ ไม่ใช่ยอดวันนี้
-  assert.ok(s.priorCoverage < s.coverage, "coverage ก่อนหน้าต้องน้อยกว่าตอนนี้");
+  // The previous amount must roll back to before the bricks were laid, not today's
+  assert.ok(s.priorCoverage < s.coverage, "previous coverage must be less than now");
 
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
   const ring = wallRing(layout, s.coverage, s.priorCoverage);
   const fresh = ring.filter((w) => w.fresh);
-  assert.ok(fresh.length > 0, "เติมเงินแล้วต้องมีอิฐใหม่ให้เห็นอย่างน้อย 1 ก้อน");
-  assert.ok(fresh.every((w) => w.built), "อิฐใหม่ต้องเป็นช่วงที่ก่อแล้ว");
-  assert.equal(ring.filter((w) => w.broken).length, 0, "ก่ออย่างเดียวห้ามมีรอยร้าว");
+  assert.ok(fresh.length > 0, "after a top-up there must be at least 1 new brick to see");
+  assert.ok(fresh.every((w) => w.built), "new bricks must be built sections");
+  assert.equal(ring.filter((w) => w.broken).length, 0, "laying only must not produce cracks");
 });
 
-test("ถอนเงิน: กำแพงต้องร้าว — ช่วงที่หายไปต้องต่างจาก 'ยังไม่ได้ก่อ'", () => {
+test("withdrawing: the wall cracks — lost sections must differ from 'not built yet'", () => {
   const now = new Date("2026-09-01T09:00:00Z");
   const r0 = { amountTHB: 120_000, monthlyBurnTHB: 20_000 };
 
@@ -1084,30 +1084,30 @@ test("ถอนเงิน: กำแพงต้องร้าว — ช่�
   const s = reserveStatus(r1, now);
   assert.equal(s.recentWithdrawTHB, 40_000);
   assert.equal(s.recentAddTHB, 0);
-  assert.equal(s.rounds, 0, "ถอนไม่นับเป็นครั้งที่ลงมือก่อ");
-  assert.ok(s.priorCoverage > s.coverage, "กำแพงต้องหดลงเทียบกับก่อนถอน");
+  assert.equal(s.rounds, 0, "a withdrawal doesn't count as laying bricks");
+  assert.ok(s.priorCoverage > s.coverage, "the wall must shrink compared with before the withdrawal");
 
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
   const ring = wallRing(layout, s.coverage, s.priorCoverage);
   const broken = ring.filter((w) => w.broken);
-  assert.ok(broken.length > 0, "ถอนเงินแล้วต้องเห็นรอยร้าว ไม่ใช่เงียบหาย");
-  assert.ok(broken.every((w) => !w.built), "ซากต้องไม่ถูกนับว่าก่อแล้ว");
-  assert.equal(ring.filter((w) => w.fresh).length, 0, "ถอนอย่างเดียวห้ามมีอิฐใหม่");
+  assert.ok(broken.length > 0, "a withdrawal must show cracks, not vanish silently");
+  assert.ok(broken.every((w) => !w.built), "ruins must not count as built");
+  assert.equal(ring.filter((w) => w.fresh).length, 0, "withdrawing only must not produce new bricks");
 
-  // กำแพงเคยปิดครบวง ⇒ ทุกช่องที่หายไปคือ "เคยปลอดภัยแล้วเสียไป" ทั้งหมด
-  // ห้ามมีช่องไหนกลายเป็นตอม่อเปล่า (= ยังไม่เคยก่อ) เพราะมันไม่จริง
+  // The wall used to be a full ring ⇒ every lost cell is "was safe and lost it"
+  // no cell may become a bare footing (= never built), because that wouldn't be true
   assert.equal(
     ring.filter((w) => !w.built && !w.broken).length,
     0,
-    "เคยก่อครบแล้ว จะมีช่อง 'ยังไม่เคยก่อ' ไม่ได้",
+    "it was fully built, so no cell can be 'never built'",
   );
 });
 
-test("ซากกับตอม่อเปล่าต้องแยกกัน เมื่อกำแพงยังก่อไม่ครบตอนถอน", () => {
+test("ruins and bare footings stay distinct when the wall wasn't complete at the time of withdrawal", () => {
   const now = new Date("2026-09-01T09:00:00Z");
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
 
-  // ก่อไปได้ 75% แล้วถอนจนเหลือ 50% ⇒ ต้องเห็นครบทั้งสามสภาพในวงเดียว
+  // Built to 75%, then withdrawn down to 50% ⇒ all three states must appear in one ring
   const r = applyReserveEvent({ amountTHB: 90_000, monthlyBurnTHB: 20_000 }, -30_000, now);
   const s = reserveStatus(r, now);
   const ring = wallRing(layout, s.coverage, s.priorCoverage);
@@ -1116,13 +1116,13 @@ test("ซากกับตอม่อเปล่าต้องแยกก�
   const broken = ring.filter((w) => w.broken);
   const never = ring.filter((w) => !w.built && !w.broken);
   assert.ok(built.length > 0 && broken.length > 0 && never.length > 0,
-    `ต้องมีครบสามสภาพ ได้ ${built.length}/${broken.length}/${never.length}`);
+    `expected all three states, got ${built.length}/${broken.length}/${never.length}`);
   assert.equal(built.length + broken.length + never.length, ring.length,
-    "ทุกช่วงต้องอยู่ในสภาพใดสภาพหนึ่งเท่านั้น ห้ามซ้อนกัน");
+    "every section must be in exactly one state, never overlapping");
 
   /**
-   * ซากต้องอยู่ตรงที่ "เคยมีกำแพง" เป๊ะ — วัดโดยเทียบกับวงที่ coverage เดิม
-   * (ห้ามวัดด้วย depth: วงคลุมทั้งสี่ด้าน depth จึงไม่ได้เรียงตามลำดับรอบวง)
+   * Ruins must be exactly where "there used to be a wall" — measured against the ring at the old coverage
+   * (not by depth: the ring covers all four sides, so depth isn't in ring order).
    */
   const key = (w: { gx: number; gy: number }) => `${w.gx},${w.gy}`;
   const wasBuilt = new Set(
@@ -1131,22 +1131,22 @@ test("ซากกับตอม่อเปล่าต้องแยกก�
   assert.deepEqual(
     new Set([...built.map(key), ...broken.map(key)]),
     wasBuilt,
-    "ช่วงที่ยืนอยู่ + ซาก ต้องเท่ากับช่วงที่เคยก่อไว้ก่อนถอนพอดี",
+    "standing sections + ruins must equal exactly what was built before the withdrawal",
   );
   for (const w of never) {
-    assert.ok(!wasBuilt.has(key(w)), `${key(w)} เคยก่อแล้ว ห้ามอ่านเป็น 'ยังไม่เคยก่อ'`);
+    assert.ok(!wasBuilt.has(key(w)), `${key(w)} was built before, must not read as 'never built'`);
   }
 });
 
-test("แก้ยอดที่กรอกผิดต้องไม่งอกเป็นอิฐหรือรอยร้าว", () => {
+test("correcting a mistyped amount must not create bricks or cracks", () => {
   const now = new Date("2026-09-01T09:00:00Z");
-  // พิมพ์ ฿150,000 แล้วมาแก้เป็น ฿120,000 — ไม่มีใครถอนเงินจริงสักบาท
+  // Typed ฿150,000 then corrected it to ฿120,000 — nobody actually withdrew a baht
   const corrected = { amountTHB: 120_000, monthlyBurnTHB: 20_000 };
 
   const s = reserveStatus(corrected, now);
-  assert.equal(s.recentWithdrawTHB, 0, "การแก้ตัวเลขห้ามอ่านเป็นการถอน");
+  assert.equal(s.recentWithdrawTHB, 0, "a correction must not read as a withdrawal");
   assert.equal(s.recentAddTHB, 0);
-  assert.equal(s.coverage, s.priorCoverage, "ไม่มีเหตุการณ์ = กำแพงนิ่งสนิท");
+  assert.equal(s.coverage, s.priorCoverage, "no events = a completely still wall");
 
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
   const ring = wallRing(layout, s.coverage, s.priorCoverage);
@@ -1154,7 +1154,7 @@ test("แก้ยอดที่กรอกผิดต้องไม่ง�
   assert.equal(ring.filter((w) => w.broken).length, 0);
 });
 
-test("อิฐเรืองแสงและรอยร้าวต้องหายไปเองเมื่อพ้นกรอบ 7 วัน", () => {
+test("glowing bricks and cracks disappear on their own after the 7-day window", () => {
   const now = new Date("2026-09-01T09:00:00Z");
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
 
@@ -1167,14 +1167,14 @@ test("อิฐเรืองแสงและรอยร้าวต้อ�
     ],
   };
   const s = reserveStatus(old, now);
-  assert.equal(s.recentAddTHB, 0, "ของเก่าต้องไม่นับว่าเพิ่งทำ");
-  assert.equal(s.rounds, 2, "แต่จำนวนครั้งที่เคยลงมือต้องไม่หาย");
+  assert.equal(s.recentAddTHB, 0, "old events must not count as recent");
+  assert.equal(s.rounds, 2, "but the number of times acted must not be lost");
   assert.equal(s.coverage, s.priorCoverage);
 
   const ring = wallRing(layout, s.coverage, s.priorCoverage);
   assert.equal(ring.filter((w) => w.fresh || w.broken).length, 0);
 
-  // วันที่ในอนาคต (นาฬิกาเพี้ยน / ไฟล์ที่ import มา) ต้องไม่ทำให้กำแพงทั้งวงเรืองแสง
+  // Future dates (wrong clock / imported file) must not make the whole ring glow
   const future = {
     amountTHB: 120_000,
     monthlyBurnTHB: 20_000,
@@ -1183,22 +1183,22 @@ test("อิฐเรืองแสงและรอยร้าวต้อ�
   assert.equal(reserveStatus(future, now).recentAddTHB, 0);
 });
 
-test("ก่อแล้วถอนในวันเดียวกันต้องเหลือประวัติสองรายการ ไม่หักกันจนหาย", () => {
+test("laying and withdrawing on the same day leaves two history entries, not netted away", () => {
   const now = new Date("2026-09-01T09:00:00Z");
   let r = applyReserveEvent({ amountTHB: 100_000, monthlyBurnTHB: 20_000 }, 5_000, now);
   r = applyReserveEvent(r, -5_000, now);
 
-  assert.equal(r.amountTHB, 100_000, "ยอดกลับมาเท่าเดิม");
+  assert.equal(r.amountTHB, 100_000, "balance is back where it was");
   assert.deepEqual(
     r.history,
     [
       { at: "2026-09-01", amountTHB: 5_000 },
       { at: "2026-09-01", amountTHB: -5_000 },
     ],
-    "ทั้งสองเหตุการณ์เกิดขึ้นจริง ห้ามหักกลบจนหายไปจากประวัติ",
+    "both events really happened and must not cancel out of history",
   );
 
-  // แต่ก่อสองครั้งในวันเดียวกัน = ไม้เดียว รวมยอด (เหมือนไม้ DCA ของตึก)
+  // But laying twice on the same day = one round, amounts summed (like a tower's DCA round)
   const twice = appendReserveEvent(
     [{ at: "2026-09-01", amountTHB: 4_000 }],
     { at: "2026-09-01", amountTHB: 1_000 },
@@ -1206,13 +1206,13 @@ test("ก่อแล้วถอนในวันเดียวกันต�
   assert.deepEqual(twice, [{ at: "2026-09-01", amountTHB: 5_000 }]);
 });
 
-test("ถอนเกินที่มีต้องเหลือศูนย์ ไม่ติดลบ และกำแพงหายทั้งวง", () => {
+test("withdrawing more than there is leaves zero, never negative, and the whole wall is gone", () => {
   const now = new Date("2026-09-01T09:00:00Z");
   const r = applyReserveEvent({ amountTHB: 30_000, monthlyBurnTHB: 20_000 }, -80_000, now);
 
-  assert.equal(r.amountTHB, 0, "เงินสำรองติดลบไม่ได้");
+  assert.equal(r.amountTHB, 0, "the reserve can't go negative");
   assert.deepEqual(r.history, [{ at: "2026-09-01", amountTHB: -30_000 }],
-    "บันทึกเท่าที่ถอนได้จริง ไม่ใช่ตัวเลขที่ขอ");
+    "records only what could actually be withdrawn, not the amount requested");
 
   const s = reserveStatus(r, now);
   assert.equal(s.coverage, 0);
@@ -1220,17 +1220,17 @@ test("ถอนเกินที่มีต้องเหลือศูน�
 
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
   const ring = wallRing(layout, s.coverage, s.priorCoverage);
-  assert.equal(ring.filter((w) => w.built).length, 0, "ไม่มีกำแพงเหลือสักช่วง");
-  assert.ok(ring.filter((w) => w.broken).length > 0, "แต่ต้องเห็นซากว่าเคยมี");
+  assert.equal(ring.filter((w) => w.built).length, 0, "not a single wall section left");
+  assert.ok(ring.filter((w) => w.broken).length > 0, "but the ruins must show it used to exist");
 });
 
-test("ก่ออิฐและถอนเงินห้ามแตะยอดพอร์ตใดๆ แม้แต่บาทเดียว", () => {
+test("laying bricks and withdrawing never touch any portfolio total, not even one baht", () => {
   const now = new Date("2026-09-01T09:00:00Z");
   const before = baseCity();
   const t0 = totals(before);
   const h0 = layoutCity(toStructures(before), ORDER).all.map((p) => p.height);
 
-  // เดินเรื่องเต็มรอบ: ก่อ → ก่อ → ถอน
+  // Run a full story: lay → lay → withdraw
   let reserve = applyReserveEvent(
     { amountTHB: 0, monthlyBurnTHB: 20_000 },
     100_000,
@@ -1249,13 +1249,13 @@ test("ก่ออิฐและถอนเงินห้ามแตะย�
   assert.deepEqual(
     layoutCity(toStructures(after), ORDER).all.map((p) => p.height),
     h0,
-    "ความสูงตึกทุกหลังต้องนิ่งสนิทตลอดทั้งรอบ",
+    "every tower height must stay perfectly still throughout",
   );
-  // และประวัติกำแพงต้องไม่ไปโผล่ในไม้ DCA ของตึก
+  // and wall history must not show up in the towers' DCA rounds
   assert.equal(after.contributions, before.contributions);
 });
 
-test("อิฐใหม่ต้องอยู่ปลายกำแพง ต่อจากของเดิม ไม่ใช่แทรกกลางวง", () => {
+test("new bricks go at the end of the wall, continuing the old ones, not inserted mid-ring", () => {
   const now = new Date("2026-09-01T09:00:00Z");
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
 
@@ -1267,14 +1267,14 @@ test("อิฐใหม่ต้องอยู่ปลายกำแพง �
   const oldBuilt = ring.filter((w) => w.built && !w.fresh);
   assert.ok(fresh.length > 0 && oldBuilt.length > 0);
 
-  // กำแพงก่อจากหลังมาหน้า ⇒ อิฐใหม่ต้องอยู่ "หน้ากว่า" ของเดิมเสมอ
+  // The wall is built back to front ⇒ new bricks must always be "further forward" than the old ones
   assert.ok(
     Math.max(...fresh.map((w) => w.depth)) > Math.max(...oldBuilt.map((w) => w.depth)),
-    "อิฐใหม่ต้องต่อที่ปลายกำแพงด้านหน้า ไม่ใช่โผล่กลางวงที่ก่อไปแล้ว",
+    "new bricks must continue at the front end of the wall, not appear in the middle of what's built",
   );
 });
 
-test("ซากกำแพงต้องไม่กั้นถนน — รูที่เกิดจากการถอนคือรูจริง", () => {
+test("wall ruins don't block roads — a gap from a withdrawal is a real gap", () => {
   const now = new Date("2026-09-01T09:00:00Z");
   const layout = layoutCity(toStructures(baseCity()), ORDER, [CASH_ZONE]);
 
@@ -1282,19 +1282,19 @@ test("ซากกำแพงต้องไม่กั้นถนน — ร
   const s = reserveStatus(r, now);
   const ring = wallRing(layout, s.coverage, s.priorCoverage);
 
-  // ตัวกั้นถนนใช้เงื่อนไขเดียวกับใน IsoCity: ก่อแล้วและไม่ใช่ประตู
+  // The road blocker uses the same condition as IsoCity: built and not a gate
   const blocked = new Set(
     ring.filter((w) => w.built && !w.gate).map((w) => `${w.gx},${w.gy}`),
   );
   for (const w of ring.filter((x) => x.broken)) {
     assert.ok(
       !blocked.has(`${w.gx},${w.gy}`),
-      `ซากที่ ${w.gx},${w.gy} ยังกั้นถนนอยู่ — กำแพงพังแล้วต้องผ่านได้`,
+      `ruins at ${w.gx},${w.gy} still block the road — a fallen wall must be passable`,
     );
   }
 });
 
-test("ประวัติกำแพงต้องรอดจากการเซฟ/โหลด รวมยอดติดลบ", () => {
+test("wall history survives save/load, including negative amounts", () => {
   const city: CityState = {
     ...baseCity(),
     reserve: {
@@ -1312,16 +1312,16 @@ test("ประวัติกำแพงต้องรอดจากกา�
   assert.deepEqual(
     round.reserve?.history,
     city.reserve?.history,
-    "รอยร้าว (ยอดติดลบ) ต้องไม่ถูกปัดเป็น 0 ตอนอ่านกลับ",
+    "cracks (negative amounts) must not be clamped to 0 when read back",
   );
   assert.equal(round.reserve?.amountTHB, 80_000);
 });
 
-/* ── กล้องต้องนิ่งตอนย้อนดูอดีต ────────────────────────────────────────── */
+/* ── The camera stays still while viewing the past ────────────────────────────────────────── */
 
-test("ย้อนดูอดีตแล้วกล้องต้องไม่ขยับ — เมืองเล็กกว่าต้องนั่งในกรอบเดิม", () => {
+test("viewing the past doesn't move the camera — a smaller city sits in the same frame", () => {
   const today = baseCity();
-  // อดีต: มีแค่ตึกเดียว ลงเงินน้อยกว่ามาก ⇒ เมืองเล็กกว่าทุกทาง
+  // Past: a single tower with much less money ⇒ a smaller city in every way
   const past: CityState = {
     ...today,
     holdings: [today.holdings[0]],
@@ -1336,19 +1336,19 @@ test("ย้อนดูอดีตแล้วกล้องต้องไ�
   const todayFrame = frame(today);
   const pastFrame = frame(past);
 
-  // ก่อนแก้: กล้องเล็งเมืองอดีตตรงๆ ⇒ กรอบคนละอันกับวันนี้ = ภาพกระโดด
-  assert.notDeepEqual(pastFrame, todayFrame, "เมืองอดีตกรอบต่างจริง (ไม่งั้นเทสต์นี้ไม่พิสูจน์อะไร)");
+  // Before the fix: the camera aimed straight at the past city ⇒ a different frame from today = the picture jumps
+  assert.notDeepEqual(pastFrame, todayFrame, "the past city really has a different frame (or this test proves nothing)");
 
-  // หลังแก้: กล้องเล็ง union(อดีต, วันนี้) ซึ่งต้องเท่ากรอบวันนี้เป๊ะ
+  // After the fix: the camera aims at union(past, today), which must equal today's frame exactly
   const locked = unionBounds(pastFrame, todayFrame);
-  assert.deepEqual(locked, todayFrame, "กรอบตอนย้อนอดีตต้องเท่ากับกรอบวันนี้ ไม่ขยับสักพิกเซล");
+  assert.deepEqual(locked, todayFrame, "the frame while viewing the past must equal today's, not move a pixel");
 
-  // และกลับมา "วันนี้" ต้องได้กรอบเดิมอีก ⇒ ไป-กลับไม่มีการกระตุก
-  assert.deepEqual(frame(today), locked, "กดกลับวันนี้แล้วกรอบต้องไม่ขยับอีกรอบ");
+  // and going back to "today" must give the same frame again ⇒ no jolt either way
+  assert.deepEqual(frame(today), locked, "returning to today must not move the frame again");
 });
 
-test("เมืองอดีตที่ใหญ่กว่าวันนี้ต้องไม่ถูกกล้องตัดขอบทิ้ง", () => {
-  // เคสที่เกิดได้จริง: ขายตึกทิ้งไปแล้ว เมืองวันนี้จึงเล็กกว่าอดีต
+test("a past city larger than today's must not be cropped by the camera", () => {
+  // A real case: towers were sold, so today's city is smaller than the past one
   const past = baseCity();
   const today: CityState = { ...past, holdings: [past.holdings[0]], cash: undefined };
 
@@ -1359,19 +1359,19 @@ test("เมืองอดีตที่ใหญ่กว่าวันน�
 
   const locked = unionBounds(frame(past), frame(today));
   const p = frame(past);
-  assert.ok(locked.minX <= p.minX && locked.minY <= p.minY, "กรอบต้องคลุมมุมบนซ้ายของอดีต");
+  assert.ok(locked.minX <= p.minX && locked.minY <= p.minY, "the frame must cover the past city's top-left corner");
   assert.ok(
     locked.minX + locked.width >= p.minX + p.width &&
       locked.minY + locked.height >= p.minY + p.height,
-    "กรอบต้องคลุมมุมล่างขวาของอดีต — ห้ามตัดเมืองที่เคยใหญ่กว่าทิ้ง",
+    "the frame must cover the past city's bottom-right corner — never crop a city that used to be bigger",
   );
 });
 
-test("รวมกรอบ: ผลลัพธ์ต้องคลุมทั้งสองอันเสมอ และรวมกับตัวเองแล้วเท่าเดิม", () => {
+test("merging frames: the result always covers both, and merging with itself changes nothing", () => {
   const a = { minX: 0, minY: 0, width: 100, height: 50 };
   const b = { minX: -20, minY: 10, width: 60, height: 100 };
 
-  assert.deepEqual(unionBounds(a, a), a, "รวมกับตัวเองต้องไม่ขยับ");
-  assert.deepEqual(unionBounds(a, b), unionBounds(b, a), "สลับลำดับต้องได้เท่ากัน");
+  assert.deepEqual(unionBounds(a, a), a, "merging with itself must not move");
+  assert.deepEqual(unionBounds(a, b), unionBounds(b, a), "order must not matter");
   assert.deepEqual(unionBounds(a, b), { minX: -20, minY: 0, width: 120, height: 110 });
 });

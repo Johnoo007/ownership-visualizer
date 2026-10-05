@@ -18,7 +18,7 @@ function isHolding(value: unknown): value is Holding {
   );
 }
 
-/** รับ JSON ที่ไม่รู้ที่มา (localStorage เก่า / ไฟล์ import) แล้วคืน state ที่ใช้ได้จริง */
+/** Take JSON of unknown origin (old localStorage / imported file) and return usable state */
 export function parseCity(raw: unknown): CityState | null {
   if (typeof raw !== "object" || raw === null) return null;
   const obj = raw as Record<string, unknown>;
@@ -60,8 +60,8 @@ export function parseCity(raw: unknown): CityState | null {
           amountTHB: num(rawReserve.amountTHB),
           monthlyBurnTHB: num(rawReserve.monthlyBurnTHB),
           /**
-           * ⚠️ ยอดที่ขยับเป็นลบได้ (ถอนออก) จึงใช้ `num` ที่บังคับ ≥ 0 ไม่ได้
-           * ถ้าพลาดตรงนี้ รอยร้าวทุกรอยจะกลายเป็น 0 แล้วหายไปเงียบๆ ตอนรีเฟรช
+           * ⚠️ Deltas can be negative (withdrawals), so `num` (which clamps to ≥ 0) can't be used.
+           * Get this wrong and every crack becomes 0 and silently disappears on refresh.
            */
           history: Array.isArray(rawReserve.history)
             ? (rawReserve.history as unknown[]).filter(
@@ -96,15 +96,15 @@ export function loadCity(): CityState {
     const parsed = parseCity(JSON.parse(raw));
     return parsed ?? demoCity();
   } catch {
-    // โหมดส่วนตัว / เบราว์เซอร์บล็อก site data — แอปต้องยังเปิดได้
+    // Private mode / blocked site data — the app must still open
     return demoCity();
   }
 }
 
 export function saveCity(state: CityState): void {
   try {
-    // เมืองกำลังจะกลายเป็นว่างทั้งที่เคยมีตึก → เก็บสำเนาไว้ก่อนเขียนทับ
-    // (เคยเจอ state ว่างถูกเขียนทับข้อมูลจริงมาแล้วตอน dev — ของหายถาวร)
+    // The city is about to become empty after having towers → keep a copy first
+    // (an empty state once overwrote real data during dev — lost for good)
     if (state.holdings.length === 0) {
       const prev = parseCity(JSON.parse(window.localStorage.getItem(KEY) ?? "null"));
       if (prev && prev.holdings.length > 0 && !prev.isDemo) {
@@ -113,11 +113,11 @@ export function saveCity(state: CityState): void {
     }
     window.localStorage.setItem(KEY, JSON.stringify(state));
   } catch {
-    // เขียนไม่ได้ก็ปล่อย — ข้อมูลยังอยู่ในหน้าจนกว่าจะรีเฟรช
+    // Can't write? Let it go — the data stays on the page until refresh
   }
 }
 
-/** เมืองจริงชุดล่าสุดก่อนถูกล้าง — null ถ้าไม่มีอะไรให้กู้ */
+/** The last real city before it was cleared — null if there's nothing to restore */
 export function loadBackup(): CityState | null {
   try {
     const raw = window.localStorage.getItem(BACKUP_KEY);
@@ -133,7 +133,7 @@ export function clearBackup(): void {
   try {
     window.localStorage.removeItem(BACKUP_KEY);
   } catch {
-    // ไม่เป็นไร
+    // Not critical
   }
 }
 

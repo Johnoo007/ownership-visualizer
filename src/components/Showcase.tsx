@@ -17,18 +17,18 @@ import { reserveStatus } from "@/lib/reserve";
 import type { CityState } from "@/lib/types";
 
 /**
- * หน้าโชว์สำหรับคนที่ไม่รู้จักแอป (recruiter ที่กดมาจาก portfolio)
+ * Showcase page for people who don't know the app (e.g. recruiters from the portfolio).
  *
- * ⚠️ ใช้เมืองตัวอย่างเสมอ ไม่อ่าน localStorage เลย — เปิดบนเครื่องที่มีพอร์ตจริง
- * ก็ยังเห็นแค่ตัวเลขสมมติ หน้านี้จึงแชร์ลิงก์ได้โดยไม่มีทางหลุดพอร์ตจริง
+ * ⚠️ Always uses the sample city and never reads localStorage — even on a machine with a
+ * real portfolio it only shows made-up numbers, so the link is safe to share.
  *
- * ทุกอย่างที่เป็นเครื่องมือ (ฟอร์ม/ราคา/ประวัติ/import) อยู่ที่หน้า `/` ตามเดิม
- * หน้านี้ตอบแค่คำถามเดียว: "นี่คืออะไร" — ให้ภาพเมืองเล่าเรื่อง ตัวหนังสือแค่กำกับ
+ * All the tooling (forms/prices/history/import) lives at `/app`.
+ * This page answers one question — "what is this?" — the city tells it, text only labels.
  */
 function showcaseCity(): CityState {
   return {
     ...demoCity(),
-    // กำแพงก่อไม่ครบวง = เห็นช่องโหว่ด้านหน้า เล่าเรื่อง "เงินสำรองยังไม่ครบ" ได้ในภาพเดียว
+    // An unfinished wall leaves a visible gap: "emergency fund not complete yet" in one picture
     reserve: { amountTHB: 100_000, monthlyBurnTHB: 20_000 },
   };
 }
@@ -43,9 +43,9 @@ export function Showcase() {
   const selected = state.holdings.find((h) => h.id === selectedId) ?? null;
 
   /**
-   * เมืองเต็มจอ แล้วให้หัว/ท้ายลอยทับ — ไม่แบ่งเป็นแถบ
-   * ⚠️ เวอร์ชันแรกวางหัว/เมือง/ท้ายเรียงกัน ⇒ เห็นรอยต่อแนวนอน 2 เส้น
-   * (ท้องฟ้าใน SVG กับพื้นหน้าเว็บสีไม่ตรงกัน) ภาพเลยดูเป็นกล่องในกล่อง
+   * Full-screen city with the header/footer floating on top — no stacked bands.
+   * ⚠️ The first version stacked header/city/footer ⇒ two visible horizontal seams
+   * (the SVG sky and the page background didn't match), so it looked like a box in a box.
    */
   return (
     <main className="relative h-[100svh] min-h-[560px] overflow-hidden bg-[var(--sky-top)] text-[var(--label)]">
@@ -150,7 +150,7 @@ function Stat({
   );
 }
 
-/** คู่มือ 3 บรรทัด — เท่าที่ต้องรู้เพื่ออ่านภาพออก ที่เหลือให้กดตึกดูเอง */
+/** Three-line key — just enough to read the picture; click a tower for the rest */
 function Key() {
   return (
     <ul className="hidden flex-col gap-1.5 text-xs text-[var(--label-dim)] sm:flex">
